@@ -29,4 +29,4 @@ def bundle_html(input_file, output_file):
     print(f"Datei {output_file} wurde erstellt.")
 
 if __name__ == "__main__":
-    bundle_html("index.html", "./dist/anonymat.html")
+    bundle_html("index.html", "./dist/Anonymat.html")
