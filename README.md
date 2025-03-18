@@ -43,7 +43,7 @@ This ensures that the tool can be used within GDPR-regulated environments and re
 ---
 
 ## How It Works  
-1. Download the file Anonymat.html and open the HTML file in your browser.  
+1. Download the file dist/Anonymat.html and open the HTML file in your browser.  
 2. Paste or type the text.  
 3. Click `Anonymize` — detected personal data will be replaced by placeholders.  
 4. Edit or process the anonymized text in external tools.  
