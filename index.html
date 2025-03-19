@@ -1,235 +1,252 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Anonymizer UI</title>
-  <!-- CONFIG-START -->
-  <script>
-    window.AppConfig = {
-      language: "de"
-    };
-  </script>
-  <!-- CONFIG-END -->
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- CSS auslagern -->
-  <link rel="stylesheet" href="style.css">
-  
-  <!-- Übersetzungsdatei einbinden -->
-  <script src="translations.js"></script>
-  <script src="config.js"></script>
-  
-  <!-- Weitere Skripte -->
-  <script src="images.js"></script>
-  <script src="placeholder.js"></script>
-  <script src="date.js"></script>
-  <script src="anonymizer.js"></script>
-  <script src="utils.js"></script>
-  <script src="ui.js"></script>
-  <script src="modal.js"></script>
-  <script src="editor.js"></script>
-  <script src="contextMenu.js"></script>
-
-</head>
-<body>
-  <header>
-    <!-- Hamburger für kleine Bildschirme -->
-    <div class="hamburger" id="openMenu" aria-label="Menü öffnen" title="Menü öffnen">&#9776;</div>
-    <div class="header-title">
-      <div class="header-logo" id="headerLogo" aria-label="Logo"></div>
-      <div class="header-text">
-        <h1 data-i18n="headerTitle">Anonymat</h1>
-        <span data-i18n="headerSubtitle">Persönliche Informationen lokal maskieren</span>
+  <head>
+    <meta charset="utf-8">
+    <title>Anonymizer UI</title>
+    
+    <!-- Configuration block (set language, etc.) -->
+    <!-- CONFIG-START -->
+    <script>
+      window.AppConfig = {
+        language: "de"
+      };
+    </script>
+    <!-- CONFIG-END -->
+    
+    <!-- Responsive meta tag for proper scaling on mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <!-- Link to external stylesheet -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Include translations and configuration scripts -->
+    <script src="translations.js"></script>
+    <script src="config.js"></script>
+    
+    <!-- Include additional libraries and modules -->
+    <script src="images.js"></script>
+    <script src="placeholder.js"></script>
+    <script src="date.js"></script>
+    <script src="anonymizer.js"></script>
+    <script src="utils.js"></script>
+    <script src="ui.js"></script>
+    <script src="modal.js"></script>
+    <script src="editor.js"></script>
+    <script src="contextMenu.js"></script>
+  </head>
+  <body>
+    <!-- Header section -->
+    <header>
+      <!-- Hamburger menu (visible on small screens) -->
+      <div class="hamburger" id="openMenu" aria-label="Open Menu" title="Open Menu">&#9776;</div>
+      
+      <!-- Site title and logo -->
+      <div class="header-title">
+        <div class="header-logo" id="headerLogo" aria-label="Logo"></div>
+        <div class="header-text">
+          <h1 data-i18n="headerTitle">Anonymat</h1>
+          <span data-i18n="headerSubtitle">Persönliche Informationen lokal maskieren</span>
+        </div>
       </div>
-    </div>
-    <!-- Header-Actions: Use emojis instead of SVG icons -->
-    <div class="header-actions">
-      <!-- Add placeholder (➕) -->
-      <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder">
-        <span class="icon">➕</span>
-      </button>
-      <!-- Placeholder settings (🛠️) -->
-      <button id="headerSettings" data-i18n-alt="settings">
-        <span class="icon">🛠️</span>
-      </button>
-      <!-- Language change (🌐) remains -->
-      <button id="headerGeneral" data-i18n-alt="languageChange">
-        <span class="icon">🌐</span>
-      </button>
-      <!-- Help/About (💡) -->
-      <button id="headerHelp" data-i18n-alt="help">
-        <span class="icon">💡</span>
-      </button>
-      <!-- Mapping (📋) -->
-      <button id="headerMapping" data-i18n-alt="mapping">
-        <span class="icon">📋</span>
-      </button>
-      <!-- Download program (⬇️) -->
-      <button id="downloadProgramBtn" data-i18n-alt="programSave">
-        <span class="icon">⬇️</span>
-      </button>
-    </div>
-  </header>
-  
-  <!-- Off-canvas Menü für kleine Bildschirme -->
-  <nav id="sideMenu">
-    <div class="close-menu" id="closeMenu" aria-label="Menü schließen" title="Menü schließen">&times;</div>
-    <ul>
-      <li>
-        <a href="#" id="menuAddPlaceholder" title="Platzhalter hinzufügen" aria-label="Platzhalter hinzufügen">
-          <span class="icon" data-i18n-alt="addPlaceholder">➕</span>
-          <span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" id="menuSettings" title="Platzhaltereinstellungen" aria-label="Platzhaltereinstellungen">
-          <span class="icon" data-i18n-alt="settings">🛠️</span>
-          <span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" id="menuGeneral" title="Sprache ändern" aria-label="Sprache ändern">
-          <span class="icon" data-i18n-alt="languageChange">🌐</span>
-          <span class="menu-text" data-i18n="languageChange">Sprache ändern</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" id="menuHelp" title="Hilfe/About" aria-label="Hilfe/About">
-          <span class="icon" data-i18n-alt="help">💡</span>
-          <span class="menu-text" data-i18n="help">Hilfe/About</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" id="menuMapping" title="Mapping anzeigen" aria-label="Mapping anzeigen">
-          <span class="icon" data-i18n-alt="mapping">📋</span>
-          <span class="menu-text" data-i18n="mapping">Mapping anzeigen</span>
-        </a>
-      </li>
-      <li>
-        <a href="#" id="menuDownload" title="Programm als separate Datei speichern" aria-label="Programm als separate Datei speichern">
-          <span class="icon" data-i18n-alt="programSave">⬇️</span>
-          <span class="menu-text" data-i18n="programSave">Programm speichern</span>
-        </a>
-      </li>
-    </ul>
-  </nav>
-  
-  <main>
-    <div id="container">
-      <div id="scrollable">
-        <pre id="highlight"></pre>
-        <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder"></textarea>
-      </div>
-      <!-- Overlay-Button zum Kopieren in die Zwischenablage -->
-      <button id="copyOverlayBtn" data-i18n="copyToClipboard">In Zwischenablage kopieren</button>
-      <div id="progressBar">
-         <div id="progressFill"></div>
-         <div id="progressText">Loading...</div>
-      </div>
-      <!-- Aktion-Buttons: Übersetzbare Texte -->
-      <div id="actionButtons">
-        <button class="action-btn" id="anonymizeBtn" aria-label="Anonymisieren" data-i18n-alt="anonymize">
+      
+      <!-- Action buttons in the header using emoji icons -->
+      <div class="header-actions">
+        <!-- Button to add a new placeholder -->
+        <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder">
           <span class="icon">➕</span>
-          <span class="label" data-i18n="anonymize">Anonymisieren</span>
         </button>
-        <button class="action-btn" id="deanonymizeBtn" aria-label="Deanonymisieren" data-i18n-alt="deanonymize">
+        <!-- Button for placeholder settings -->
+        <button id="headerSettings" data-i18n-alt="settings">
+          <span class="icon">🛠️</span>
+        </button>
+        <!-- Button to change the language -->
+        <button id="headerGeneral" data-i18n-alt="languageChange">
+          <span class="icon">🌐</span>
+        </button>
+        <!-- Button to show help/about information -->
+        <button id="headerHelp" data-i18n-alt="help">
           <span class="icon">💡</span>
-          <span class="label" data-i18n="deanonymize">Deanonymisieren</span>
+        </button>
+        <!-- Button to view the mapping (anonymization data) -->
+        <button id="headerMapping" data-i18n-alt="mapping">
+          <span class="icon">📋</span>
+        </button>
+        <!-- Button to download the program as a separate file -->
+        <button id="downloadProgramBtn" data-i18n-alt="programSave">
+          <span class="icon">⬇️</span>
         </button>
       </div>
-    </div>
-  </main>
-  
-  <footer>
-    <!-- Footer bleibt leer -->
-  </footer>
-  
-  <!-- Modale -->
-  <!-- Settings Modal: Nur Platzhaltereinstellungen -->
-  <div id="settingsModal" class="modal">
-    <div class="modal-content">
-      <h3 data-i18n="placeholderOptions">Platzhaltereinstellungen</h3>
-      <div id="placeholderOptionsContent"></div>
-      <div style="text-align: center;">
-        <button id="closeSettingsModalBtn" data-i18n="close">Schließen</button>
+    </header>
+    
+    <!-- Off-canvas side menu for small screens -->
+    <nav id="sideMenu">
+      <!-- Close button for side menu -->
+      <div class="close-menu" id="closeMenu" aria-label="Close Menu" title="Close Menu">&times;</div>
+      <ul>
+        <li>
+          <a href="#" id="menuAddPlaceholder" title="Add Placeholder" aria-label="Add Placeholder">
+            <span class="icon" data-i18n-alt="addPlaceholder">➕</span>
+            <span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" id="menuSettings" title="Placeholder Settings" aria-label="Placeholder Settings">
+            <span class="icon" data-i18n-alt="settings">🛠️</span>
+            <span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" id="menuGeneral" title="Change Language" aria-label="Change Language">
+            <span class="icon" data-i18n-alt="languageChange">🌐</span>
+            <span class="menu-text" data-i18n="languageChange">Sprache ändern</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" id="menuHelp" title="Help/About" aria-label="Help/About">
+            <span class="icon" data-i18n-alt="help">💡</span>
+            <span class="menu-text" data-i18n="help">Hilfe/About</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" id="menuMapping" title="Show Mapping" aria-label="Show Mapping">
+            <span class="icon" data-i18n-alt="mapping">📋</span>
+            <span class="menu-text" data-i18n="mapping">Mapping anzeigen</span>
+          </a>
+        </li>
+        <li>
+          <a href="#" id="menuDownload" title="Save program as separate file" aria-label="Save program as separate file">
+            <span class="icon" data-i18n-alt="programSave">⬇️</span>
+            <span class="menu-text" data-i18n="programSave">Programm speichern</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+    
+    <!-- Main content area -->
+    <main>
+      <div id="container">
+        <div id="scrollable">
+          <!-- Highlight layer for displaying colored overlays on detected text -->
+          <pre id="highlight"></pre>
+          <!-- Transparent textarea for actual text input -->
+          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder"></textarea>
+        </div>
+        
+        <!-- Button overlay to copy text to clipboard -->
+        <button id="copyOverlayBtn" data-i18n="copyToClipboard">In Zwischenablage kopieren</button>
+        
+        <!-- Progress bar to show scan/anonymization status -->
+        <div id="progressBar">
+          <div id="progressFill"></div>
+          <div id="progressText">Loading...</div>
+        </div>
+        
+        <!-- Action buttons for anonymization and deanonymization -->
+        <div id="actionButtons">
+          <button class="action-btn" id="anonymizeBtn" aria-label="Anonymize" data-i18n-alt="anonymize">
+            <span class="icon">➕</span>
+            <span class="label" data-i18n="anonymize">Anonymisieren</span>
+          </button>
+          <button class="action-btn" id="deanonymizeBtn" aria-label="Deanonymize" data-i18n-alt="deanonymize">
+            <span class="icon">💡</span>
+            <span class="label" data-i18n="deanonymize">Deanonymisieren</span>
+          </button>
+        </div>
+      </div>
+    </main>
+    
+    <!-- Footer (currently empty, reserved for future use) -->
+    <footer>
+    </footer>
+    
+    <!-- Modals -->
+    
+    <!-- Settings Modal: Allows configuration of placeholder settings -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="placeholderOptions">Platzhaltereinstellungen</h3>
+        <div id="placeholderOptionsContent"></div>
+        <div style="text-align: center;">
+          <button id="closeSettingsModalBtn" data-i18n="close">Schließen</button>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <!-- General Modal: "Sprache ändern" -->
-  <div id="generalModal" class="modal">
-    <div class="modal-content">
-      <h3 data-i18n="languageChange">Sprache ändern</h3>
-      <label for="languageSelect" data-i18n="languageChange">Sprache der Benutzerschnittstelle:</label>
-      <select id="languageSelect" style="padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;">
-        <option value="de">🇩🇪 Deutsch</option>
-        <option value="en">🇬🇧 English</option>
-      </select>
-      <div style="text-align: center; margin-top: 20px;">
-        <button id="closeGeneralModalBtn" data-i18n="close">Schließen</button>
+    
+    <!-- General Modal: For changing the interface language -->
+    <div id="generalModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="languageChange">Sprache ändern</h3>
+        <label for="languageSelect" data-i18n="languageChange">Sprache der Benutzerschnittstelle:</label>
+        <select id="languageSelect" style="padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;">
+          <option value="de">🇩🇪 Deutsch</option>
+          <option value="en">🇬🇧 English</option>
+        </select>
+        <div style="text-align: center; margin-top: 20px;">
+          <button id="closeGeneralModalBtn" data-i18n="close">Schließen</button>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Help/About Modal -->
-  <div id="helpModal" class="modal">
-    <div class="modal-content">
-      <h3 data-i18n="helpTitle">Über Anonymizer</h3>
-      <p data-i18n="helpDescription">
-        Anonymizer ist ein Werkzeug zur semiautomatischen Maskierung und Anonymisierung persönlicher Daten in Texten. Es dient dazu, sensible Informationen wie Namen, E-Mail-Adressen, Telefonnummern oder Bankdaten zu erkennen und durch Platzhalter zu ersetzen, sodass Texte datenschutzkonform weitergegeben werden können – beispielsweise an KI-basierte Anwendungen.
-      </p>
-      <p data-i18n="helpLocal">
-        Die Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten. Alle Daten verbleiben auf Ihrem Gerät.
-      </p>
-      <p data-i18n="helpDisclaimer">
-        Wichtiger Hinweis: Anonymizer stellt eine Hilfestellung dar. Es kann nicht garantieren, dass sämtliche sensible Informationen erkannt und maskiert werden. Die Verantwortung für die endgültige Überprüfung liegt beim Anwender.
-      </p>
-      <p data-i18n="helpLicense">
-        Dieses Projekt ist Open Source und steht unter der MIT-Lizenz. Weitere Informationen und Mitwirkungsmöglichkeiten finden Sie auf unserer GitHub-Seite.
-      </p>
-      <p data-i18n="helpVersion">
-        Version: 1.0.0 | © 2025 DeinName
-      </p>
-      <div style="text-align: center; margin-top: 20px;">
-        <button id="closeHelpModalBtn" data-i18n="close">Schließen</button>
+    
+    <!-- Help/About Modal: Provides information about the tool -->
+    <div id="helpModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="helpTitle">Über Anonymizer</h3>
+        <p data-i18n="helpDescription">
+          Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.
+        </p>
+        <p data-i18n="helpLocal">
+          This application runs entirely locally in your browser and does not communicate with external services.
+        </p>
+        <p data-i18n="helpDisclaimer">
+          Important note: Anonymizer is a support tool. The final responsibility lies with the user.
+        </p>
+        <p data-i18n="helpLicense">
+          This project is open source and is licensed under the MIT license.
+        </p>
+        <p data-i18n="helpVersion">
+          Version: 1.0.0 | © 2025 YourName
+        </p>
+        <div style="text-align: center; margin-top: 20px;">
+          <button id="closeHelpModalBtn" data-i18n="close">Schließen</button>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Mapping Modal -->
-  <div id="mappingModal" class="modal">
-    <div class="modal-content">
-      <h3 data-i18n="mapping">Mapping-Liste</h3>
-      <div id="mappingModalContent">
-        <!-- Mapping-Tabelle wird hier dynamisch eingefügt -->
-      </div>
-      <div style="text-align: center; margin-top: 20px;">
-        <button id="resetMappingBtn">Mapping zurücksetzen</button>
-        <button id="closeMappingModalBtn" data-i18n="close">Schließen</button>
-      </div>
-    </div>
-  </div>
-  
-  <div id="customPlaceholderModal" class="modal" style="display:none;">
-    <div class="modal-content">
-      <h3>Platzhalter hinzufügen</h3>
-      <label for="customPattern">Muster:</label>
-      <input type="text" id="customPattern" data-i18n-placeholder="customPatternPlaceholder" placeholder="Hier zu ersetzenden Text eingeben" />
-      <label for="customLabel">Bezeichnung:</label>
-      <input type="text" id="customLabel" placeholder="z.B. Secret" />
-      <div class="modal-buttons">
-        <button id="saveCustomPlaceholderBtn">Speichern</button>
-        <button id="cancelCustomPlaceholderBtn">Abbrechen</button>
+    
+    <!-- Mapping Modal: Displays the mapping between original data and placeholders -->
+    <div id="mappingModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="mapping">Mapping-Liste</h3>
+        <div id="mappingModalContent">
+          <!-- Mapping table will be dynamically inserted here -->
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+          <button id="resetMappingBtn">Mapping zurücksetzen</button>
+          <button id="closeMappingModalBtn" data-i18n="close">Schließen</button>
+        </div>
       </div>
     </div>
-  </div>
-  
-  <!-- Kontextmenü -->
-  <div id="contextMenu" class="context-menu">
-    <button id="ctxAddPlaceholder"><span class="icon"></span> Platzhalter hinzufügen</button>
-    <button id="ctxDoNotAnonymize"><span class="icon"></span> Diesen Text nicht anonymisieren</button>
-  </div>
-  
-  <!-- Der bisherige fancy Download-Code wurde in ui.js ausgelagert -->
-  
-</body>
+    
+    <!-- Custom Placeholder Modal: For adding user-defined placeholders -->
+    <div id="customPlaceholderModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h3>Platzhalter hinzufügen</h3>
+        <label for="customPattern">Muster:</label>
+        <input type="text" id="customPattern" data-i18n-placeholder="customPatternPlaceholder" placeholder="Enter text to be replaced" />
+        <label for="customLabel">Bezeichnung:</label>
+        <input type="text" id="customLabel" placeholder="e.g. Secret" />
+        <div class="modal-buttons">
+          <button id="saveCustomPlaceholderBtn">Speichern</button>
+          <button id="cancelCustomPlaceholderBtn">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Context Menu: Provides quick actions based on text selection -->
+    <div id="contextMenu" class="context-menu">
+      <button id="ctxAddPlaceholder"><span class="icon"></span> Platzhalter hinzufügen</button>
+      <button id="ctxDoNotAnonymize"><span class="icon"></span> Diesen Text nicht anonymisieren</button>
+    </div>
+    
+    <!-- Note: Download functionality is implemented in ui.js -->
+  </body>
 </html>
