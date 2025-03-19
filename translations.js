@@ -1,5 +1,3 @@
-"use strict";
-
 (function (window) {
   window.translations = {
     de: {
@@ -14,15 +12,12 @@
       close: "Schließen",
       placeholderOptions: "Platzhaltereinstellungen",
       helpTitle: "Über Anonymizer",
-      helpDescription:
-        "Anonymizer ist ein Werkzeug zur semiautomatischen Maskierung und Anonymisierung persönlicher Daten in Texten. Es dient dazu, sensible Informationen wie Namen, E-Mail-Adressen, Telefonnummern oder Bankdaten zu erkennen und durch Platzhalter zu ersetzen.",
-      helpLocal:
-        "Die Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten.",
-      helpDisclaimer:
-        "Anonymizer stellt eine Hilfestellung dar – die endgültige Überprüfung liegt beim Anwender.",
-      helpLicense:
-        "Dieses Projekt ist Open Source und steht unter der MIT-Lizenz.",
-      helpVersion: "Version: 1.0.0 | © 2025 DeinName",
+      helpDescription: "Anonymizer ist ein Tool zur teilautomatisierten Maskierung und Anonymisierung personenbezogener Daten in Texten.",
+      helpLocal: "Diese Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten.",
+      helpDsGvo: "Das Tool unterstützt DSGVO-konforme Arbeitsabläufe. (Die DSGVO — Datenschutz-Grundverordnung — ist eine europäische Verordnung zum Schutz personenbezogener Daten.)",
+      helpResponsibility: "Wichtig: Anonymizer bietet eine Teilautomatisierung. Die Endverantwortung und Kontrolle liegen immer beim Anwender.",
+      helpLicense: "Dieses Projekt ist Open Source und steht unter der MIT-Lizenz.",
+      helpVersion: "Version: 1.0.0 | © 2025 YourName",
       anonymize: "Anonymisieren",
       deanonymize: "Deanonymisieren",
       editorPlaceholder: "Hier Text einfügen...",
@@ -60,14 +55,11 @@
       close: "Close",
       placeholderOptions: "Placeholder settings",
       helpTitle: "About Anonymizer",
-      helpDescription:
-        "Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts. It is designed to detect sensitive information such as names, email addresses, phone numbers, or bank data and replace them with placeholders.",
-      helpLocal:
-        "The application runs completely locally in the browser and does not communicate with external services.",
-      helpDisclaimer:
-        "Anonymizer is only a support tool. The final verification is the user's responsibility.",
-      helpLicense:
-        "This project is open source and is licensed under the MIT license.",
+      helpDescription: "Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.",
+      helpLocal: "This application runs entirely locally in your browser and does not communicate with external services.",
+      helpDsGvo: "The tool is designed to support GDPR-compliant workflows. (The GDPR — General Data Protection Regulation — is a European regulation for data privacy and security.)",
+      helpResponsibility: "Important: Anonymizer offers partial automation. The final responsibility and verification always remain with the user.",
+      helpLicense: "This project is open source and licensed under the MIT license.",
       helpVersion: "Version: 1.0.0 | © 2025 YourName",
       anonymize: "Anonymize",
       deanonymize: "Deanonymize",
@@ -99,10 +91,9 @@
   if (typeof window.translate !== "function") {
     window.translate = function (key, params) {
       const lang = (window.Config && window.Config.get("language")) || "en";
-      const trans =
-        window.translations[lang] && window.translations[lang][key]
-          ? window.translations[lang][key]
-          : key;
+      const trans = window.translations[lang] && window.translations[lang][key]
+        ? window.translations[lang][key]
+        : key;
       if (params && params.length > 0) {
         return trans.replace(/{(\d+)}/g, function (match, number) {
           return typeof params[number - 1] !== "undefined"
