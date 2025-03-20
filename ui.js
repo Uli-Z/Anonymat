@@ -2,6 +2,18 @@
 
 (function (window) {
   document.addEventListener("DOMContentLoaded", function () {
+    // Ensure window.Icons is defined with the required properties.
+    window.Icons = window.Icons || {
+      anonymize: "🛡️",
+      deanonymize: "👀",
+      check: "✅",
+      addPlaceholder: "➕",
+      options: "🛠️",
+      help: "💡",
+      logo: "", // Set your logo icon if needed
+      mapping: "📋"
+    };
+
     // -----------------------------
     // Language and Translation Setup
     // -----------------------------
@@ -81,13 +93,10 @@
     });
 
     // -----------------------------
-    // (Die doppelten Modal Management Functions wurden entfernt)
-    // Jetzt wird ausschließlich auf die in modal.js definierte Funktionalität (window.Modal) gesetzt.
-    // -----------------------------
-
-    // -----------------------------
     // Action-Buttons Setup
     // -----------------------------
+    // The following block that overrides icons is removed to preserve the emojis defined in index.html.
+    /*
     const anonymizeBtn = document.getElementById("anonymizeBtn");
     const deanonymizeBtn = document.getElementById("deanonymizeBtn");
     if (anonymizeBtn && window.Icons && window.Icons.anonymize) {
@@ -102,6 +111,7 @@
         iconElem.innerHTML = window.Icons.deanonymize;
       }
     }
+    */
 
     // -----------------------------
     // Header and Side Menu Setup
@@ -305,14 +315,14 @@
     };
 
     // -----------------------------
-    // Context Menu: Wird jetzt ausschließlich in contextMenu.js verwaltet.
-    // Initialisiere das Kontextmenü.
+    // Context Menu: Managed exclusively in contextMenu.js.
+    // Initialize the context menu.
     if (window.ContextMenu && typeof window.ContextMenu.init === "function") {
       window.ContextMenu.init("editor", "contextMenu");
     }
 
     // -----------------------------
-    // Highlight- und Editor-Management
+    // Highlight and Editor Management
     // -----------------------------
     const editor = document.getElementById("editor");
     const highlight = document.getElementById("highlight");
@@ -325,13 +335,13 @@
       }
 
       let intervals = [];
-      // Intervalle für erkannte PII und Platzhalter sammeln.
+      // Collect intervals for detected PII and placeholders.
       let detectedIntervals = Utils.collectIntervals(text, window.anonymizer.getMapping().map(entry => entry[0]), "detected");
       detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
       intervals = intervals.concat(detectedIntervals);
       intervals = intervals.concat(Utils.collectIntervals(text, window.anonymizer.getMapping().map(entry => entry[1]), "anonymized"));
 
-      // Whitelist-Intervalle hinzufügen.
+      // Add whitelist intervals.
       const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
       intervals = intervals.concat(Utils.collectIntervals(text, whitelistItems, "whitelisted"));
 
@@ -347,7 +357,7 @@
       result += Utils.escapeHtml(text.substring(currentIndex));
       highlight.innerHTML = result;
 
-      // Highlight-Klassen setzen.
+      // Set highlight classes.
       if (window.anonymizer.getMapping().some(entry => text.indexOf(entry[0]) !== -1)) {
         highlight.classList.add("highlight-detected");
         highlight.classList.remove("highlight-clean");
