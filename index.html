@@ -129,7 +129,8 @@
           <!-- Highlight layer for displaying colored overlays on detected text -->
           <pre id="highlight"></pre>
           <!-- Transparent textarea for actual text input -->
-          <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder"></textarea>
+          <!-- Removed native placeholder attribute so that the placeholder is only shown in the highlight area -->
+          <textarea id="editor" spellcheck="false"></textarea>
         </div>
         
         <!-- Button overlay to copy text to clipboard -->

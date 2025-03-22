@@ -164,7 +164,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateHighlight() {
     const text = editor.value;
     if (text.trim() === "") {
-      highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
+      // Use the translated placeholder so that only the highlight shows it.
+      highlight.innerHTML = `<span class="placeholder">${window.translate("editorPlaceholder")}</span>`;
       highlight.className = "";
       return;
     }
@@ -225,10 +226,9 @@ document.addEventListener("DOMContentLoaded", function () {
     highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
   });
 
-  // Add a resize listener to update highlight and layout when window size changes.
+  // Update highlight and layout on window resize.
   window.addEventListener("resize", function () {
     updateHighlight();
-    // Also adjust the highlight transform in case scroll positions have been affected.
     highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
   });
 
