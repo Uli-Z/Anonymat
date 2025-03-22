@@ -3,6 +3,7 @@
 (function (window) {
   const ContextMenu = {
     lastSelectionRange: { start: 0, end: 0 },
+    lastMenuSelectionRange: null, // Stores the selection range for which the menu was last built
 
     // Clears the selection by moving the cursor to the end of the last selection range.
     clearSelection(editor) {
@@ -32,7 +33,7 @@
       const text = editor.value;
       const positions = [];
       const mapping = window.anonymizer.getMapping();
-      // Process both original and masked tokens in a single loop
+      // Process both original and masked tokens in a single loop.
       mapping.forEach(entry => {
         [entry[0], entry[1]].forEach(candidate => {
           if (candidate) {
@@ -81,14 +82,6 @@
     },
 
     // Builds the context menu based on the current text selection.
-    // Adds buttons for:
-    //   - Batch anonymization (if any unmasked PII is present)
-    //   - Batch deanonymization (if any masked tokens are present)
-    //   - "Never anonymize" (always shown if selection is non-empty)
-    //   - "Add placeholder" (only if no token is contained in the selection)
-    //   - "Remove/Disable placeholder" for each active placeholder found in the selection.
-    //     If a placeholder token is present in the selection, it will be deanonymized first.
-    //   - Whitelist options if present.
     async buildContextMenuAsync(editor, contextMenu, e) {
       let selStart = editor.selectionStart;
       let selEnd = editor.selectionEnd;
@@ -97,19 +90,19 @@
         selection = editor.value.substring(this.lastSelectionRange.start, this.lastSelectionRange.end).trim();
       }
       
-      // Get whitelist and placeholder information
+      // Get whitelist and placeholder info.
       const clickable = await this.getClickableElementsInSelection(selection);
       const whitelistFound = clickable.whitelist;
       const placeholderFound = clickable.placeholder;
       contextMenu.innerHTML = "";
 
       const mapping = window.anonymizer.getMapping();
-      // Unmasked (original) entries indicate PII that can be anonymized.
+      // Unmasked entries indicate PII that can be anonymized.
       const anonymizableEntries = mapping.filter(entry => entry[0] && selection.indexOf(entry[0]) !== -1);
       // Masked tokens indicate deanonymizable entries.
       const deanonymizableEntries = mapping.filter(entry => entry[1] && selection.indexOf(entry[1]) !== -1);
 
-      // "Never anonymize" button (always if selection is non-empty)
+      // "Never anonymize" button.
       if (selection.length > 0) {
         const btnNeverAnonymize = Utils.createButton(
           "⛔ " + window.translate("contextMenu.neverAnonymize"),
@@ -126,7 +119,7 @@
         contextMenu.appendChild(btnNeverAnonymize);
       }
 
-      // Batch anonymization button (if there are any unmasked PII entries)
+      // Batch anonymization button.
       if (anonymizableEntries.length > 0) {
         const uniqueOriginals = [...new Set(anonymizableEntries.map(entry => entry[0]))];
         const btnBatchAnonymize = Utils.createButton(
@@ -147,7 +140,7 @@
         contextMenu.appendChild(btnBatchAnonymize);
       }
 
-      // Batch deanonymization button (if there are any masked tokens)
+      // Batch deanonymization button.
       if (deanonymizableEntries.length > 0) {
         const uniqueTokens = [...new Set(deanonymizableEntries.map(entry => entry[1]))];
         const btnBatchDeanonymize = Utils.createButton(
@@ -168,7 +161,7 @@
         contextMenu.appendChild(btnBatchDeanonymize);
       }
 
-      // "Add placeholder" button (if no deanonymizable token is contained in the selection)
+      // "Add placeholder" button.
       if (deanonymizableEntries.length === 0) {
         const btnAddPlaceholder = Utils.createButton(
           "➕ " + window.translate("contextMenu.addPlaceholder"),
@@ -185,24 +178,21 @@
         contextMenu.appendChild(btnAddPlaceholder);
       }
 
-      // "Remove/Disable placeholder" button for each active placeholder in the selection.
-      // If a placeholder token is present in the selection, deanonymize it first.
+      // "Remove/Disable placeholder" button for each active placeholder.
       Object.keys(placeholderFound).forEach(prefix => {
         const placeholderType = placeholderFound[prefix];
-        if (placeholderType.enabled) { // Only if the placeholder is active
+        if (placeholderType.enabled) {
           const btnRemovePlaceholder = Utils.createButton(
             "❌ " + window.translate("contextMenu.removePlaceholder", [placeholderType.placeholderPrefix]),
             ev => {
               ev.preventDefault();
               editor.focus();
-              // Deanonymize all tokens in the selection for this placeholder type, if present.
               const tokensToDeanonymize = mapping
                 .filter(entry => entry[2].id === placeholderType.id && entry[1] && selection.indexOf(entry[1]) !== -1)
                 .map(entry => entry[1]);
               tokensToDeanonymize.forEach(token => {
                 window.anonymizer.deanonymizeSingleToken(token);
               });
-              // Then disable the placeholder type.
               window.anonymizer.setPlaceholderStatus(placeholderType.id, false);
               editor.dispatchEvent(new Event("input"));
               contextMenu.style.display = "none";
@@ -213,7 +203,7 @@
         }
       });
 
-      // Whitelist options: if there are whitelist matches, add options to remove them.
+      // Whitelist options.
       if (whitelistFound.length > 0) {
         if (whitelistFound.length > 3) {
           const btn = Utils.createButton(
@@ -250,29 +240,54 @@
 
     // Displays the context menu at an appropriate position based on the event.
     async showContextMenu(editor, contextMenu, e) {
-      if ((editor.selectionEnd - editor.selectionStart >= 1) || this.lastSelectionRange.end > this.lastSelectionRange.start) {
-        await this.buildContextMenuAsync(editor, contextMenu, e);
-        const menuWidth = contextMenu.offsetWidth;
-        const menuHeight = contextMenu.offsetHeight;
-        let posX = e.clientX - menuWidth / 2;
-        let posY = e.clientY + 10;
-        if (posX < 0) posX = 0;
-        if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth;
-        if (posY + menuHeight > window.innerHeight) {
-          posY = e.clientY - menuHeight - 10;
-          if (posY < 0) posY = 0;
-        }
-        contextMenu.style.left = posX + "px";
-        contextMenu.style.top = posY + "px";
-        contextMenu.style.display = "flex";
-      } else {
+      if ((editor.selectionEnd - editor.selectionStart < 1) && (this.lastSelectionRange.end <= this.lastSelectionRange.start)) {
         contextMenu.style.display = "none";
+        return;
       }
+      // Only rebuild the menu if the selection has changed.
+      let currentRange = { start: editor.selectionStart, end: editor.selectionEnd };
+      if (this.lastMenuSelectionRange &&
+          currentRange.start === this.lastMenuSelectionRange.start &&
+          currentRange.end === this.lastMenuSelectionRange.end &&
+          contextMenu.style.display === "flex") {
+        return;
+      }
+      this.lastMenuSelectionRange = { start: currentRange.start, end: currentRange.end };
+      await this.buildContextMenuAsync(editor, contextMenu, e);
+      const menuWidth = contextMenu.offsetWidth;
+      const menuHeight = contextMenu.offsetHeight;
+      let posX = e.clientX - menuWidth / 2;
+      let posY = e.clientY + 10;
+      if (posX < 0) posX = 0;
+      if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth;
+      if (posY + menuHeight > window.innerHeight) {
+        posY = e.clientY - menuHeight - 10;
+        if (posY < 0) posY = 0;
+      }
+      contextMenu.style.left = posX + "px";
+      contextMenu.style.top = posY + "px";
+      contextMenu.style.display = "flex";
     },
 
-    // Handles clicks within the editor to display the context menu if a clickable candidate is found.
+    // Handles clicks within the editor.
     async handleEditorClick(editor, contextMenu, e) {
+      // Check if the click is on a sensitive (highlighted) area.
+      const highlight = document.getElementById("highlight");
+      const sensitiveElements = highlight.querySelectorAll("span.detected, span.anonymized, span.whitelisted, span.placeholder");
+      let clickOnSensitive = false;
+      sensitiveElements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (e.clientX >= rect.left && e.clientX <= rect.right &&
+            e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          clickOnSensitive = true;
+        }
+      });
+      if (!clickOnSensitive) {
+        contextMenu.style.display = "none";
+        return;
+      }
       if (editor.selectionStart === editor.selectionEnd) {
+        // If caret is at end of text, close menu.
         if (editor.selectionStart === editor.value.length) {
           contextMenu.style.display = "none";
           return;
@@ -296,7 +311,7 @@
       }
     },
 
-    // Registers event listeners for the editor and document to handle context menu display.
+    // Registers event listeners for the editor and document.
     registerEventListeners(editor, contextMenu) {
       editor.addEventListener("mouseup", async e => {
         await this.updateLastSelectionRange(editor);
@@ -320,8 +335,9 @@
         await this.handleEditorClick(editor, contextMenu, e);
       });
 
+      // Close menu on every click outside the context menu.
       document.addEventListener("click", e => {
-        if (!e.target.closest("#contextMenu") && e.target.id !== "editor") {
+        if (!e.target.closest("#contextMenu")) {
           contextMenu.style.display = "none";
         }
       });
