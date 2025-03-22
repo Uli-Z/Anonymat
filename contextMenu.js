@@ -32,21 +32,17 @@
       const text = editor.value;
       const positions = [];
       const mapping = window.anonymizer.getMapping();
+      // Process both original and masked tokens in a single loop
       mapping.forEach(entry => {
-        if (entry[0]) {
-          let index = text.indexOf(entry[0]);
-          while (index !== -1) {
-            positions.push({ candidate: entry[0], start: index, end: index + entry[0].length });
-            index = text.indexOf(entry[0], index + 1);
+        [entry[0], entry[1]].forEach(candidate => {
+          if (candidate) {
+            let index = text.indexOf(candidate);
+            while (index !== -1) {
+              positions.push({ candidate: candidate, start: index, end: index + candidate.length });
+              index = text.indexOf(candidate, index + 1);
+            }
           }
-        }
-        if (entry[1]) {
-          let index = text.indexOf(entry[1]);
-          while (index !== -1) {
-            positions.push({ candidate: entry[1], start: index, end: index + entry[1].length });
-            index = text.indexOf(entry[1], index + 1);
-          }
-        }
+        });
       });
       window.anonymizer.whitelist.forEach(wl => {
         if (wl.trim() !== "") {
