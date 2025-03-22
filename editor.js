@@ -1,7 +1,7 @@
 "use strict";
 
 document.addEventListener("DOMContentLoaded", function () {
-  // Konfiguration der klickbaren Elemente für das Text-Highlighting.
+  // Configuration for clickable elements for text highlighting.
   const clickableElementsConfig = {
     detected: { className: "detected" },
     placeholder: { className: "anonymized" },
@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const editor = document.getElementById("editor");
   const highlight = document.getElementById("highlight");
   const progressBar = document.getElementById("progressBar");
-  const progressStatus = document.getElementById("progressStatus"); // Optionales Status-Element
+  const progressStatus = document.getElementById("progressStatus"); // Optional status element
 
   const anonymizeBtn = document.getElementById("anonymizeBtn");
   const deanonymizeBtn = document.getElementById("deanonymizeBtn");
@@ -19,14 +19,14 @@ document.addEventListener("DOMContentLoaded", function () {
   anonymizeBtn.disabled = true;
   deanonymizeBtn.disabled = true;
 
-  let progressHideTimeout; // Timer für das automatische Ausblenden der Statusmeldung
-  let hideBarAnimationTimeout; // Timer, der den CSS-Fadeout steuert
+  let progressHideTimeout; // Timer for auto-hiding the status message
+  let hideBarAnimationTimeout; // Timer for the CSS fadeout
 
-  // Globale Arrays für erkannte sensible Daten und Platzhalter-Tokens.
+  // Global arrays for detected sensitive data and placeholder tokens.
   let detectedPIIinText = [];
   let placeholderTokensInText = [];
 
-  // Aktualisiert die Debug-Mapping-Tabelle, falls vorhanden.
+  // Update the debug mapping table, if available.
   function updatePlaceholdersTable() {
     const mappingContainer = document.getElementById("mappingTable");
     if (!mappingContainer) return;
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function () {
     mappingContainer.innerHTML = html;
   }
 
-  // Aktualisiert die aktuellen Mapping-Listen basierend auf dem Editor-Text.
+  // Update the current mapping lists based on the editor text.
   function updateCurrentMappingLists() {
     const snapshot = editor.value;
     const mapping = window.anonymizer.getMapping();
@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .map(entry => entry[1]);
   }
 
-  // Aktualisiert die UI des Fortschrittsbalkens.
+  // Update the UI of the progress bar.
   function updateProgressUI(percent, message) {
     if (window.anonymizer.scanCompleted) return;
     if (progressBar) {
@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const throttledProgressUI = Utils.throttle(updateProgressUI, 100);
 
-  // Callback, wenn der Text-Scan abgeschlossen ist.
+  // Callback when text scan is complete.
   function handleProgressComplete() {
     const progressFill = document.getElementById("progressFill");
     const progressText = document.getElementById("progressText");
@@ -92,7 +92,7 @@ document.addEventListener("DOMContentLoaded", function () {
     progressHideTimeout = setTimeout(hideProgressBar, 1000);
   }
 
-  // Blendet den Fortschrittsbalken aus.
+  // Hide the progress bar.
   function hideProgressBar() {
     if (progressBar) {
       progressBar.classList.add("fade-out");
@@ -108,9 +108,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Gemeinsame Funktion zum Anzeigen von Statusmeldungen.
-  // Alle vorherigen Timer werden zurückgesetzt, sodass die aktuelle Meldung
-  // für mindestens 2 Sekunden sichtbar bleibt.
+  // Show a status message.
   function showStatusMessage(message, clickHandler) {
     if (progressHideTimeout) {
       clearTimeout(progressHideTimeout);
@@ -144,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 2000);
   }
 
-  // Aktualisiert Highlight, Mapping-Listen, Button-Zustände und die Debug-Tabelle.
+  // Update highlight, mapping lists, button states, and the debug table.
   function mappingChangeHandler() {
     updateCurrentMappingLists();
     updateHighlight();
@@ -152,7 +150,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updatePlaceholdersTable();
   }
 
-  // Aktualisiert den Text basierend auf Anonymizer-Änderungen.
+  // Update text based on anonymizer changes.
   function handleTextChange() {
     editor.value = window.anonymizer.getText();
     updateCurrentMappingLists();
@@ -162,8 +160,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const throttledMappingChange = Utils.throttle(mappingChangeHandler, 100);
 
-  // Aktualisiert die Highlight-Schicht basierend auf erkannten Intervallen.
-  async function updateHighlight() {
+  // Update the highlight layer based on detected intervals.
+  function updateHighlight() {
     const text = editor.value;
     if (text.trim() === "") {
       highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
@@ -173,13 +171,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let intervals = [];
 
-    // Intervalle für erkannte PII und Platzhalter sammeln.
+    // Collect intervals for detected PII and placeholders.
     let detectedIntervals = Utils.collectIntervals(text, detectedPIIinText, clickableElementsConfig.detected.className);
     detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
     intervals = intervals.concat(detectedIntervals);
     intervals = intervals.concat(Utils.collectIntervals(text, placeholderTokensInText, clickableElementsConfig.placeholder.className));
 
-    // Whitelist-Intervalle hinzufügen.
+    // Add whitelist intervals.
     const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
     intervals = intervals.concat(Utils.collectIntervals(text, whitelistItems, clickableElementsConfig.whitelist.className));
 
@@ -195,7 +193,7 @@ document.addEventListener("DOMContentLoaded", function () {
     result += Utils.escapeHtml(text.substring(currentIndex));
     highlight.innerHTML = result;
 
-    // Schaltet die Highlight-Klassen.
+    // Update highlight classes.
     if (detectedPIIinText.length > 0) {
       highlight.classList.add("highlight-detected");
       highlight.classList.remove("highlight-clean");
@@ -204,10 +202,11 @@ document.addEventListener("DOMContentLoaded", function () {
       highlight.classList.remove("highlight-detected");
     }
 
+    // Adjust highlight height to match the editor.
     highlight.style.height = editor.scrollHeight + "px";
   }
 
-  // Aktiviert/deaktiviert Buttons basierend auf dem Textzustand.
+  // Update button states based on current text.
   function updateButtonStates() {
     anonymizeBtn.disabled = detectedPIIinText.length === 0;
     deanonymizeBtn.disabled = placeholderTokensInText.length === 0;
@@ -226,7 +225,14 @@ document.addEventListener("DOMContentLoaded", function () {
     highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
   });
 
-  // Beim Klick auf "Anonymisieren": Zeige eine Statusmeldung ohne Kopierfunktion.
+  // Add a resize listener to update highlight and layout when window size changes.
+  window.addEventListener("resize", function () {
+    updateHighlight();
+    // Also adjust the highlight transform in case scroll positions have been affected.
+    highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
+  });
+
+  // Anonymize button click handler.
   anonymizeBtn.addEventListener("click", function () {
     window.anonymizer.anonymize();
     anonymizeBtn.disabled = true;
@@ -237,7 +243,7 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   });
 
-  // Beim Klick auf "Deanonymisieren": Zeige eine Statusmeldung.
+  // Deanonymize button click handler.
   deanonymizeBtn.addEventListener("click", function () {
     window.anonymizer.deanonymize();
     updateHighlight();
@@ -247,13 +253,13 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   });
 
-  // Registriere Anonymizer-Callbacks.
+  // Register anonymizer callbacks.
   window.anonymizer.setOnMappingChange(throttledMappingChange);
   window.anonymizer.setOnProgress(throttledProgressUI);
   window.anonymizer.setOnComplete(handleProgressComplete);
   window.anonymizer.setOnTextChange(handleTextChange);
 
-  // Event-Listener für den Overlay-Copy-Button.
+  // Overlay copy button handler.
   const copyOverlayBtn = document.getElementById("copyOverlayBtn");
   if (copyOverlayBtn) {
     copyOverlayBtn.addEventListener("click", function () {
@@ -272,6 +278,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Initialer Aufruf zum Aktualisieren des Highlights.
+  // Initial call to update the highlight.
   updateHighlight();
 });
