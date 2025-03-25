@@ -11,13 +11,13 @@
       programSave: "Programm als separate Datei speichern",
       close: "Schließen",
       placeholderOptions: "Platzhaltereinstellungen",
-      helpTitle: "Über Anonymizer",
-      helpDescription: "Anonymizer ist ein Tool zur teilautomatisierten Maskierung und Anonymisierung personenbezogener Daten in Texten.",
+      helpTitle: "Über Anonymat",
+      helpDescription: "Anonymat ist ein Tool zur teilautomatisierten Maskierung und Anonymisierung personenbezogener Daten in Texten.",
       helpLocal: "Diese Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten.",
-      helpDsGvo: "Das Tool unterstützt DSGVO-konforme Arbeitsabläufe. (Die DSGVO — Datenschutz-Grundverordnung — ist eine europäische Verordnung zum Schutz personenbezogener Daten.)",
-      helpResponsibility: "Wichtig: Anonymizer bietet eine Teilautomatisierung. Die Endverantwortung und Kontrolle liegen immer beim Anwender.",
+      helpDsGvo: "Das Tool unterstützt DSGVO-konforme Arbeitsabläufe. (Die DSGVO – Datenschutz-Grundverordnung – ist eine europäische Verordnung zum Schutz personenbezogener Daten.)",
+      helpResponsibility: "Wichtig: Anonymat bietet eine Teilautomatisierung. Die Endverantwortung und Kontrolle liegen immer beim Anwender.",
       helpLicense: "Dieses Projekt ist Open Source und steht unter der GPL-3-Lizenz.",
-      helpVersion: "Version: 1.0.0 | © 2025 Uli-Z",
+      helpVersion: "Version: 1.0.0 | © 2025 Uli-Z | GitHub: <a href='https://github.com/Uli-Z/Anonymat' target='_blank'>Anonymat</a>",
       anonymize: "Anonymisieren",
       deanonymize: "Deanonymisieren",
       editorPlaceholder: "Hier Text einfügen...",
@@ -41,7 +41,13 @@
       "contextMenu.hideAdditionalPlaceholders": "Verbergen",
       "contextMenu.updateStatus": "Status aktualisieren",
       "contextMenu.statusUpdated": "Platzhalter-Status aktualisiert.",
-      "contextMenu.anonymizeSelection": "Auswahl anonymisieren ({1})"
+      "contextMenu.anonymizeSelection": "Auswahl anonymisieren ({1})",
+      // First-run modal translations
+      "firstRunModal.title": "Wichtiger Hinweis:",
+      "firstRunModal.text": "Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.",
+      "firstRunModal.checkbox": "Ich habe das gelesen und verstanden",
+      "firstRunModal.languageLabel": "Sprache:",
+      "firstRunModal.okButton": "OK"
     },
     en: {
       headerTitle: "Anonymat",
@@ -54,13 +60,13 @@
       programSave: "Save program as separate file",
       close: "Close",
       placeholderOptions: "Placeholder settings",
-      helpTitle: "About Anonymizer",
-      helpDescription: "Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.",
+      helpTitle: "About Anonymat",
+      helpDescription: "Anonymat is a tool for semi-automatic masking and anonymization of personal data in texts.",
       helpLocal: "This application runs entirely locally in your browser and does not communicate with external services.",
-      helpDsGvo: "The tool is designed to support GDPR-compliant workflows. (The GDPR — General Data Protection Regulation — is a European regulation for data privacy and security.)",
-      helpResponsibility: "Important: Anonymizer offers partial automation. The final responsibility and verification always remain with the user.",
+      helpDsGvo: "The tool is designed to support GDPR-compliant workflows. (The GDPR – General Data Protection Regulation – is a European regulation for data privacy and security.)",
+      helpResponsibility: "Important: Anonymat offers partial automation. The final responsibility and verification always remain with the user.",
       helpLicense: "This project is open source and licensed under the GPL-3 license.",
-      helpVersion: "Version: 1.0.0 | © 2025 Uli-Z",
+      helpVersion: "Version: 1.0.0 | © 2025 Uli-Z | GitHub: <a href='https://github.com/Uli-Z/Anonymat' target='_blank'>Anonymat</a>",
       anonymize: "Anonymize",
       deanonymize: "Deanonymize",
       editorPlaceholder: "Insert text here...",
@@ -84,7 +90,13 @@
       "contextMenu.hideAdditionalPlaceholders": "Hide",
       "contextMenu.updateStatus": "Update status",
       "contextMenu.statusUpdated": "Placeholder status updated.",
-      "contextMenu.anonymizeSelection": "Anonymize selection ({1})"
+      "contextMenu.anonymizeSelection": "Anonymize selection ({1})",
+      // First-run modal translations
+      "firstRunModal.title": "Important Notice:",
+      "firstRunModal.text": "This program does not guarantee 100% detection of sensitive information in texts. The ultimate responsibility lies with the user. This tool is intended solely as semi-automatic support for text anonymization.",
+      "firstRunModal.checkbox": "I have read and understood",
+      "firstRunModal.languageLabel": "Language:",
+      "firstRunModal.okButton": "OK"
     }
   };
 

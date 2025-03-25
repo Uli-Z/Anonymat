@@ -162,6 +162,37 @@
     
     <!-- Modals -->
     
+    <body>
+      <!-- First Run Modal -->
+      <div id="firstRunModal" class="modal">
+        <div class="modal-content">
+          <h3 data-i18n="firstRunModal.title">
+            <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
+          </h3>
+          <p data-i18n="firstRunModal.text">
+            Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
+          </p>
+          <div class="first-run-checkbox">
+            <input type="checkbox" id="firstRunCheckbox">
+            <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
+          </div>
+          <div class="first-run-button">
+            <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
+          </div>
+          <div class="language-settings">
+            <!-- Sprachauswahl wird dynamisch aus dem vorhandenen generalModal übernommen -->
+          </div>
+        </div>
+      </div>
+      
+      
+      
+    
+      <!-- Existing content -->
+      <!-- Header, nav, main etc. -->
+    </body>
+    
+
     <!-- Settings Modal: Allows configuration of placeholder settings -->
     <div id="settingsModal" class="modal">
       <div class="modal-content">

@@ -56,6 +56,8 @@
         editor.dispatchEvent(new Event("input"));
       }
     }
+    window.updateLanguage = updateLanguage; // Damit ist die Funktion global verfügbar
+updateLanguage()
     updateLanguage();
 
     // -----------------------------
@@ -92,26 +94,6 @@
       }
     });
 
-    // -----------------------------
-    // Action-Buttons Setup
-    // -----------------------------
-    // The following block that overrides icons is removed to preserve the emojis defined in index.html.
-    /*
-    const anonymizeBtn = document.getElementById("anonymizeBtn");
-    const deanonymizeBtn = document.getElementById("deanonymizeBtn");
-    if (anonymizeBtn && window.Icons && window.Icons.anonymize) {
-      const iconElem = anonymizeBtn.querySelector(".icon");
-      if (iconElem) {
-        iconElem.innerHTML = window.Icons.anonymize;
-      }
-    }
-    if (deanonymizeBtn && window.Icons && window.Icons.deanonymize) {
-      const iconElem = deanonymizeBtn.querySelector(".icon");
-      if (iconElem) {
-        iconElem.innerHTML = window.Icons.deanonymize;
-      }
-    }
-    */
 
     // -----------------------------
     // Header and Side Menu Setup

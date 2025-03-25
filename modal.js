@@ -208,4 +208,59 @@
 
   // Expose updatePlaceholderOptions globally if benötigt.
   window.updatePlaceholderOptions = updatePlaceholderOptions;
+
+  
+  document.addEventListener("DOMContentLoaded", function() {
+    if (!localStorage.getItem("firstRunAcknowledged")) {
+      const modal = document.getElementById("firstRunModal");
+      const okBtn = document.getElementById("firstRunOk");
+      const checkbox = document.getElementById("firstRunCheckbox");
+      const languageContainer = document.querySelector("#firstRunModal .language-settings");
+  
+      // Reuse language selection from the general modal
+      const generalLanguageSelect = document.getElementById("languageSelect");
+      const generalLanguageLabel = document.querySelector("label[for='languageSelect']");
+      if (generalLanguageSelect && generalLanguageLabel && languageContainer) {
+        // Clone the label and select elements
+        const clonedLabel = generalLanguageLabel.cloneNode(true);
+        const clonedSelect = generalLanguageSelect.cloneNode(true);
+        // Remove duplicate IDs and 'for' attribute to avoid conflicts
+        clonedSelect.removeAttribute("id");
+        clonedLabel.removeAttribute("for");
+  
+        // Clear the container and append the clones
+        languageContainer.innerHTML = "";
+        languageContainer.appendChild(clonedLabel);
+        languageContainer.appendChild(clonedSelect);
+  
+        // Set the select's value from the current configuration
+        if (window.Config && typeof window.Config.get === "function") {
+          clonedSelect.value = window.Config.get("language") || "de";
+        }
+        clonedSelect.addEventListener("change", function(e) {
+          window.Config.set("language", e.target.value);
+            if (typeof window.updateLanguage === "function") {
+              window.updateLanguage();
+            }
+        });
+      }
+  
+      modal.style.display = "block";
+  
+      // Enable OK button only when the checkbox is checked
+      checkbox.addEventListener("change", function() {
+        okBtn.disabled = !checkbox.checked;
+      });
+  
+      okBtn.addEventListener("click", function() {
+        localStorage.setItem("firstRunAcknowledged", "true");
+        modal.style.display = "none";
+      });
+    }
+  });
+  
+  
+  
 })(window);
+
+

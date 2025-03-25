@@ -623,3 +623,101 @@ header svg,
   background-color: #005fa3;
 }
 
+/* First-Run Modal Styles */
+#firstRunModal {
+  display: none; /* Hidden by default, shown via JavaScript */
+  position: fixed;
+  z-index: 2100;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+#firstRunModal .modal-content {
+  max-width: 500px;
+  margin: 100px auto;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  background-color: #fff;
+  text-align: left;
+}
+
+#firstRunModal h3 {
+  font-size: 1.5em;
+  margin-bottom: 10px;
+}
+
+/* Warning emoji added via pseudo-element */
+#firstRunModal h3::before {
+  content: "⚠️";
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 1.2em;
+  transform: translateY(-2px);
+}
+
+#firstRunModal p {
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+/* Checkbox styling - subtle and centered */
+.first-run-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.first-run-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: #0077cc;
+}
+
+.first-run-checkbox label {
+  line-height: 20px; /* Matches checkbox height */
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* OK button styling - modern and prominent */
+.first-run-button {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.first-run-button button {
+  width: 50%;
+  padding: 10px 0;
+  font-size: 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #0077cc;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.first-run-button button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.first-run-button button:hover {
+  background-color: #005fa3;
+}
+
+/* Language settings positioned lower and centered */
+.language-settings {
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
