@@ -65,4 +65,4 @@ Please open an issue before making significant changes.
 ---
 
 ## License  
-MIT  
+GPL V.3.0
