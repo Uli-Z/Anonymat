@@ -601,7 +601,7 @@ header svg,
   margin-bottom: 1.2em;
   line-height: 1.6;
   font-size: 1rem;
-  text-align: justify;
+  text-align: left;
 }
 
 #helpModal p:last-of-type {

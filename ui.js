@@ -27,14 +27,25 @@
     }
     function updateLanguage() {
       const lang = window.Config.get("language") || "en";
-      // Update elements with data-i18n attribute
+      // Für normale Textinhalte:
       document.querySelectorAll("[data-i18n]").forEach(el => {
         const key = el.getAttribute("data-i18n");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
           el.textContent = window.translations[lang][key];
         }
       });
-      // Update alt/title/aria-label for elements with data-i18n-alt
+      // Für HTML-Inhalte (z.B. Version-Text mit GitHub-Link):
+      document.querySelectorAll("[data-i18n-html]").forEach(el => {
+        const key = el.getAttribute("data-i18n-html");
+        if (window.translations && window.translations[lang] && window.translations[lang][key]) {
+          let trans = window.translations[lang][key];
+          if (window.appVersion) {
+            trans = trans.replace("{0}", window.appVersion);
+          }
+          el.innerHTML = trans;
+        }
+      });
+      // Update von alt/title/placeholder wie gehabt...
       document.querySelectorAll("[data-i18n-alt]").forEach(el => {
         const key = el.getAttribute("data-i18n-alt");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
@@ -43,22 +54,21 @@
           el.setAttribute("aria-label", translation);
         }
       });
-      // Update placeholder text for elements with data-i18n-placeholder
       document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
         const key = el.getAttribute("data-i18n-placeholder");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
           el.placeholder = window.translations[lang][key];
         }
       });
-      // Trigger editor update for dynamic content
+      // Editor-Update etc.
       const editor = document.getElementById("editor");
       if (editor) {
         editor.dispatchEvent(new Event("input"));
       }
     }
-    window.updateLanguage = updateLanguage; // Damit ist die Funktion global verfügbar
-updateLanguage()
+    window.updateLanguage = updateLanguage;
     updateLanguage();
+
 
     // -----------------------------
     // Modal Close Button Handlers using window.Modal functions
