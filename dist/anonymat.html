@@ -2424,6 +2424,16 @@ window.anonymizer = new Anonymizer();
     });
     updateHighlight();
   });
+
+  window.addEventListener("DOMContentLoaded", function () {
+    if (window.Icons && window.Icons.logo) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.type = "image/svg+xml";
+      link.href = "data:image/svg+xml," + encodeURIComponent(window.Icons.logo);
+      document.head.appendChild(link);
+    }
+  });
 })(window);
 
 </script>
@@ -3341,6 +3351,9 @@ document.addEventListener("DOMContentLoaded", function () {
 })(window);
 
 </script>
+    <link rel="icon" type="image/svg+xml" 
+    href="data:image/svg+xml,%3Csvg%20version%3D%221.0%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%22562.000000pt%22%20height%3D%22667.000000pt%22%20viewBox%3D%220%200%20562.000000%20667.000000%22%20preserveAspectRatio%3D%22xMidYMid%20meet%22%3E%3Cg%20transform%3D%22translate(0.000000%2C667.000000)%20scale(0.100000%2C-0.100000)%22%20fill%3D%22%23000000%22%20stroke%3D%22none%22%3E%3Cpath%20d%3D%22M2730%206384%20c-19%20-8%20-75%20-29%20-125%20-46%20-49%20-16%20-166%20-61%20-260%20-100%20-93%20-38%20-321%20-128%20-505%20-199%20-184%20-72%20-389%20-152%20-455%20-179%20-184%20-74%20-649%20-256%20-850%20-331l-180%20-68%20-3%20-1068c-3%20-1119%202%20-1307%2039%20-1501%2078%20-411%20213%20-740%20453%20-1105%20142%20-216%20224%20-316%20410%20-502%20288%20-287%20539%20-472%20934%20-684%20192%20-103%20574%20-281%205%20...%3C/path%3E%3C/g%3E%3C/svg%3E">
+  
   </head>
   <body>
     <!-- Header section -->

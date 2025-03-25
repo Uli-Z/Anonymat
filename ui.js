@@ -367,4 +367,14 @@
     });
     updateHighlight();
   });
+
+  window.addEventListener("DOMContentLoaded", function () {
+    if (window.Icons && window.Icons.logo) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      link.type = "image/svg+xml";
+      link.href = "data:image/svg+xml," + encodeURIComponent(window.Icons.logo);
+      document.head.appendChild(link);
+    }
+  });
 })(window);
