@@ -136,6 +136,7 @@
       this._triggerComplete(this.mapping);
       this.scanCompleted = true;
       this._abortController = null;
+      console.log("PII identification completed.");
     }
 
     // Add a new mapping entry.
@@ -173,7 +174,10 @@
     }
 
     // Replace sensitive data with tokens.
-    anonymize() {
+    async anonymize() {
+      if (!this.scanCompleted) {
+        await this.identifyPII();
+      }
       const { modifiedText, updatedMappingList } =
         this._applyAnonymization(this.textWrapper.get(), this.mapping);
       this.mapping = updatedMappingList;

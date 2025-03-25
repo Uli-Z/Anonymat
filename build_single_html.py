@@ -94,10 +94,7 @@ def build_all():
 def run_build_and_tests():
     normal_build, test_build = build_all()
     results, _ = run_chrome_tests(test_build)
-    try:
-        os.remove(test_build)
-    except Exception:
-        pass
+
     if not results or not results.get("success", False):
         print("TESTS FAILED!")
         errors = results.get("errors", [])

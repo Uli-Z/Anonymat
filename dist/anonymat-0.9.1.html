@@ -1712,6 +1712,7 @@ const dateFormats = [
       this._triggerComplete(this.mapping);
       this.scanCompleted = true;
       this._abortController = null;
+      console.log("PII identification completed.");
     }
 
     // Add a new mapping entry.
@@ -1749,7 +1750,10 @@ const dateFormats = [
     }
 
     // Replace sensitive data with tokens.
-    anonymize() {
+    async anonymize() {
+      if (!this.scanCompleted) {
+        await this.identifyPII();
+      }
       const { modifiedText, updatedMappingList } =
         this._applyAnonymization(this.textWrapper.get(), this.mapping);
       this.mapping = updatedMappingList;
@@ -1766,7 +1770,7 @@ const dateFormats = [
         }
       });
       this.setText(text);
-      return this._restoreWhitelist(text);
+      return this.textWrapper.get();
     }
 
     // Return final text with whitelist restored.

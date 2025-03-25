@@ -109,45 +109,47 @@ const tests = [
     expectedAnonymized: "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
   }
 ];
-
-function runTests() {
-  let allPassed = true;
-  const errors = [];
-
-  tests.forEach(test => {
-    console.log("Running test: " + test.description);
-    const anonymizer = new window.Anonymizer();
-    anonymizer.setText(test.input);
-    anonymizer.identifyPII();
-    const anonymizedOutput = anonymizer.anonymize();
-    const deanonymizedOutput = anonymizer.deanonymize();
-
-    const testErrors = compareResults(test, anonymizedOutput, deanonymizedOutput);
-    if (testErrors.length > 0) {
-      allPassed = false;
-      testErrors.forEach(e => {
-        console.error(`Test failed: ${e.description}`);
-        console.error(`  Input               : ${e.input}`);
-        console.error(`  Expected anonymized : ${e.expected_anonymized}`);
-        console.error(`  Anonymize output    : ${e.anonymize_output}`);
-        console.error(`  Deanonymize output  : ${e.deanonymize_output}`);
-      });
-      errors.push(...testErrors);
-    } else {
-      console.log(`Test passed: ${test.description}`);
+async function runTests() {
+    let allPassed = true;
+    const errors = [];
+  
+    for (const test of tests) {
+      console.log("Running test: " + test.description);
+      const anonymizer = new window.Anonymizer();
+      anonymizer.setText(test.input);
+      
+      // Warten bis anonymize fertig ist:
+      await anonymizer.anonymize();
+  
+      const anonymizedOutput = anonymizer.getText();
+      const deanonymizedOutput = anonymizer.deanonymize();
+  
+      const testErrors = compareResults(test, anonymizedOutput, deanonymizedOutput);
+      if (testErrors.length > 0) {
+        allPassed = false;
+        testErrors.forEach(e => {
+          console.error(`Test failed: ${e.description}`);
+          console.error(`  Input               : ${e.input}`);
+          console.error(`  Expected anonymized : ${e.expected_anonymized}`);
+          console.error(`  Anonymize output    : ${e.anonymize_output}`);
+          console.error(`  Deanonymize output  : ${e.deanonymize_output}`);
+        });
+        errors.push(...testErrors);
+      } else {
+        console.log(`Test passed: ${test.description}`);
+      }
     }
-  });
-
-  if (allPassed) {
-    console.log("All tests passed successfully.");
-  } else {
-    console.error("Some tests failed. See error details.");
+  
+    if (allPassed) {
+      console.log("All tests passed successfully.");
+    } else {
+      console.error("Some tests failed. See error details.");
+    }
+  
+    window.testResults = {
+      success: allPassed,
+      errors: errors
+    };
   }
 
-  window.testResults = {
-    success: allPassed,
-    errors: errors
-  };
-}
-
-runTests();
+  (async () => { await runTests(); })();
