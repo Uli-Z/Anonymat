@@ -190,7 +190,7 @@
         }
       });
       this.setText(text);
-      return this._restoreWhitelist(text);
+      return this.textWrapper.get();
     }
 
     // Return final text with whitelist restored.
