@@ -77,6 +77,7 @@ class GenericPlaceholderType {
     this.placeholderPrefix = placeholderPrefix;
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
+    this.enabled = true;
   }
 
   getNextTokenName(currentMapping) {
