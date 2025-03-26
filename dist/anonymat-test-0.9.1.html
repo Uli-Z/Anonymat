@@ -1115,276 +1115,192 @@ header svg,
     <script>
 "use strict";
 
-(function (window) {
+// Helper to escape regex special characters.
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/* Base class for detection strategies */
+class DetectionStrategy {
+  detect(text, currentMapping) {
+    throw new Error("detect() not implemented");
+  }
+}
+
+/* Regex detection strategy with optional prefixes and suffixes */
+class RegexDetectionStrategy extends DetectionStrategy {
   /**
-   * Base class for regex-based placeholder types.
+   * Options:
+   *   - regex: RegExp for the main pattern.
+   *   - description: Description of the strategy.
+   *   - groupIndex: Capture group index for the main match (default 0).
+   *   - prefixes: Optional array of strings that must precede the main match.
+   *   - suffixes: Optional array of strings that must follow the main match.
    */
-  class RegExpPlaceholderType {
-    constructor(regex, placeholderPrefix) {
-      this.regex = regex;
-      this.placeholderPrefix = placeholderPrefix;
-      this.id = placeholderPrefix;
-      this.rank = 1;
-      this.enabled = true;
+  constructor(options) {
+    super();
+    this.description = options.description;
+    this.groupIndex = options.groupIndex || 0;
+    if (options.prefixes || options.suffixes) {
+      let pattern = "";
+      if (options.prefixes) {
+        const prefixPattern = options.prefixes.map(escapeRegExp).join("|");
+        pattern += "(?:" + prefixPattern + ")\\s*";
+      }
+      pattern += "(" + options.regex.source + ")";
+      if (options.suffixes) {
+        const suffixPattern = options.suffixes.map(escapeRegExp).join("|");
+        pattern += "\\s*(?:" + suffixPattern + ")";
+      }
+      this.regex = new RegExp(pattern, options.regex.flags);
+      this.groupIndex = 1;
+    } else {
+      this.regex = options.regex;
     }
+  }
 
-    getRegex() {
-      return this.regex;
+  detect(text, currentMapping) {
+    const results = [];
+    const regex = new RegExp(this.regex.source, this.regex.flags);
+    let m;
+    while ((m = regex.exec(text)) !== null) {
+      const detectedValue = m[this.groupIndex] || m[0];
+      if (!detectedValue) continue;
+      if (currentMapping.some(e => e.original === detectedValue && e.strategy === this))
+        continue;
+      // Calculate the start index of the captured group within the overall match.
+      let offset = m[0].indexOf(detectedValue);
+      if (offset < 0) offset = 0;
+      const start = m.index + offset;
+      const end = start + detectedValue.length;
+      results.push({
+        original: detectedValue,
+        token: null,
+        strategy: this,
+        rank: 1,
+        start: start,
+        end: end
+      });
     }
+    return results;
+  }
+}
 
-    // Modified: The first token is generated without a number.
-    // Subsequent tokens are generated with an underscore and an increasing counter.
-    getNextTokenName(mapping) {
-      // First token without any number
-      let token = `[${this.placeholderPrefix}]`;
-      if (!mapping.find(e => e[1] === token)) return token;
-      // For subsequent tokens, start counter at 2 with an underscore.
-      let counter = 2;
+/* Generic placeholder type that aggregates multiple detection strategies */
+class GenericPlaceholderType {
+  constructor(placeholderPrefix, detectionStrategies = []) {
+    this.placeholderPrefix = placeholderPrefix;
+    this.detectionStrategies = detectionStrategies;
+    this.rank = 1;
+  }
+
+  getNextTokenName(currentMapping) {
+    let token = `[${this.placeholderPrefix}]`;
+    if (!currentMapping.some(e => e.token === token)) return token;
+    let counter = 2;
+    token = `[${this.placeholderPrefix}_${counter}]`;
+    while (currentMapping.some(e => e.token === token)) {
+      counter++;
       token = `[${this.placeholderPrefix}_${counter}]`;
-      while (mapping.find(e => e[1] === token)) {
-        counter++;
-        token = `[${this.placeholderPrefix}_${counter}]`;
-      }
-      return token;
     }
-
-    // Identify PII matches using the regex. Returns an array of [match, null, this].
-    identifyPII(text, currentMapping) {
-      const results = [];
-      const regex = new RegExp(this.getRegex().source, "gi");
-      let m;
-      while ((m = regex.exec(text)) !== null) {
-        const match = m[0];
-        if (currentMapping.find(e => e[0] === match && e[2] === this)) continue;
-        if (results.find(e => e[0] === match && e[2] === this)) continue;
-        results.push([match, null, this]);
-      }
-      return results;
-    }
+    return token;
   }
 
-  /**
-   * Custom placeholder type supporting user-defined patterns.
-   */
-  class CustomPlaceholderType extends RegExpPlaceholderType {
-    constructor(pattern, label) {
-      let regex;
-      if (pattern.startsWith("/") && pattern.lastIndexOf("/") > 0) {
-        regex = new RegExp(pattern.slice(1, pattern.lastIndexOf("/")), "gi");
-      } else {
-        regex = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
-      }
-      super(regex, label);
-      this.isCustom = true;
-      this.rank = 0; // Process custom placeholders first
+  // Run all detection strategies and clean the results.
+  detect(text, currentMapping) {
+    let results = [];
+    for (const strategy of this.detectionStrategies) {
+      const detected = strategy.detect(text, currentMapping);
+      results = results.concat(detected);
     }
+    return this.cleanMatches(results);
   }
 
-  /**
-   * Email placeholder type.
-   */
-  class EmailPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(
-        /\b(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))\b/g,
-        "Email"
-      );
-      this.rank = 1;
+  // Remove duplicate matches and those completely overlapped by another.
+  cleanMatches(matches) {
+    const unique = [];
+    for (const m of matches) {
+      if (!unique.some(u => u.start === m.start && u.end === m.end))
+        unique.push(m);
     }
+    return unique.filter(m =>
+      !unique.some(other => other !== m && other.start <= m.start && other.end >= m.end)
+    );
   }
+}
 
-  /**
-   * IBAN placeholder type.
-   */
-  class IBANPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/[A-Z]{2}\d{2}[A-Z0-9]{11,30}/gi, "IBAN");
-      this.rank = 0;
-    }
+/* Placeholder for detecting names using regex with prefixes */
+class NamePlaceholder extends GenericPlaceholderType {
+  constructor() {
+    // Define common prefixes that must appear before a name.
+    const prefixes = [
+      "Mit freundlichen Grüßen,?",
+      "Liebe Grüße,?",
+      "Viele Grüße,?",
+      "Best regards,?",
+      "Cordialement,?",
+      "Guten Morgen",
+      "Guten Tag",
+      "Hallo",
+      "Liebe",
+      "Lieber",
+      "Moin",
+      "Grüß dich",
+      "Servus",
+      "Sehr geehrte(r)? (?:Herr|Frau)",
+      "Herr",
+      "Herrn",
+      "Frau",
+      "Prof\\.",
+      "Dr\\.",
+      "Dear Mr\\.",
+      "Dear Mrs\\.",
+      "Dear Ms\\.",
+      "Dear Miss",
+      "Hello",
+      "Hi",
+      "Hey",
+      "Greetings",
+      "Chère(?: Monsieur| Madame)?",
+      "Salut",
+      "Monsieur",
+      "Madame",
+      "Estimado(?: Sr\\.?| Señor|Señora)?",
+      "Hola",
+      "Querido",
+      "Querida",
+      "Saludos cordiales,?"
+    ];
+    // Pattern for a name: one token with optional additional parts.
+    const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
+    const nameStrategy = new RegexDetectionStrategy({
+      regex: new RegExp(namePattern, "g"),
+      description: "Name detection with prefixes",
+      groupIndex: 0,
+      prefixes: prefixes
+    });
+    super("Name", [nameStrategy]);
   }
+}
 
-  /**
-   * DateTime placeholder type.
-   */
-  class DateTimePlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/\b\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}:\d{2})?\b/g, "DateTime");
-      this.rank = 1;
-      // Offset can be used for random adjustments if needed
-      this.offsetMilliseconds = (Math.random() * 20 - 10) * 24 * 3600 * 1000;
-    }
+/* Placeholder for detecting numbers using a regex */
+class NumberPlaceholder extends GenericPlaceholderType {
+  constructor() {
+    const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){3,}(?!\d)/g;
+    const numberStrategy = new RegexDetectionStrategy({
+      regex: numberRegex,
+      description: "Number detection",
+      groupIndex: 0
+    });
+    super("Number", [numberStrategy]);
   }
+}
 
-  /**
-   * URL placeholder type.
-   */
-  class URLPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/(https?:\/\/[^\s]+)/gi, "URL");
-      this.rank = 1;
-    }
-  }
-
-  /**
-   * Credit Card placeholder type.
-   */
-  class CreditCardPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/\b\d{16}\b/g, "CreditCard");
-      this.rank = 1;
-    }
-  }
-
-  /**
-   * Social Security Number placeholder type.
-   */
-  class SocialSecurityPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/\b\d{3}-\d{2}-\d{4}\b/g, "SSN");
-      this.rank = 1;
-    }
-  }
-
-  /**
-   * Phone placeholder type.
-   */
-  class PhonePlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/(?<![A-Za-z0-9])(\+?\d[\d\s\/-]{6,}\d)(?![A-Za-z0-9])/g, "Phone");
-      this.rank = 2;
-    }
-  }
-
-  /**
-   * Number placeholder type.
-   */
-  class NumberPlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/(?<!\d)[1-9](?:[ .\-\/\\]*\d){3,}(?!\d)/g, "Number");
-      this.rank = 3;
-    }
-  }
-
-  /**
-   * Name placeholder type with context-based detection.
-   */
-  class NamePlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/()/g, "Name");
-      this.rank = 4;
-      this.counter = 1;
-    }
-
-    // Builds a regex that detects names following common greeting contexts.
-    buildRegex() {
-      const contexts = [
-        "Mit\\s+freundlichen\\s+Grüßen,?",
-        "Liebe\\s+Grüße,?",
-        "Viele\\s+Grüße,?",
-        "Best\\s+regards,?",
-        "Cordialement,?",
-        "Guten\\s+Morgen",
-        "Guten\\s+Tag",
-        "Hallo",
-        "Liebe",
-        "Lieber",
-        "Moin",
-        "Grüß\\s+dich",
-        "Servus",
-        "Sehr\\s+geehrte(?:r)?\\s+(?:Herr|Frau)",
-        "Herr",
-        "Herrn",
-        "Frau",
-        "Prof\\.",
-        "Dr\\.",
-        "Dear\\s+Mr\\.",
-        "Dear\\s+Mrs\\.",
-        "Dear\\s+Ms\\.",
-        "Dear\\s+Miss",
-        "Hello",
-        "Hi",
-        "Hey",
-        "Greetings",
-        "Best\\s+regards,?",
-        "Chère(?:\\s+Monsieur|\\s+Madame)?",
-        "Salut",
-        "Monsieur",
-        "Madame",
-        "Estimado(?:\\s+(?:Sr\\.?|Señor|Señora))?",
-        "Hola",
-        "Querido",
-        "Querida",
-        "Saludos\\s+cordiales,?"
-      ];
-      contexts.sort((a, b) => b.length - a.length);
-      const contextPattern = "(?:" + contexts.join("|") + ")";
-      const nameToken = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?";
-      const namePattern = "(?:" + nameToken + "(?:\\s+" + nameToken + "){0,2})";
-      return new RegExp("(" + contextPattern + ")\\s+(?=[A-ZÄÖÜÀ-ÖØ-Ý])(" + namePattern + ")(?=$|\\s|[,.!?])", "g");
-    }
-
-    identifyPII(text, currentMapping) {
-      const results = [];
-      const regex = this.buildRegex();
-      let m;
-      while ((m = regex.exec(text)) !== null) {
-        const name = m[2];
-        if (currentMapping.find(e => e[0] === name && e[2] === this)) continue;
-        if (results.find(e => e[0] === name && e[2] === this)) continue;
-        results.push([name, null, this, false]);
-      }
-      return results;
-    }
-  }
-
-  /**
-   * Date placeholder type that uses various date formats.
-   * Assumes 'dateFormats' is defined globally (e.g., in date.js).
-   */
-  class DatePlaceholderType extends RegExpPlaceholderType {
-    constructor() {
-      super(/()/, "Date");
-      this.rank = 1;
-      this.dateFormats = DatePlaceholderType.getDateFormats();
-      const sampleDate = new Date(2020, 0, 1);
-      this.dateFormats.forEach(df => {
-        df.computedExample = df.format(sampleDate);
-      });
-    }
-
-    identifyPII(text, currentMapping) {
-      const results = [];
-      const sortedFormats = this.dateFormats.slice().sort((a, b) => b.computedExample.length - a.computedExample.length);
-      sortedFormats.forEach(df => {
-        const regex = new RegExp(df.pattern, "gi");
-        let m;
-        while ((m = regex.exec(text)) !== null) {
-          const match = m[0];
-          if (currentMapping.find(e => e[0] === match && e[2] === this)) continue;
-          results.push([match, null, this, false]);
-        }
-      });
-      return results;
-    }
-
-    static getDateFormats() {
-      return dateFormats;
-    }
-  }
-
-  // Expose classes to the global scope
-  window.CustomPlaceholderType = CustomPlaceholderType;
-  window.EmailPlaceholderType = EmailPlaceholderType;
-  window.IBANPlaceholderType = IBANPlaceholderType;
-  window.DateTimePlaceholderType = DateTimePlaceholderType;
-  window.URLPlaceholderType = URLPlaceholderType;
-  window.CreditCardPlaceholderType = CreditCardPlaceholderType;
-  window.SocialSecurityPlaceholderType = SocialSecurityPlaceholderType;
-  window.PhonePlaceholderType = PhonePlaceholderType;
-  window.NumberPlaceholderType = NumberPlaceholderType;
-  window.NamePlaceholderType = NamePlaceholderType;
-  window.DatePlaceholderType = DatePlaceholderType;
-})(window);
+window.DetectionStrategy = DetectionStrategy;
+window.RegexDetectionStrategy = RegexDetectionStrategy;
+window.GenericPlaceholderType = GenericPlaceholderType;
+window.NamePlaceholder = NamePlaceholder;
+window.NumberPlaceholder = NumberPlaceholder;
 
 </script>
     <script>
@@ -1599,25 +1515,16 @@ const dateFormats = [
 
   class Anonymizer {
     constructor(initialText = "") {
-      this.textWrapper = new TextWrapper(initialText);
-      // List of placeholder types (classes from placeholder.js)
+      // Updated placeholder types: use new NamePlaceholder and NumberPlaceholder
       this.placeholderTypes = [
-        new IBANPlaceholderType(),
-        new EmailPlaceholderType(),
-        new DateTimePlaceholderType(),
-        new URLPlaceholderType(),
-        new CreditCardPlaceholderType(),
-        new SocialSecurityPlaceholderType(),
-        new PhonePlaceholderType(),
-        new NumberPlaceholderType(),
-        new NamePlaceholderType(),
-        new DatePlaceholderType()
+        new NumberPlaceholder(),       // new integrated placeholder for numbers
+        new NamePlaceholder(),         // new integrated placeholder for names
       ];
       this.whitelist = [];
       this._wlMapping = {};
       this._wlCounter = 1;
       this.scanCompleted = false;
-      // Mapping entries: [original, token, placeholder instance, rank]
+      // Mapping entries: [original, token, placeholder, rank]
       this.mapping = [];
       this._abortController = null;
 
@@ -1628,6 +1535,7 @@ const dateFormats = [
       this._onAbort = null;
       this._onTextChange = null;
 
+      this.textWrapper = new TextWrapper(initialText);
       this.textWrapper.setOnTextChange(() => this._triggerTextChange());
     }
 
@@ -1638,7 +1546,7 @@ const dateFormats = [
     setOnAbort(callback) { this._onAbort = callback; }
     setOnTextChange(callback) { this._onTextChange = callback; }
 
-    // Internal callback triggers
+    // Trigger progress callback
     _triggerProgress(percent, message) {
       if (this._onProgress) this._onProgress(percent, message);
     }
@@ -1655,14 +1563,14 @@ const dateFormats = [
       if (this._onTextChange) this._onTextChange();
     }
 
-    // Set text after applying whitelist and cleaning mapping list.
+    // Set text and apply whitelist, then clean mapping list.
     setText(newText = "") {
       const processedText = this._applyWhitelist(newText);
       this.textWrapper.set(processedText);
       this.cleanMappingList();
     }
 
-    // Replace whitelist items with tokens to avoid anonymizing them.
+    // Replace whitelist items with tokens.
     _applyWhitelist(newText) {
       this._wlMapping = {};
       this._wlCounter = 1;
@@ -1677,7 +1585,7 @@ const dateFormats = [
       return newText;
     }
 
-    // Restore whitelist tokens to their original values.
+    // Restore whitelist tokens.
     _restoreWhitelist(text) {
       for (const token in this._wlMapping) {
         const wlValue = this._wlMapping[token];
@@ -1686,7 +1594,7 @@ const dateFormats = [
       return text;
     }
 
-    // Scan the text for sensitive data and update the mapping.
+    // Scan text for sensitive data using new detection strategies.
     async identifyPII() {
       if (this._abortController) {
         this._abortController.abort();
@@ -1696,16 +1604,19 @@ const dateFormats = [
       const signal = this._abortController.signal;
       this.scanCompleted = false;
       const originalText = this.textWrapper.get();
-      const activePlaceholders = this.placeholderTypes.filter(ph => ph.enabled)
+      // Filter active placeholders; assume each has an 'enabled' property (default true).
+      const activePlaceholders = this.placeholderTypes.filter(ph => ph.enabled !== false)
                                   .sort((a, b) => (a.rank || 0) - (b.rank || 0));
       for (let i = 0; i < activePlaceholders.length; i++) {
         if (signal.aborted) return;
         const ph = activePlaceholders[i];
         const percent = Math.round(((i + 1) / activePlaceholders.length) * 100);
         this._triggerProgress(percent, `Scanning for ${ph.placeholderPrefix}...`);
-        const results = ph.identifyPII(originalText, this.mapping) || [];
-        results.forEach(entry => {
-          this.addToMappingList(entry[0], entry[1], entry[2], ph.rank);
+        // Use the new detect method from the placeholder.
+        const results = ph.detect(originalText, this.mapping) || [];
+        results.forEach(result => {
+          // Add detection result to mapping list.
+          this.addToMappingList(result.original, result.token, ph, ph.rank);
         });
       }
       this.cleanMappingList();
@@ -1715,18 +1626,14 @@ const dateFormats = [
       console.log("PII identification completed.");
     }
 
-    // Add a new mapping entry.
-    // This function now removes any existing mapping entries with the same original text
-    // before adding the new one.
+    // Add a new mapping entry. Removes entries with the same original text.
     addToMappingList(original, token, placeholder, rank) {
-      // Remove all entries with the same original text
       this.mapping = this.mapping.filter(entry => entry[0] !== original);
-      // Add the new mapping entry
       this.mapping.push([original, token, placeholder, rank]);
       this._triggerMappingChange();
     }
 
-    // Simulate anonymization to assign tokens.
+    // Apply anonymization by assigning tokens and replacing sensitive data.
     _applyAnonymization(text, mappingList) {
       let modifiedText = text;
       const updatedMappingList = mappingList.map(entry => [...entry]);
@@ -1787,7 +1694,7 @@ const dateFormats = [
       return this.mapping;
     }
 
-    // Clean mapping list by removing invalid entries.
+    // Clean mapping list by removing invalid or duplicate entries.
     cleanMappingList() {
       const { updatedMappingList } = this._applyAnonymization(this.textWrapper.get(), this.mapping);
       this.mapping = this.mapping.filter(entry => {
@@ -1802,11 +1709,7 @@ const dateFormats = [
       this._triggerMappingChange();
     }
 
-    // Helper to escape regex characters.
-    _escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
+    // Add item to whitelist and re-run detection.
     addToWhitelist(item) {
       if (!this.whitelist.includes(item)) {
         this.whitelist.push(item);
@@ -1836,11 +1739,11 @@ const dateFormats = [
       const customPlaceholder = new CustomPlaceholderType(pattern, uniqueLabel);
       this.placeholderTypes.push(customPlaceholder);
 
-      // Scan only using the custom placeholder and update the mapping.
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII(currentText, this.mapping) || [];
+      const results = customPlaceholder.identifyPII
+                        ? customPlaceholder.identifyPII(currentText, this.mapping) || []
+                        : [];
       results.forEach(entry => {
-        // entry corresponds to [match, null, customPlaceholder, ...]
         this.addToMappingList(entry[0], entry[1], customPlaceholder, customPlaceholder.rank);
       });
 
@@ -1893,10 +1796,7 @@ const dateFormats = [
       }
     }
     
-    // --- New functions for singular anonymization/deanonymization ---
-    
-    // Replaces all occurrences of a specific original text (from the mapping list)
-    // with its token, performing singular anonymization.
+    // Singular anonymization: replace all occurrences of a specific original text.
     anonymizeSingleText(originalText) {
       let mappingEntry = this.mapping.find(entry => entry[0] === originalText);
       if (!mappingEntry) return;
@@ -1910,8 +1810,7 @@ const dateFormats = [
       this._triggerTextChange();
     }
     
-    // Replaces in the text the given token with its original text,
-    // i.e. singular deanonymization.
+    // Singular deanonymization: replace a specific token with its original text.
     deanonymizeSingleToken(token) {
       let mappingEntry = this.mapping.find(entry => entry[1] === token);
       if (!mappingEntry) return;
@@ -1927,7 +1826,7 @@ const dateFormats = [
   window.Anonymizer = Anonymizer;
   window.TextWrapper = TextWrapper;
   
-  // Compatibility alias for existing calls (e.g., in context menu)
+  // Compatibility alias for existing calls.
   Anonymizer.prototype.deanonymize_singleToken = Anonymizer.prototype.deanonymizeSingleToken;
   Anonymizer.prototype.anonymize_singleText = Anonymizer.prototype.anonymizeSingleText;
 })(window);
@@ -3363,18 +3262,18 @@ document.addEventListener("DOMContentLoaded", function () {
 function compareResults(test, anonymizedOutput, deanonymizedOutput) {
   const errors = [];
 
-  // Check anonymization
+  // Check anonymization result
   if (anonymizedOutput !== test.expectedAnonymized) {
     errors.push({
       description: test.description + " - Anonymization mismatch",
       input: test.input,
       expected_anonymized: test.expectedAnonymized,
       anonymize_output: anonymizedOutput,
-      deanonymize_output: deanonymizedOutput // also log deanonymized output for context
+      deanonymize_output: deanonymizedOutput
     });
   }
 
-  // Check deanonymization
+  // Check deanonymization (should restore original input)
   if (deanonymizedOutput !== test.input) {
     errors.push({
       description: test.description + " - Deanonymization mismatch",
@@ -3388,130 +3287,80 @@ function compareResults(test, anonymizedOutput, deanonymizedOutput) {
   return errors;
 }
 
-// Define test cases
+// New test cases for NumberPlaceholder and NamePlaceholder
 const tests = [
   {
-    description: "Email test",
-    input: "test@example.com",
-    expectedAnonymized: "[Email1]"
-  },
-  {
-    description: "Phone test (local, no separators)",
-    input: "01234567",
-    expectedAnonymized: "[Phone1]"
-  },
-  {
-    description: "Composite phone test",
-    input: "01234567 +34 1234567",
-    expectedAnonymized: "[Phone1] [Phone2]"
-  },
-  {
-    description: "DateTime test (whole match replaced)",
-    input: "2020-12-31 23:59:59",
-    expectedAnonymized: "[Date1]"
-  },
-  {
-    description: "URL test",
-    input: "https://example.com",
-    expectedAnonymized: "[URL1]"
-  },
-  {
-    description: "IBAN test",
-    input: "DE89370400440532013000",
-    expectedAnonymized: "[IBAN1]"
-  },
-  {
-    description: "CreditCard test",
-    input: "4111111111111111",
-    expectedAnonymized: "[CreditCard1]"
-  },
-  {
-    description: "SSN test",
-    input: "123-45-6789",
-    expectedAnonymized: "[SSN1]"
-  },
-  {
-    description: "ID test",
-    input: "ABC123456",
-    expectedAnonymized: "[IDNumber1]"
-  },
-  {
-    description: "Number test",
+    description: "Simple number test",
     input: "12345",
-    expectedAnonymized: "[Number1]"
+    expectedAnonymized: "[Number]"
   },
   {
-    description: "Composite test (all types)",
-    input:
-      "test@example.com 01234567 +34 12345678 2020-12-31 23:59:59 https://example.com DE89370400440532013000 4111111111111111 123-45-6789 ABC123456 12345",
-    expectedAnonymized:
-      "[Email1] [Phone1] [Phone2] [Date1] [URL1] [IBAN1] [CreditCard1] [SSN1] [IDNumber1] [Number1]"
+    description: "Embedded number test",
+    input: "Order 12345 confirmed",
+    expectedAnonymized: "Order [Number] confirmed"
   },
   {
-    description: "No sensitive data (English)",
-    input: "This is a simple text with no sensitive information.",
-    expectedAnonymized: "This is a simple text with no sensitive information."
+    description: "Simple name test",
+    input: "Hallo John",
+    expectedAnonymized: "Hallo [Name]"
   },
   {
-    description: "No sensitive data (German)",
-    input: "Dies ist ein normaler deutscher Text ohne vertrauliche Daten.",
-    expectedAnonymized: "Dies ist ein normaler deutscher Text ohne vertrauliche Daten."
+    description: "Composite name test",
+    input: "Guten Tag Maria Müller, wie geht es dir?",
+    expectedAnonymized: "Guten Tag [Name], wie geht es dir?"
   },
   {
-    description: "No sensitive data (French)",
-    input: "Ceci est un texte français normal sans informations sensibles.",
-    expectedAnonymized: "Ceci est un texte français normal sans informations sensibles."
-  },
-  {
-    description: "Mixed text with no sensitive data",
-    input: "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-    expectedAnonymized: "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+    description: "Composite test with number and name",
+    input: "Rechnung 98765: Hallo Anna",
+    expectedAnonymized: "Rechnung [Number]: Hallo [Name]"
   }
 ];
+
 async function runTests() {
-    let allPassed = true;
-    const errors = [];
-  
-    for (const test of tests) {
-      console.log("Running test: " + test.description);
-      const anonymizer = new window.Anonymizer();
-      anonymizer.setText(test.input);
-      
-      // Warten bis anonymize fertig ist:
-      await anonymizer.anonymize();
-  
-      const anonymizedOutput = anonymizer.getText();
-      const deanonymizedOutput = anonymizer.deanonymize();
-  
-      const testErrors = compareResults(test, anonymizedOutput, deanonymizedOutput);
-      if (testErrors.length > 0) {
-        allPassed = false;
-        testErrors.forEach(e => {
-          console.error(`Test failed: ${e.description}`);
-          console.error(`  Input               : ${e.input}`);
-          console.error(`  Expected anonymized : ${e.expected_anonymized}`);
-          console.error(`  Anonymize output    : ${e.anonymize_output}`);
-          console.error(`  Deanonymize output  : ${e.deanonymize_output}`);
-        });
-        errors.push(...testErrors);
-      } else {
-        console.log(`Test passed: ${test.description}`);
-      }
-    }
-  
-    if (allPassed) {
-      console.log("All tests passed successfully.");
+  let allPassed = true;
+  const errors = [];
+
+  for (const test of tests) {
+    console.log("Running test: " + test.description);
+    const anonymizer = new window.Anonymizer();
+    anonymizer.setText(test.input);
+
+    // Wait until anonymization is finished
+    await anonymizer.anonymize();
+
+    const anonymizedOutput = anonymizer.getText();
+    const deanonymizedOutput = anonymizer.deanonymize();
+
+    const testErrors = compareResults(test, anonymizedOutput, deanonymizedOutput);
+    if (testErrors.length > 0) {
+      allPassed = false;
+      testErrors.forEach(e => {
+        console.error(`Test failed: ${e.description}`);
+        console.error(`  Input               : ${e.input}`);
+        console.error(`  Expected anonymized : ${e.expected_anonymized}`);
+        console.error(`  Anonymize output    : ${e.anonymize_output}`);
+        console.error(`  Deanonymize output  : ${e.deanonymize_output}`);
+      });
+      errors.push(...testErrors);
     } else {
-      console.error("Some tests failed. See error details.");
+      console.log(`Test passed: ${test.description}`);
     }
-  
-    window.testResults = {
-      success: allPassed,
-      errors: errors
-    };
   }
 
-  (async () => { await runTests(); })();
+  if (allPassed) {
+    console.log("All tests passed successfully.");
+  } else {
+    console.error("Some tests failed. See error details.");
+  }
+
+  window.testResults = {
+    success: allPassed,
+    errors: errors
+  };
+}
+
+(async () => { await runTests(); })();
+
 </script>
 </head>
   <body>

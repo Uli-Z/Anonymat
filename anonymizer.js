@@ -23,25 +23,16 @@
 
   class Anonymizer {
     constructor(initialText = "") {
-      this.textWrapper = new TextWrapper(initialText);
-      // List of placeholder types (classes from placeholder.js)
+      // Updated placeholder types: use new NamePlaceholder and NumberPlaceholder
       this.placeholderTypes = [
-        new IBANPlaceholderType(),
-        new EmailPlaceholderType(),
-        new DateTimePlaceholderType(),
-        new URLPlaceholderType(),
-        new CreditCardPlaceholderType(),
-        new SocialSecurityPlaceholderType(),
-        new PhonePlaceholderType(),
-        new NumberPlaceholderType(),
-        new NamePlaceholderType(),
-        new DatePlaceholderType()
+        new NumberPlaceholder(),       // new integrated placeholder for numbers
+        new NamePlaceholder(),         // new integrated placeholder for names
       ];
       this.whitelist = [];
       this._wlMapping = {};
       this._wlCounter = 1;
       this.scanCompleted = false;
-      // Mapping entries: [original, token, placeholder instance, rank]
+      // Mapping entries: [original, token, placeholder, rank]
       this.mapping = [];
       this._abortController = null;
 
@@ -52,6 +43,7 @@
       this._onAbort = null;
       this._onTextChange = null;
 
+      this.textWrapper = new TextWrapper(initialText);
       this.textWrapper.setOnTextChange(() => this._triggerTextChange());
     }
 
@@ -62,7 +54,7 @@
     setOnAbort(callback) { this._onAbort = callback; }
     setOnTextChange(callback) { this._onTextChange = callback; }
 
-    // Internal callback triggers
+    // Trigger progress callback
     _triggerProgress(percent, message) {
       if (this._onProgress) this._onProgress(percent, message);
     }
@@ -79,14 +71,14 @@
       if (this._onTextChange) this._onTextChange();
     }
 
-    // Set text after applying whitelist and cleaning mapping list.
+    // Set text and apply whitelist, then clean mapping list.
     setText(newText = "") {
       const processedText = this._applyWhitelist(newText);
       this.textWrapper.set(processedText);
       this.cleanMappingList();
     }
 
-    // Replace whitelist items with tokens to avoid anonymizing them.
+    // Replace whitelist items with tokens.
     _applyWhitelist(newText) {
       this._wlMapping = {};
       this._wlCounter = 1;
@@ -101,7 +93,7 @@
       return newText;
     }
 
-    // Restore whitelist tokens to their original values.
+    // Restore whitelist tokens.
     _restoreWhitelist(text) {
       for (const token in this._wlMapping) {
         const wlValue = this._wlMapping[token];
@@ -110,7 +102,7 @@
       return text;
     }
 
-    // Scan the text for sensitive data and update the mapping.
+    // Scan text for sensitive data using new detection strategies.
     async identifyPII() {
       if (this._abortController) {
         this._abortController.abort();
@@ -120,16 +112,19 @@
       const signal = this._abortController.signal;
       this.scanCompleted = false;
       const originalText = this.textWrapper.get();
-      const activePlaceholders = this.placeholderTypes.filter(ph => ph.enabled)
+      // Filter active placeholders; assume each has an 'enabled' property (default true).
+      const activePlaceholders = this.placeholderTypes.filter(ph => ph.enabled !== false)
                                   .sort((a, b) => (a.rank || 0) - (b.rank || 0));
       for (let i = 0; i < activePlaceholders.length; i++) {
         if (signal.aborted) return;
         const ph = activePlaceholders[i];
         const percent = Math.round(((i + 1) / activePlaceholders.length) * 100);
         this._triggerProgress(percent, `Scanning for ${ph.placeholderPrefix}...`);
-        const results = ph.identifyPII(originalText, this.mapping) || [];
-        results.forEach(entry => {
-          this.addToMappingList(entry[0], entry[1], entry[2], ph.rank);
+        // Use the new detect method from the placeholder.
+        const results = ph.detect(originalText, this.mapping) || [];
+        results.forEach(result => {
+          // Add detection result to mapping list.
+          this.addToMappingList(result.original, result.token, ph, ph.rank);
         });
       }
       this.cleanMappingList();
@@ -139,18 +134,14 @@
       console.log("PII identification completed.");
     }
 
-    // Add a new mapping entry.
-    // This function now removes any existing mapping entries with the same original text
-    // before adding the new one.
+    // Add a new mapping entry. Removes entries with the same original text.
     addToMappingList(original, token, placeholder, rank) {
-      // Remove all entries with the same original text
       this.mapping = this.mapping.filter(entry => entry[0] !== original);
-      // Add the new mapping entry
       this.mapping.push([original, token, placeholder, rank]);
       this._triggerMappingChange();
     }
 
-    // Simulate anonymization to assign tokens.
+    // Apply anonymization by assigning tokens and replacing sensitive data.
     _applyAnonymization(text, mappingList) {
       let modifiedText = text;
       const updatedMappingList = mappingList.map(entry => [...entry]);
@@ -211,7 +202,7 @@
       return this.mapping;
     }
 
-    // Clean mapping list by removing invalid entries.
+    // Clean mapping list by removing invalid or duplicate entries.
     cleanMappingList() {
       const { updatedMappingList } = this._applyAnonymization(this.textWrapper.get(), this.mapping);
       this.mapping = this.mapping.filter(entry => {
@@ -226,11 +217,7 @@
       this._triggerMappingChange();
     }
 
-    // Helper to escape regex characters.
-    _escapeRegExp(string) {
-      return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }
-
+    // Add item to whitelist and re-run detection.
     addToWhitelist(item) {
       if (!this.whitelist.includes(item)) {
         this.whitelist.push(item);
@@ -260,11 +247,11 @@
       const customPlaceholder = new CustomPlaceholderType(pattern, uniqueLabel);
       this.placeholderTypes.push(customPlaceholder);
 
-      // Scan only using the custom placeholder and update the mapping.
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII(currentText, this.mapping) || [];
+      const results = customPlaceholder.identifyPII
+                        ? customPlaceholder.identifyPII(currentText, this.mapping) || []
+                        : [];
       results.forEach(entry => {
-        // entry corresponds to [match, null, customPlaceholder, ...]
         this.addToMappingList(entry[0], entry[1], customPlaceholder, customPlaceholder.rank);
       });
 
@@ -317,10 +304,7 @@
       }
     }
     
-    // --- New functions for singular anonymization/deanonymization ---
-    
-    // Replaces all occurrences of a specific original text (from the mapping list)
-    // with its token, performing singular anonymization.
+    // Singular anonymization: replace all occurrences of a specific original text.
     anonymizeSingleText(originalText) {
       let mappingEntry = this.mapping.find(entry => entry[0] === originalText);
       if (!mappingEntry) return;
@@ -334,8 +318,7 @@
       this._triggerTextChange();
     }
     
-    // Replaces in the text the given token with its original text,
-    // i.e. singular deanonymization.
+    // Singular deanonymization: replace a specific token with its original text.
     deanonymizeSingleToken(token) {
       let mappingEntry = this.mapping.find(entry => entry[1] === token);
       if (!mappingEntry) return;
@@ -351,7 +334,7 @@
   window.Anonymizer = Anonymizer;
   window.TextWrapper = TextWrapper;
   
-  // Compatibility alias for existing calls (e.g., in context menu)
+  // Compatibility alias for existing calls.
   Anonymizer.prototype.deanonymize_singleToken = Anonymizer.prototype.deanonymizeSingleToken;
   Anonymizer.prototype.anonymize_singleText = Anonymizer.prototype.anonymizeSingleText;
 })(window);
