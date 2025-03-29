@@ -51,9 +51,8 @@ class RegexDetectionStrategy extends DetectionStrategy {
     while ((m = regex.exec(text)) !== null) {
       const detectedValue = m[this.groupIndex] || m[0];
       if (!detectedValue) continue;
-      if (currentMapping.some(e => e.original === detectedValue && e.strategy === this))
+      if (currentMapping.some(e => e[1] === detectedValue && e[2] === this))
         continue;
-      // Calculate the start index of the captured group within the overall match.
       let offset = m[0].indexOf(detectedValue);
       if (offset < 0) offset = 0;
       const start = m.index + offset;
@@ -80,12 +79,13 @@ class GenericPlaceholderType {
     this.enabled = true;
   }
 
+  // Now checks e[1] (the token) in the mapping array
   getNextTokenName(currentMapping) {
     let token = `[${this.placeholderPrefix}]`;
-    if (!currentMapping.some(e => e.token === token)) return token;
+    if (!currentMapping.some(e => e[1] === token)) return token;
     let counter = 2;
     token = `[${this.placeholderPrefix}_${counter}]`;
-    while (currentMapping.some(e => e.token === token)) {
+    while (currentMapping.some(e => e[1] === token)) {
       counter++;
       token = `[${this.placeholderPrefix}_${counter}]`;
     }
@@ -115,10 +115,23 @@ class GenericPlaceholderType {
   }
 }
 
+/* Placeholder for detecting numbers */
+class NumberPlaceholder extends GenericPlaceholderType {
+  constructor() {
+    // Updated regex: match numbers with at least 3 digits (first digit plus at least 2 more)
+    const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
+    const numberStrategy = new RegexDetectionStrategy({
+      regex: numberRegex,
+      description: "Number detection",
+      groupIndex: 0
+    });
+    super("Number", [numberStrategy]);
+  }
+}
+
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Define common prefixes that must appear before a name.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -157,7 +170,6 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
-    // Pattern for a name: one token with optional additional parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -169,21 +181,8 @@ class NamePlaceholder extends GenericPlaceholderType {
   }
 }
 
-/* Placeholder for detecting numbers using a regex */
-class NumberPlaceholder extends GenericPlaceholderType {
-  constructor() {
-    const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){3,}(?!\d)/g;
-    const numberStrategy = new RegexDetectionStrategy({
-      regex: numberRegex,
-      description: "Number detection",
-      groupIndex: 0
-    });
-    super("Number", [numberStrategy]);
-  }
-}
-
 window.DetectionStrategy = DetectionStrategy;
 window.RegexDetectionStrategy = RegexDetectionStrategy;
 window.GenericPlaceholderType = GenericPlaceholderType;
-window.NamePlaceholder = NamePlaceholder;
 window.NumberPlaceholder = NumberPlaceholder;
+window.NamePlaceholder = NamePlaceholder;

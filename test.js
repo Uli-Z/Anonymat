@@ -31,7 +31,6 @@ function compareResults(test, anonymizedOutput, deanonymizedOutput) {
 
 // New test cases for NumberPlaceholder and NamePlaceholder
 const tests = [
-  // Number tests
   {
     description: "Too short number (2 digits) should not be detected",
     input: "12",
@@ -60,15 +59,8 @@ const tests = [
   {
     description: "Composite numbers test",
     input: "Order 12, then 123, then 12341324-132424, 1234.32411.1234 and 1324/21342/213123.",
-    // The long numbers are sorted by descending length so that:
-    // "1324/21342/213123" (length 17) becomes [Number],
-    // "12341324-132424" becomes [Number_2],
-    // "1234.32411.1234" becomes [Number_3],
-    // "123" (length 3) becomes [Number_4],
-    // "12" is not detected.
     expectedAnonymized: "Order 12, then [Number_4], then [Number_2], [Number_3] and [Number]."
   },
-  // Name tests
   {
     description: "Name with prefix detection",
     input: "Hallo John",
@@ -87,7 +79,7 @@ const tests = [
   {
     description: "Composite test with number and name",
     input: "Order 123 and Hallo John and Guten Tag Maria Müller",
-    expectedAnonymized: "Order [Number] and Hallo [Name] and Guten Tag [Name]"
+    expectedAnonymized: "Order [Number] and Hallo [Name_2] and Guten Tag [Name]"
   }
 ];
 
@@ -100,7 +92,7 @@ async function runTests() {
     const anonymizer = new window.Anonymizer();
     anonymizer.setText(test.input);
 
-    // Wait until anonymization is finished
+    // Wait until anonymization is finished:
     await anonymizer.anonymize();
 
     const anonymizedOutput = anonymizer.getText();
