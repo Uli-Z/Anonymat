@@ -164,48 +164,69 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateHighlight() {
     const text = editor.value;
     if (text.trim() === "") {
-      // Use the translated placeholder so that only the highlight shows it.
-      highlight.innerHTML = `<span class="placeholder">${window.translate("editorPlaceholder")}</span>`;
+      highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
       highlight.className = "";
       return;
     }
-
-    let intervals = [];
-
-    // Collect intervals for detected PII and placeholders.
-    let detectedIntervals = Utils.collectIntervals(text, detectedPIIinText, clickableElementsConfig.detected.className);
+  
+    // Collect and merge detected intervals.
+    let detectedIntervals = Utils.collectIntervals(
+      text,
+      window.anonymizer.getMapping().map(entry => entry[0]),
+      "detected"
+    );
     detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
-    intervals = intervals.concat(detectedIntervals);
-    intervals = intervals.concat(Utils.collectIntervals(text, placeholderTokensInText, clickableElementsConfig.placeholder.className));
-
-    // Add whitelist intervals.
+  
+    // Collect anonymized token intervals (if needed).
+    let anonymizedIntervals = Utils.collectIntervals(
+      text,
+      window.anonymizer.getMapping().map(entry => entry[1]),
+      "anonymized"
+    );
+  
+    // Collect and merge whitelist intervals.
     const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
-    intervals = intervals.concat(Utils.collectIntervals(text, whitelistItems, clickableElementsConfig.whitelist.className));
-
+    let whitelistIntervals = Utils.collectIntervals(text, whitelistItems, "whitelisted");
+    whitelistIntervals = Utils.mergeOverlappingIntervals(whitelistIntervals);
+  
+    // Remove detected intervals that overlap with whitelist intervals.
+    detectedIntervals = detectedIntervals.filter(detected => {
+      return !whitelistIntervals.some(whitelist =>
+        whitelist.start <= detected.end && whitelist.end >= detected.start
+      );
+    });
+  
+    // Combine all intervals – whitelist takes precedence.
+    let intervals = [].concat(whitelistIntervals, detectedIntervals, anonymizedIntervals);
     intervals.sort((a, b) => a.start - b.start);
-
+  
+    // Build the highlight HTML layer.
     let result = "";
     let currentIndex = 0;
     intervals.forEach(interval => {
+      if (currentIndex > interval.start) return; // Skip overlapping intervals.
       result += Utils.escapeHtml(text.substring(currentIndex, interval.start));
-      result += `<span class="${interval.className}">` + Utils.escapeHtml(text.substring(interval.start, interval.end)) + "</span>";
+      result += `<span class="${interval.className}">` +
+                Utils.escapeHtml(text.substring(interval.start, interval.end)) +
+                `</span>`;
       currentIndex = interval.end;
     });
     result += Utils.escapeHtml(text.substring(currentIndex));
     highlight.innerHTML = result;
-
-    // Update highlight classes.
-    if (detectedPIIinText.length > 0) {
+    
+    // Update highlight container classes. (Background color change)
+    if (highlight.innerHTML.includes('class="detected"')) {
       highlight.classList.add("highlight-detected");
       highlight.classList.remove("highlight-clean");
     } else {
       highlight.classList.add("highlight-clean");
       highlight.classList.remove("highlight-detected");
     }
-
-    // Adjust highlight height to match the editor.
+  
+    // Match highlight height to editor scroll height.
     highlight.style.height = editor.scrollHeight + "px";
   }
+  
 
   // Update button states based on current text.
   function updateButtonStates() {
