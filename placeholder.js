@@ -79,7 +79,7 @@ class GenericPlaceholderType {
     this.enabled = true;
   }
 
-  // Now checks e[1] (the token) in the mapping array
+  // Returns next available token name
   getNextTokenName(currentMapping) {
     let token = `[${this.placeholderPrefix}]`;
     if (!currentMapping.some(e => e[1] === token)) return token;
@@ -92,7 +92,7 @@ class GenericPlaceholderType {
     return token;
   }
 
-  // Run all detection strategies and clean the results.
+  // Run all detection strategies and aggregate results.
   detect(text, currentMapping) {
     let results = [];
     for (const strategy of this.detectionStrategies) {
@@ -118,7 +118,7 @@ class GenericPlaceholderType {
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Updated regex: match numbers with at least 3 digits (first digit plus at least 2 more)
+    // Regex to match numbers with at least 3 digits.
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
     const numberStrategy = new RegexDetectionStrategy({
       regex: numberRegex,
@@ -132,6 +132,7 @@ class NumberPlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
+    // Prefixes to detect names.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -170,6 +171,7 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
+    // Regex pattern for full names with optional hyphenated parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -181,8 +183,23 @@ class NamePlaceholder extends GenericPlaceholderType {
   }
 }
 
+/* Placeholder for detecting email addresses */
+class EmailPlaceholder extends GenericPlaceholderType {
+  constructor() {
+    // Regex for emails: matches any characters except '@' and whitespace before and after '@', then a dot and any characters.
+    const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
+    const emailStrategy = new RegexDetectionStrategy({
+      regex: emailRegex,
+      description: "Email detection",
+      groupIndex: 0
+    });
+    super("Email", [emailStrategy]);
+  }
+}
+
 window.DetectionStrategy = DetectionStrategy;
 window.RegexDetectionStrategy = RegexDetectionStrategy;
 window.GenericPlaceholderType = GenericPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
+window.EmailPlaceholder = EmailPlaceholder;

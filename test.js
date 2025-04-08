@@ -29,7 +29,7 @@ function compareResults(test, anonymizedOutput, deanonymizedOutput) {
   return errors;
 }
 
-// New test cases for NumberPlaceholder and NamePlaceholder
+// New test cases for NumberPlaceholder, NamePlaceholder, and EmailPlaceholder
 const tests = [
   {
     description: "Too short number (2 digits) should not be detected",
@@ -80,6 +80,26 @@ const tests = [
     description: "Composite test with number and name",
     input: "Order 123 and Hallo John and Guten Tag Maria Müller",
     expectedAnonymized: "Order [Number] and Hallo [Name_2] and Guten Tag [Name]"
+  },
+  {
+    description: "Simple email detection",
+    input: "user@example.com",
+    expectedAnonymized: "[Email]"
+  },
+  {
+    description: "Composite email test",
+    input: "Contact: user@example.com for info.",
+    expectedAnonymized: "Contact: [Email] for info."
+  },
+  {
+    description: "Multiple email detection",
+    input: "Emails: user@example.com, admin@example.org.",
+    expectedAnonymized: "Emails: [Email_2], [Email]."
+  },
+  {
+    description: "False positive email should not be detected",
+    input: "Not an email: user_at_example.com",
+    expectedAnonymized: "Not an email: user_at_example.com"
   }
 ];
 

@@ -23,10 +23,11 @@
 
   class Anonymizer {
     constructor(initialText = "") {
-      // Updated placeholder types: use new NamePlaceholder and NumberPlaceholder
+      // Updated placeholder types with new EmailPlaceholder integration.
       this.placeholderTypes = [
-        new NumberPlaceholder(),       // new integrated placeholder for numbers
-        new NamePlaceholder(),         // new integrated placeholder for names
+        new NumberPlaceholder(),       // placeholder for numbers
+        new NamePlaceholder(),         // placeholder for names
+        new EmailPlaceholder()         // placeholder for emails
       ];
       this.whitelist = [];
       this._wlMapping = {};
@@ -220,24 +221,19 @@
     // Add item to whitelist and re-run detection.
     addToWhitelist(item) {
       if (!this.whitelist.includes(item)) {
-        // Check if there are existing tokens within the item. These must first be deanonymized.
-        // The new item text will then be added as a whitelist item.
-
         let currentText = this.textWrapper.get();
         const regex = new RegExp(this._escapeRegExp(item), "g");
         const matches = currentText.match(regex);
         if (matches) {
           matches.forEach(match => {
             const regex = new RegExp(this._escapeRegExp(match), "g");
-            // replace the match with the original text, access the mapping list to find the original text
             const mappingEntry = this.mapping.find(entry => entry[1] === match);
             if (mappingEntry) {
               const originalText = mappingEntry[0];
               currentText = currentText.replace(regex, originalText);
-              item=currentText;
+              item = currentText;
             }
           });
-
         }
         this.textWrapper.set(currentText);
 
