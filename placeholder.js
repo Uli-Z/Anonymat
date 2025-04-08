@@ -115,6 +115,51 @@ class GenericPlaceholderType {
   }
 }
 
+// Implementation of CustomPlaceholderType with English comments
+class CustomPlaceholderType extends GenericPlaceholderType {
+  constructor(pattern, placeholderPrefix) {
+    // Check if the pattern is a regex literal (e.g., "/pattern/")
+    // If yes, remove the leading and trailing slashes and create a RegExp with global flag.
+    // Otherwise, treat the pattern as a literal and escape special regex characters.
+    let regex;
+    if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
+      const regexBody = pattern.slice(1, -1);
+      regex = new RegExp(regexBody, "g");
+    } else {
+      regex = new RegExp(escapeRegExp(pattern), "g");
+    }
+    
+    // Create a detection strategy for the custom pattern using RegexDetectionStrategy.
+    const strategy = new RegexDetectionStrategy({
+      regex: regex,
+      description: `Custom placeholder detection for pattern: ${pattern}`,
+      groupIndex: 0
+    });
+    
+    // Call the parent class constructor with the custom prefix and an array containing the detection strategy.
+    super(placeholderPrefix, [strategy]);
+    
+    // Save the original pattern for reference.
+    this.pattern = pattern;
+    
+    // Mark this placeholder type as custom.
+    this.isCustom = true;
+  }
+
+  // Method to identify PII using the detection strategy.
+  identifyPII(text, currentMapping) {
+    // Delegates to the inherited detect() method.
+    return this.detect(text, currentMapping);
+  }
+
+  // Optional method to immediately apply the placeholder if needed.
+  apply() {
+    // Can implement direct anonymization logic here if required.
+    // Currently left empty because the external anonymizer handles applying the changes.
+  }
+}
+
+
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {

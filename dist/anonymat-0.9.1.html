@@ -1194,7 +1194,7 @@ class GenericPlaceholderType {
     this.enabled = true;
   }
 
-  // Now checks e[1] (the token) in the mapping array
+  // Returns next available token name
   getNextTokenName(currentMapping) {
     let token = `[${this.placeholderPrefix}]`;
     if (!currentMapping.some(e => e[1] === token)) return token;
@@ -1207,7 +1207,7 @@ class GenericPlaceholderType {
     return token;
   }
 
-  // Run all detection strategies and clean the results.
+  // Run all detection strategies and aggregate results.
   detect(text, currentMapping) {
     let results = [];
     for (const strategy of this.detectionStrategies) {
@@ -1230,10 +1230,55 @@ class GenericPlaceholderType {
   }
 }
 
+// Implementation of CustomPlaceholderType with English comments
+class CustomPlaceholderType extends GenericPlaceholderType {
+  constructor(pattern, placeholderPrefix) {
+    // Check if the pattern is a regex literal (e.g., "/pattern/")
+    // If yes, remove the leading and trailing slashes and create a RegExp with global flag.
+    // Otherwise, treat the pattern as a literal and escape special regex characters.
+    let regex;
+    if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
+      const regexBody = pattern.slice(1, -1);
+      regex = new RegExp(regexBody, "g");
+    } else {
+      regex = new RegExp(escapeRegExp(pattern), "g");
+    }
+    
+    // Create a detection strategy for the custom pattern using RegexDetectionStrategy.
+    const strategy = new RegexDetectionStrategy({
+      regex: regex,
+      description: `Custom placeholder detection for pattern: ${pattern}`,
+      groupIndex: 0
+    });
+    
+    // Call the parent class constructor with the custom prefix and an array containing the detection strategy.
+    super(placeholderPrefix, [strategy]);
+    
+    // Save the original pattern for reference.
+    this.pattern = pattern;
+    
+    // Mark this placeholder type as custom.
+    this.isCustom = true;
+  }
+
+  // Method to identify PII using the detection strategy.
+  identifyPII(text, currentMapping) {
+    // Delegates to the inherited detect() method.
+    return this.detect(text, currentMapping);
+  }
+
+  // Optional method to immediately apply the placeholder if needed.
+  apply() {
+    // Can implement direct anonymization logic here if required.
+    // Currently left empty because the external anonymizer handles applying the changes.
+  }
+}
+
+
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Updated regex: match numbers with at least 3 digits (first digit plus at least 2 more)
+    // Regex to match numbers with at least 3 digits.
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
     const numberStrategy = new RegexDetectionStrategy({
       regex: numberRegex,
@@ -1247,6 +1292,7 @@ class NumberPlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
+    // Prefixes to detect names.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -1285,6 +1331,7 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
+    // Regex pattern for full names with optional hyphenated parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -1296,11 +1343,26 @@ class NamePlaceholder extends GenericPlaceholderType {
   }
 }
 
+/* Placeholder for detecting email addresses */
+class EmailPlaceholder extends GenericPlaceholderType {
+  constructor() {
+    // Regex for emails: matches any characters except '@' and whitespace before and after '@', then a dot and any characters.
+    const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
+    const emailStrategy = new RegexDetectionStrategy({
+      regex: emailRegex,
+      description: "Email detection",
+      groupIndex: 0
+    });
+    super("Email", [emailStrategy]);
+  }
+}
+
 window.DetectionStrategy = DetectionStrategy;
 window.RegexDetectionStrategy = RegexDetectionStrategy;
 window.GenericPlaceholderType = GenericPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
+window.EmailPlaceholder = EmailPlaceholder;
 
 </script>
     <script>
@@ -1515,10 +1577,11 @@ const dateFormats = [
 
   class Anonymizer {
     constructor(initialText = "") {
-      // Updated placeholder types: use new NamePlaceholder and NumberPlaceholder
+      // Updated placeholder types with new EmailPlaceholder integration.
       this.placeholderTypes = [
-        new NumberPlaceholder(),       // new integrated placeholder for numbers
-        new NamePlaceholder(),         // new integrated placeholder for names
+        new NumberPlaceholder(),       // placeholder for numbers
+        new NamePlaceholder(),         // placeholder for names
+        new EmailPlaceholder()         // placeholder for emails
       ];
       this.whitelist = [];
       this._wlMapping = {};
@@ -1712,6 +1775,22 @@ const dateFormats = [
     // Add item to whitelist and re-run detection.
     addToWhitelist(item) {
       if (!this.whitelist.includes(item)) {
+        let currentText = this.textWrapper.get();
+        const regex = new RegExp(this._escapeRegExp(item), "g");
+        const matches = currentText.match(regex);
+        if (matches) {
+          matches.forEach(match => {
+            const regex = new RegExp(this._escapeRegExp(match), "g");
+            const mappingEntry = this.mapping.find(entry => entry[1] === match);
+            if (mappingEntry) {
+              const originalText = mappingEntry[0];
+              currentText = currentText.replace(regex, originalText);
+              item = currentText;
+            }
+          });
+        }
+        this.textWrapper.set(currentText);
+
         this.whitelist.push(item);
         this.setText(this.getText());
         this.identifyPII();
@@ -2776,48 +2855,69 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateHighlight() {
     const text = editor.value;
     if (text.trim() === "") {
-      // Use the translated placeholder so that only the highlight shows it.
-      highlight.innerHTML = `<span class="placeholder">${window.translate("editorPlaceholder")}</span>`;
+      highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
       highlight.className = "";
       return;
     }
-
-    let intervals = [];
-
-    // Collect intervals for detected PII and placeholders.
-    let detectedIntervals = Utils.collectIntervals(text, detectedPIIinText, clickableElementsConfig.detected.className);
+  
+    // Collect and merge detected intervals.
+    let detectedIntervals = Utils.collectIntervals(
+      text,
+      window.anonymizer.getMapping().map(entry => entry[0]),
+      "detected"
+    );
     detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
-    intervals = intervals.concat(detectedIntervals);
-    intervals = intervals.concat(Utils.collectIntervals(text, placeholderTokensInText, clickableElementsConfig.placeholder.className));
-
-    // Add whitelist intervals.
+  
+    // Collect anonymized token intervals (if needed).
+    let anonymizedIntervals = Utils.collectIntervals(
+      text,
+      window.anonymizer.getMapping().map(entry => entry[1]),
+      "anonymized"
+    );
+  
+    // Collect and merge whitelist intervals.
     const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
-    intervals = intervals.concat(Utils.collectIntervals(text, whitelistItems, clickableElementsConfig.whitelist.className));
-
+    let whitelistIntervals = Utils.collectIntervals(text, whitelistItems, "whitelisted");
+    whitelistIntervals = Utils.mergeOverlappingIntervals(whitelistIntervals);
+  
+    // Remove detected intervals that overlap with whitelist intervals.
+    detectedIntervals = detectedIntervals.filter(detected => {
+      return !whitelistIntervals.some(whitelist =>
+        whitelist.start <= detected.end && whitelist.end >= detected.start
+      );
+    });
+  
+    // Combine all intervals – whitelist takes precedence.
+    let intervals = [].concat(whitelistIntervals, detectedIntervals, anonymizedIntervals);
     intervals.sort((a, b) => a.start - b.start);
-
+  
+    // Build the highlight HTML layer.
     let result = "";
     let currentIndex = 0;
     intervals.forEach(interval => {
+      if (currentIndex > interval.start) return; // Skip overlapping intervals.
       result += Utils.escapeHtml(text.substring(currentIndex, interval.start));
-      result += `<span class="${interval.className}">` + Utils.escapeHtml(text.substring(interval.start, interval.end)) + "</span>";
+      result += `<span class="${interval.className}">` +
+                Utils.escapeHtml(text.substring(interval.start, interval.end)) +
+                `</span>`;
       currentIndex = interval.end;
     });
     result += Utils.escapeHtml(text.substring(currentIndex));
     highlight.innerHTML = result;
-
-    // Update highlight classes.
-    if (detectedPIIinText.length > 0) {
+    
+    // Update highlight container classes. (Background color change)
+    if (highlight.innerHTML.includes('class="detected"')) {
       highlight.classList.add("highlight-detected");
       highlight.classList.remove("highlight-clean");
     } else {
       highlight.classList.add("highlight-clean");
       highlight.classList.remove("highlight-detected");
     }
-
-    // Adjust highlight height to match the editor.
+  
+    // Match highlight height to editor scroll height.
     highlight.style.height = editor.scrollHeight + "px";
   }
+  
 
   // Update button states based on current text.
   function updateButtonStates() {
