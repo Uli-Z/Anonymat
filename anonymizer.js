@@ -297,31 +297,73 @@
     removePlaceholder(id) {
       const ph = this.getPlaceholderByID(id);
       if (!ph) return;
+    
+      // Deanonymize: Replace all tokens belonging to the placeholder with their original text
       let currentText = this.textWrapper.get();
       this.mapping.forEach(entry => {
         if (entry[2].id === ph.id && entry[1] !== null) {
-          const regex = new RegExp(this._escapeRegExp(entry[1]), "g");
-          currentText = currentText.replace(regex, entry[0]);
+          const token = entry[1];
+          const original = entry[0];
+          const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+          currentText = currentText.replace(regex, original);
         }
       });
+      
+      // Update the text with deanonymized content
+      this.textWrapper.set(currentText);
+    
+      // Remove mapping entries related to the placeholder
       this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+    
+      // Remove the placeholder if it is custom, otherwise disable it
       if (ph.isCustom) {
         const index = this.placeholderTypes.findIndex(item => item.id === ph.id);
-        if (index !== -1) this.placeholderTypes.splice(index, 1);
+        if (index !== -1) {
+          this.placeholderTypes.splice(index, 1);
+        }
       } else {
         ph.enabled = false;
       }
-      this.textWrapper.set(currentText);
+    
+      // Trigger callbacks to notify mapping and text changes
+      this._triggerMappingChange();
+      this._triggerTextChange();
+    
+      // Re-identify PII in the updated text
       this.identifyPII();
     }
+    
+    
 
     setPlaceholderStatus(id, status) {
       const ph = this.getPlaceholderByID(id);
       if (ph) {
+        // If disabling, first deanonymize all tokens associated with this placeholder
+        if (!status) {
+          let currentText = this.textWrapper.get();
+          this.mapping.forEach(entry => {
+            if (entry[2].id === ph.id && entry[1] !== null) {
+              const token = entry[1];
+              const original = entry[0];
+              const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+              currentText = currentText.replace(regex, original);
+            }
+          });
+          // Update the text with deanonymized content
+          this.textWrapper.set(currentText);
+          // Remove mapping entries related to this placeholder
+          this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+          // Trigger mapping and text change callbacks
+          this._triggerMappingChange();
+          this._triggerTextChange();
+        }
+        // Set placeholder enabled status
         ph.enabled = status;
+        // Re-run PII identification after changes
         this.identifyPII();
       }
     }
+    
     
     // Singular anonymization: replace all occurrences of a specific original text.
     anonymizeSingleText(originalText) {
