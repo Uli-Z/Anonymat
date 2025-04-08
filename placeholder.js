@@ -5,6 +5,9 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Global counter for generating unique placeholder IDs
+let phIdCounter = 0;
+
 /* Base class for detection strategies */
 class DetectionStrategy {
   detect(text, currentMapping) {
@@ -14,14 +17,6 @@ class DetectionStrategy {
 
 /* Regex detection strategy with optional prefixes and suffixes */
 class RegexDetectionStrategy extends DetectionStrategy {
-  /**
-   * Options:
-   *   - regex: RegExp for the main pattern.
-   *   - description: Description of the strategy.
-   *   - groupIndex: Capture group index for the main match (default 0).
-   *   - prefixes: Optional array of strings that must precede the main match.
-   *   - suffixes: Optional array of strings that must follow the main match.
-   */
   constructor(options) {
     super();
     this.description = options.description;
@@ -77,6 +72,8 @@ class GenericPlaceholderType {
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
     this.enabled = true;
+    // Assign a unique ID to each placeholder instance
+    this.id = "ph_" + placeholderPrefix + "_" + (++phIdCounter);
   }
 
   // Returns next available token name
@@ -115,12 +112,9 @@ class GenericPlaceholderType {
   }
 }
 
-// Implementation of CustomPlaceholderType with English comments
+/* Implementation of CustomPlaceholderType with English comments */
 class CustomPlaceholderType extends GenericPlaceholderType {
   constructor(pattern, placeholderPrefix) {
-    // Check if the pattern is a regex literal (e.g., "/pattern/")
-    // If yes, remove the leading and trailing slashes and create a RegExp with global flag.
-    // Otherwise, treat the pattern as a literal and escape special regex characters.
     let regex;
     if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
       const regexBody = pattern.slice(1, -1);
@@ -128,42 +122,28 @@ class CustomPlaceholderType extends GenericPlaceholderType {
     } else {
       regex = new RegExp(escapeRegExp(pattern), "g");
     }
-    
-    // Create a detection strategy for the custom pattern using RegexDetectionStrategy.
     const strategy = new RegexDetectionStrategy({
       regex: regex,
       description: `Custom placeholder detection for pattern: ${pattern}`,
       groupIndex: 0
     });
-    
-    // Call the parent class constructor with the custom prefix and an array containing the detection strategy.
     super(placeholderPrefix, [strategy]);
-    
-    // Save the original pattern for reference.
     this.pattern = pattern;
-    
-    // Mark this placeholder type as custom.
     this.isCustom = true;
   }
 
-  // Method to identify PII using the detection strategy.
   identifyPII(text, currentMapping) {
-    // Delegates to the inherited detect() method.
     return this.detect(text, currentMapping);
   }
 
-  // Optional method to immediately apply the placeholder if needed.
   apply() {
-    // Can implement direct anonymization logic here if required.
-    // Currently left empty because the external anonymizer handles applying the changes.
+    // Optional direct anonymization logic
   }
 }
-
 
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex to match numbers with at least 3 digits.
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
     const numberStrategy = new RegexDetectionStrategy({
       regex: numberRegex,
@@ -177,7 +157,6 @@ class NumberPlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Prefixes to detect names.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -216,7 +195,6 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
-    // Regex pattern for full names with optional hyphenated parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -231,7 +209,6 @@ class NamePlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting email addresses */
 class EmailPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex for emails: matches any characters except '@' and whitespace before and after '@', then a dot and any characters.
     const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
     const emailStrategy = new RegexDetectionStrategy({
       regex: emailRegex,
@@ -248,3 +225,4 @@ window.GenericPlaceholderType = GenericPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
 window.EmailPlaceholder = EmailPlaceholder;
+window.CustomPlaceholderType = CustomPlaceholderType;

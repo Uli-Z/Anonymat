@@ -263,19 +263,21 @@
       }
       const customPlaceholder = new CustomPlaceholderType(pattern, uniqueLabel);
       this.placeholderTypes.push(customPlaceholder);
-
+    
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII
-                        ? customPlaceholder.identifyPII(currentText, this.mapping) || []
+      const results = customPlaceholder.identifyPII 
+                        ? customPlaceholder.identifyPII(currentText, this.mapping) || [] 
                         : [];
       results.forEach(entry => {
-        this.addToMappingList(entry[0], entry[1], customPlaceholder, customPlaceholder.rank);
+        // Verwende entry.original statt entry[0] und entry.token statt entry[1]
+        this.addToMappingList(entry.original, entry.token, customPlaceholder, customPlaceholder.rank);
       });
-
+    
       if (direct && typeof customPlaceholder.apply === 'function') {
         customPlaceholder.apply();
       }
     }
+    
 
     getUniqueSecretLabel() {
       let maxNum = 0;
