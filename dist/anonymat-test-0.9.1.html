@@ -3,8 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>Anonymat</title>
-    
-    <!-- Configuration block (set language, etc.) -->
+
     <!-- CONFIG-START -->
     <script>
       window.AppConfig = {
@@ -14,14 +13,10 @@
     <!-- CONFIG-END -->
 
     <script>
-      // App version (will be replaced by build script)
       window.appVersion = "0.9.1";
     </script>
-    
-    <!-- Responsive meta tag for proper scaling on mobile devices -->
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    <!-- Link to external stylesheet -->
     <style>
 /* ------------------------------
    Reset & Base Styles
@@ -748,8 +743,7 @@ header svg,
 }
 
 </style>
-    
-    <!-- Include translations and configuration scripts -->
+
     <script>
 (function (window) {
   window.translations = {
@@ -952,8 +946,6 @@ header svg,
   })(window);
   
 </script>
-    
-    <!-- Include additional libraries and modules -->
     <script>
 "use strict";
 
@@ -1120,6 +1112,9 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Global counter for generating unique placeholder IDs
+let phIdCounter = 0;
+
 /* Base class for detection strategies */
 class DetectionStrategy {
   detect(text, currentMapping) {
@@ -1129,14 +1124,6 @@ class DetectionStrategy {
 
 /* Regex detection strategy with optional prefixes and suffixes */
 class RegexDetectionStrategy extends DetectionStrategy {
-  /**
-   * Options:
-   *   - regex: RegExp for the main pattern.
-   *   - description: Description of the strategy.
-   *   - groupIndex: Capture group index for the main match (default 0).
-   *   - prefixes: Optional array of strings that must precede the main match.
-   *   - suffixes: Optional array of strings that must follow the main match.
-   */
   constructor(options) {
     super();
     this.description = options.description;
@@ -1192,6 +1179,8 @@ class GenericPlaceholderType {
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
     this.enabled = true;
+    // Assign a unique ID to each placeholder instance
+    this.id = "ph_" + placeholderPrefix + "_" + (++phIdCounter);
   }
 
   // Returns next available token name
@@ -1230,12 +1219,9 @@ class GenericPlaceholderType {
   }
 }
 
-// Implementation of CustomPlaceholderType with English comments
+/* Implementation of CustomPlaceholderType with English comments */
 class CustomPlaceholderType extends GenericPlaceholderType {
   constructor(pattern, placeholderPrefix) {
-    // Check if the pattern is a regex literal (e.g., "/pattern/")
-    // If yes, remove the leading and trailing slashes and create a RegExp with global flag.
-    // Otherwise, treat the pattern as a literal and escape special regex characters.
     let regex;
     if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
       const regexBody = pattern.slice(1, -1);
@@ -1243,42 +1229,28 @@ class CustomPlaceholderType extends GenericPlaceholderType {
     } else {
       regex = new RegExp(escapeRegExp(pattern), "g");
     }
-    
-    // Create a detection strategy for the custom pattern using RegexDetectionStrategy.
     const strategy = new RegexDetectionStrategy({
       regex: regex,
       description: `Custom placeholder detection for pattern: ${pattern}`,
       groupIndex: 0
     });
-    
-    // Call the parent class constructor with the custom prefix and an array containing the detection strategy.
     super(placeholderPrefix, [strategy]);
-    
-    // Save the original pattern for reference.
     this.pattern = pattern;
-    
-    // Mark this placeholder type as custom.
     this.isCustom = true;
   }
 
-  // Method to identify PII using the detection strategy.
   identifyPII(text, currentMapping) {
-    // Delegates to the inherited detect() method.
     return this.detect(text, currentMapping);
   }
 
-  // Optional method to immediately apply the placeholder if needed.
   apply() {
-    // Can implement direct anonymization logic here if required.
-    // Currently left empty because the external anonymizer handles applying the changes.
+    // Optional direct anonymization logic
   }
 }
-
 
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex to match numbers with at least 3 digits.
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
     const numberStrategy = new RegexDetectionStrategy({
       regex: numberRegex,
@@ -1292,7 +1264,6 @@ class NumberPlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Prefixes to detect names.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -1331,7 +1302,6 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
-    // Regex pattern for full names with optional hyphenated parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -1346,7 +1316,6 @@ class NamePlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting email addresses */
 class EmailPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex for emails: matches any characters except '@' and whitespace before and after '@', then a dot and any characters.
     const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
     const emailStrategy = new RegexDetectionStrategy({
       regex: emailRegex,
@@ -1363,6 +1332,7 @@ window.GenericPlaceholderType = GenericPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
 window.EmailPlaceholder = EmailPlaceholder;
+window.CustomPlaceholderType = CustomPlaceholderType;
 
 </script>
     <script>
@@ -1817,19 +1787,21 @@ const dateFormats = [
       }
       const customPlaceholder = new CustomPlaceholderType(pattern, uniqueLabel);
       this.placeholderTypes.push(customPlaceholder);
-
+    
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII
-                        ? customPlaceholder.identifyPII(currentText, this.mapping) || []
+      const results = customPlaceholder.identifyPII 
+                        ? customPlaceholder.identifyPII(currentText, this.mapping) || [] 
                         : [];
       results.forEach(entry => {
-        this.addToMappingList(entry[0], entry[1], customPlaceholder, customPlaceholder.rank);
+        // Verwende entry.original statt entry[0] und entry.token statt entry[1]
+        this.addToMappingList(entry.original, entry.token, customPlaceholder, customPlaceholder.rank);
       });
-
+    
       if (direct && typeof customPlaceholder.apply === 'function') {
         customPlaceholder.apply();
       }
     }
+    
 
     getUniqueSecretLabel() {
       let maxNum = 0;
@@ -1849,31 +1821,73 @@ const dateFormats = [
     removePlaceholder(id) {
       const ph = this.getPlaceholderByID(id);
       if (!ph) return;
+    
+      // Deanonymize: Replace all tokens belonging to the placeholder with their original text
       let currentText = this.textWrapper.get();
       this.mapping.forEach(entry => {
         if (entry[2].id === ph.id && entry[1] !== null) {
-          const regex = new RegExp(this._escapeRegExp(entry[1]), "g");
-          currentText = currentText.replace(regex, entry[0]);
+          const token = entry[1];
+          const original = entry[0];
+          const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+          currentText = currentText.replace(regex, original);
         }
       });
+      
+      // Update the text with deanonymized content
+      this.textWrapper.set(currentText);
+    
+      // Remove mapping entries related to the placeholder
       this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+    
+      // Remove the placeholder if it is custom, otherwise disable it
       if (ph.isCustom) {
         const index = this.placeholderTypes.findIndex(item => item.id === ph.id);
-        if (index !== -1) this.placeholderTypes.splice(index, 1);
+        if (index !== -1) {
+          this.placeholderTypes.splice(index, 1);
+        }
       } else {
         ph.enabled = false;
       }
-      this.textWrapper.set(currentText);
+    
+      // Trigger callbacks to notify mapping and text changes
+      this._triggerMappingChange();
+      this._triggerTextChange();
+    
+      // Re-identify PII in the updated text
       this.identifyPII();
     }
+    
+    
 
     setPlaceholderStatus(id, status) {
       const ph = this.getPlaceholderByID(id);
       if (ph) {
+        // If disabling, first deanonymize all tokens associated with this placeholder
+        if (!status) {
+          let currentText = this.textWrapper.get();
+          this.mapping.forEach(entry => {
+            if (entry[2].id === ph.id && entry[1] !== null) {
+              const token = entry[1];
+              const original = entry[0];
+              const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+              currentText = currentText.replace(regex, original);
+            }
+          });
+          // Update the text with deanonymized content
+          this.textWrapper.set(currentText);
+          // Remove mapping entries related to this placeholder
+          this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+          // Trigger mapping and text change callbacks
+          this._triggerMappingChange();
+          this._triggerTextChange();
+        }
+        // Set placeholder enabled status
         ph.enabled = status;
+        // Re-run PII identification after changes
         this.identifyPII();
       }
     }
+    
     
     // Singular anonymization: replace all occurrences of a specific original text.
     anonymizeSingleText(originalText) {
@@ -3354,167 +3368,291 @@ document.addEventListener("DOMContentLoaded", function () {
 })(window);
 
 </script>
-
   <script>
 "use strict";
 
-// Helper function for comparison
-function compareResults(test, anonymizedOutput, deanonymizedOutput) {
-  const errors = [];
+// First-Run-Modal im Test-Build deaktivieren
+localStorage.setItem("firstRunAcknowledged", "true");
 
-  // Check anonymization result
-  if (anonymizedOutput !== test.expectedAnonymized) {
-    errors.push({
-      description: test.description + " - Anonymization mismatch",
-      input: test.input,
-      expected_anonymized: test.expectedAnonymized,
-      anonymize_output: anonymizedOutput,
-      deanonymize_output: deanonymizedOutput
-    });
+// Globaler Error-Handler für unvorhergesehene Fehler
+window.addEventListener("error", function (event) {
+  console.error("Global error caught:", event.error);
+  window.testResults = {
+    success: false,
+    errors: [{
+      description: "Global error",
+      errors: [event.error ? event.error.toString() : event.message]
+    }]
+  };
+  window.testStatus = "failed";
+});
+
+// =============================================
+// Basis-Klasse für alle Testfälle
+// =============================================
+class TestCase {
+  constructor({ description, input, expectedOutput }) {
+    this.description = description;
+    this.input = input;
+    this.expectedOutput = expectedOutput;
   }
-
-  // Check deanonymization (should restore original input)
-  if (deanonymizedOutput !== test.input) {
-    errors.push({
-      description: test.description + " - Deanonymization mismatch",
-      input: test.input,
-      expected_anonymized: test.expectedAnonymized,
-      anonymize_output: anonymizedOutput,
-      deanonymize_output: deanonymizedOutput
-    });
+  async run() {
+    throw new Error("run() muss in Subklasse implementiert sein");
   }
-
-  return errors;
 }
 
-// New test cases for NumberPlaceholder, NamePlaceholder, and EmailPlaceholder
-const tests = [
-  {
-    description: "Too short number (2 digits) should not be detected",
-    input: "12",
-    expectedAnonymized: "12"
-  },
-  {
-    description: "Minimum valid number (3 digits)",
-    input: "123",
-    expectedAnonymized: "[Number]"
-  },
-  {
-    description: "Number with hyphen",
-    input: "12341324-132424",
-    expectedAnonymized: "[Number]"
-  },
-  {
-    description: "Number with dots",
-    input: "1234.32411.1234",
-    expectedAnonymized: "[Number]"
-  },
-  {
-    description: "Number with slashes",
-    input: "1324/21342/213123",
-    expectedAnonymized: "[Number]"
-  },
-  {
-    description: "Composite numbers test",
-    input: "Order 12, then 123, then 12341324-132424, 1234.32411.1234 and 1324/21342/213123.",
-    expectedAnonymized: "Order 12, then [Number_4], then [Number_2], [Number_3] and [Number]."
-  },
-  {
-    description: "Name with prefix detection",
-    input: "Hallo John",
-    expectedAnonymized: "Hallo [Name]"
-  },
-  {
-    description: "Composite name test with full name",
-    input: "Guten Tag Maria Müller, wie geht es?",
-    expectedAnonymized: "Guten Tag [Name], wie geht es?"
-  },
-  {
-    description: "Name without prefix should not be detected",
-    input: "John",
-    expectedAnonymized: "John"
-  },
-  {
-    description: "Composite test with number and name",
-    input: "Order 123 and Hallo John and Guten Tag Maria Müller",
-    expectedAnonymized: "Order [Number] and Hallo [Name_2] and Guten Tag [Name]"
-  },
-  {
-    description: "Simple email detection",
-    input: "user@example.com",
-    expectedAnonymized: "[Email]"
-  },
-  {
-    description: "Composite email test",
-    input: "Contact: user@example.com for info.",
-    expectedAnonymized: "Contact: [Email] for info."
-  },
-  {
-    description: "Multiple email detection",
-    input: "Emails: user@example.com, admin@example.org.",
-    expectedAnonymized: "Emails: [Email_2], [Email]."
-  },
-  {
-    description: "False positive email should not be detected",
-    input: "Not an email: user_at_example.com",
-    expectedAnonymized: "Not an email: user_at_example.com"
-  }
-];
-
-async function runTests() {
-  let allPassed = true;
-  const errors = [];
-
-  for (const test of tests) {
-    console.log("Running test: " + test.description);
+// =============================================
+// TestCase für einfache Ein-/Ausgabe-Vergleiche
+// =============================================
+class SimpleIOTestCase extends TestCase {
+  async run() {
     const anonymizer = new window.Anonymizer();
-    anonymizer.setText(test.input);
-
-    // Wait until anonymization is finished:
+    anonymizer.setText(this.input);
     await anonymizer.anonymize();
-
     const anonymizedOutput = anonymizer.getText();
     const deanonymizedOutput = anonymizer.deanonymize();
 
-    const testErrors = compareResults(test, anonymizedOutput, deanonymizedOutput);
-    if (testErrors.length > 0) {
-      allPassed = false;
-      testErrors.forEach(e => {
-        console.error(`Test failed: ${e.description}`);
-        console.error(`  Input               : ${e.input}`);
-        console.error(`  Expected anonymized : ${e.expected_anonymized}`);
-        console.error(`  Anonymize output    : ${e.anonymize_output}`);
-        console.error(`  Deanonymize output  : ${e.deanonymize_output}`);
-      });
-      errors.push(...testErrors);
-    } else {
-      console.log(`Test passed: ${test.description}`);
+    let errors = [];
+    if (anonymizedOutput !== this.expectedOutput) {
+      errors.push(`Anonymize: erwartet "${this.expectedOutput}", aber bekommen "${anonymizedOutput}"`);
     }
-  }
+    if (deanonymizedOutput !== this.input) {
+      errors.push(`Deanonymize: erwartet "${this.input}", aber bekommen "${deanonymizedOutput}"`);
+    }
 
-  if (allPassed) {
-    console.log("All tests passed successfully.");
-  } else {
-    console.error("Some tests failed. See error details.");
+    return { description: this.description, passed: errors.length === 0, errors };
   }
-
-  window.testResults = {
-    success: allPassed,
-    errors: errors
-  };
 }
 
-(async () => { await runTests(); })();
+// =============================================
+// TestCase für benutzerdefinierte Platzhalter
+// =============================================
+class CustomPlaceholderTestCase extends TestCase {
+  constructor(opts) {
+    super(opts);
+    this.customPlaceholder = opts.customPlaceholder;
+  }
+  async run() {
+    const anonymizer = new window.Anonymizer();
+    anonymizer.setText(this.input);
+    if (this.customPlaceholder) {
+      anonymizer.addCustomPlaceholder(
+        this.customPlaceholder.label,
+        this.customPlaceholder.pattern
+      );
+    }
+    await anonymizer.anonymize();
+    const anonymizedOutput = anonymizer.getText();
+    const deanonymizedOutput = anonymizer.deanonymize();
+
+    let errors = [];
+    if (anonymizedOutput !== this.expectedOutput) {
+      errors.push(`Anonymize: erwartet "${this.expectedOutput}", aber bekommen "${anonymizedOutput}"`);
+    }
+    if (deanonymizedOutput !== this.input) {
+      errors.push(`Deanonymize: erwartet "${this.input}", aber bekommen "${deanonymizedOutput}"`);
+    }
+
+    return { description: this.description, passed: errors.length === 0, errors };
+  }
+}
+
+// =============================================
+// Liste aller Testfälle
+// =============================================
+const testCases = [
+  new SimpleIOTestCase({
+    description: "Too short number (2 digits) should not be detected",
+    input: "12",
+    expectedOutput: "12"
+  }),
+  new SimpleIOTestCase({
+    description: "Minimum valid number (3 digits)",
+    input: "123",
+    expectedOutput: "[Number]"
+  }),
+  new SimpleIOTestCase({
+    description: "Number with hyphen",
+    input: "12341324-132424",
+    expectedOutput: "[Number]"
+  }),
+  new SimpleIOTestCase({
+    description: "Number with dots",
+    input: "1234.32411.1234",
+    expectedOutput: "[Number]"
+  }),
+  new SimpleIOTestCase({
+    description: "Number with slashes",
+    input: "1324/21342/213123",
+    expectedOutput: "[Number]"
+  }),
+  new SimpleIOTestCase({
+    description: "Composite numbers test",
+    input: "Order 12, then 123, then 12341324-132424, 1234.32411.1234 and 1324/21342/213123.",
+    expectedOutput: "Order 12, then [Number_4], then [Number_2], [Number_3] and [Number]."
+  }),
+  new SimpleIOTestCase({
+    description: "Name with prefix detection",
+    input: "Hallo John",
+    expectedOutput: "Hallo [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Composite name test with full name",
+    input: "Guten Tag Maria Müller, wie geht es?",
+    expectedOutput: "Guten Tag [Name], wie geht es?"
+  }),
+  new SimpleIOTestCase({
+    description: "Name without prefix should not be detected",
+    input: "John",
+    expectedOutput: "John"
+  }),
+  new SimpleIOTestCase({
+    description: "Composite test with number and name",
+    input: "Order 123 and Hallo John and Guten Tag Maria Müller",
+    expectedOutput: "Order [Number] and Hallo [Name_2] and Guten Tag [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Simple email detection",
+    input: "user@example.com",
+    expectedOutput: "[Email]"
+  }),
+  new SimpleIOTestCase({
+    description: "Composite email test",
+    input: "Contact: user@example.com for info.",
+    expectedOutput: "Contact: [Email] for info."
+  }),
+  new SimpleIOTestCase({
+    description: "Multiple email detection",
+    input: "Emails: user@example.com, admin@example.org.",
+    expectedOutput: "Emails: [Email_2], [Email]."
+  }),
+  new SimpleIOTestCase({
+    description: "False positive email should not be detected",
+    input: "Not an email: user_at_example.com",
+    expectedOutput: "Not an email: user_at_example.com"
+  }),
+  new CustomPlaceholderTestCase({
+    description: "Custom literal test",
+    input: "Das ist ein CUSTOM text.",
+    expectedOutput: "Das ist ein [Custom] text.",
+    customPlaceholder: { label: "Custom", pattern: "CUSTOM" }
+  }),
+  new CustomPlaceholderTestCase({
+    description: "Custom regex literal test",
+    input: "FOO1 and FOO2.",
+    expectedOutput: "[Custom] and [Custom_2].",
+    customPlaceholder: { label: "Custom", pattern: "/FOO(\d)/" }
+  })
+];
+
+// =============================================
+// Test-Runner
+// =============================================
+async function runAllTests() {
+  let allPassed = true;
+  const errorList = [];
+  for (const tc of testCases) {
+    try {
+      const result = await tc.run();
+      if (!result.passed) {
+        allPassed = false;
+        errorList.push({ description: result.description, errors: result.errors });
+      }
+    } catch (err) {
+      allPassed = false;
+      errorList.push({ description: tc.description, errors: [err.message] });
+    }
+  }
+  return { success: allPassed, errors: errorList };
+}
+
+// =============================================
+// Tests starten und Test-Modal anzeigen
+// =============================================
+(async () => {
+  window.testStatus = "started";
+  try {
+    window.testResults = await runAllTests();
+    window.testStatus = "completed";
+    console.log("Tests completed.", window.testResults);
+  } catch (err) {
+    console.error("Tests aborted:", err);
+    window.testResults = {
+      success: false,
+      errors: [{
+        description: "Test script aborted",
+        errors: [err.message || err.toString()]
+      }]
+    };
+    window.testStatus = "failed";
+  }
+
+  function showTestResults() {
+    // Modal öffnen
+    window.Modal.showModal("testResultsModal");
+
+    const container = document.getElementById("testResultsContent");
+    container.innerHTML = "";
+
+    // Zusammenfassung
+    const total = testCases.length;
+    const failed = window.testResults.errors.length;
+    const summary = document.createElement("p");
+    summary.textContent = failed > 0
+      ? `${failed} von ${total} Tests fehlgeschlagen.`
+      : `Alle ${total} Tests erfolgreich!`;
+    container.appendChild(summary);
+
+    // Fehler-Tabelle, falls Fehler existieren
+    if (failed > 0) {
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
+        <tr>
+          <th style="text-align:left;padding:4px">Test</th>
+          <th style="text-align:left;padding:4px">Fehler</th>
+        </tr>`;
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      for (const err of window.testResults.errors) {
+        const tr = document.createElement("tr");
+        const messages = err.errors.map(e => `<li>${e}</li>`).join("");
+        tr.innerHTML = `
+          <td style="padding:4px;vertical-align:top">${err.description}</td>
+          <td style="padding:4px"><ul style="margin:0 0 0 1em;padding:0;">${messages}</ul></td>`;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      container.appendChild(table);
+    }
+
+    // Copy-Button Handler
+    const copyBtn = document.getElementById("copyTestErrorsBtn");
+    copyBtn.onclick = () => {
+      const text = JSON.stringify(window.testResults, null, 2);
+      navigator.clipboard.writeText(text);
+      copyBtn.textContent = "Kopiert!";
+      setTimeout(() => copyBtn.textContent = "Fehlermeldungen kopieren", 2000);
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", showTestResults);
+  } else {
+    showTestResults();
+  }
+})();
 
 </script>
 </head>
   <body>
     <!-- Header section -->
     <header>
-      <!-- Hamburger menu (visible on small screens) -->
       <div class="hamburger" id="openMenu" aria-label="Open Menu" title="Open Menu">&#9776;</div>
-      
-      <!-- Site title and logo -->
       <div class="header-title">
         <div class="header-logo" id="headerLogo" aria-label="Logo"></div>
         <div class="header-text">
@@ -3522,101 +3660,89 @@ async function runTests() {
           <span data-i18n="headerSubtitle">Persönliche Informationen lokal maskieren</span>
         </div>
       </div>
-      
-      <!-- Action buttons in the header using emoji icons -->
       <div class="header-actions">
-        <!-- Button to add a new placeholder -->
         <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder">
           <span class="icon">➕</span>
         </button>
-        <!-- Button for placeholder settings -->
         <button id="headerSettings" data-i18n-alt="settings">
           <span class="icon">🛠️</span>
         </button>
-        <!-- Button to change the language -->
         <button id="headerGeneral" data-i18n-alt="languageChange">
           <span class="icon">🌐</span>
         </button>
-        <!-- Button to show help/about information -->
         <button id="headerHelp" data-i18n-alt="help">
           <span class="icon">💡</span>
         </button>
-        <!-- Button to view the mapping (anonymization data) -->
         <button id="headerMapping" data-i18n-alt="mapping">
           <span class="icon">📋</span>
         </button>
-        <!-- Button to download the program as a separate file -->
         <button id="downloadProgramBtn" data-i18n-alt="programSave">
           <span class="icon">⬇️</span>
         </button>
       </div>
     </header>
-    
+
     <!-- Off-canvas side menu for small screens -->
     <nav id="sideMenu">
-      <!-- Close button for side menu -->
       <div class="close-menu" id="closeMenu" aria-label="Close Menu" title="Close Menu">&times;</div>
       <ul>
         <li>
-          <a href="#" id="menuAddPlaceholder" title="Add Placeholder" aria-label="Add Placeholder">
+          <a href="#" id="menuAddPlaceholder">
             <span class="icon" data-i18n-alt="addPlaceholder">➕</span>
             <span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuSettings" title="Placeholder Settings" aria-label="Placeholder Settings">
+          <a href="#" id="menuSettings">
             <span class="icon" data-i18n-alt="settings">🛠️</span>
             <span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuGeneral" title="Change Language" aria-label="Change Language">
+          <a href="#" id="menuGeneral">
             <span class="icon" data-i18n-alt="languageChange">🌐</span>
             <span class="menu-text" data-i18n="languageChange">Sprache ändern</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuHelp" title="Help/About" aria-label="Help/About">
+          <a href="#" id="menuHelp">
             <span class="icon" data-i18n-alt="help">💡</span>
             <span class="menu-text" data-i18n="help">Hilfe/About</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuMapping" title="Show Mapping" aria-label="Show Mapping">
+          <a href="#" id="menuMapping">
             <span class="icon" data-i18n-alt="mapping">📋</span>
             <span class="menu-text" data-i18n="mapping">Mapping anzeigen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuDownload" title="Save program as separate file" aria-label="Save program as separate file">
+          <a href="#" id="menuDownload">
             <span class="icon" data-i18n-alt="programSave">⬇️</span>
             <span class="menu-text" data-i18n="programSave">Programm speichern</span>
           </a>
         </li>
       </ul>
     </nav>
-    
+
     <!-- Main content area -->
     <main>
       <div id="container">
         <div id="scrollable">
-          <!-- Highlight layer for displaying colored overlays on detected text -->
           <pre id="highlight"></pre>
-          <!-- Transparent textarea for actual text input -->
-          <!-- Removed native placeholder attribute so that the placeholder is only shown in the highlight area -->
           <textarea id="editor" spellcheck="false"></textarea>
         </div>
-        
+
         <!-- Button overlay to copy text to clipboard -->
         <button id="copyOverlayBtn" data-i18n="copyToClipboard">In Zwischenablage kopieren</button>
-        
-        <!-- Progress bar to show scan/anonymization status -->
+
+        <!-- Progress bar -->
         <div id="progressBar">
           <div id="progressFill"></div>
           <div id="progressText">Loading...</div>
         </div>
-        
-        <!-- Action buttons for anonymization and deanonymization -->
+
+        <!-- Action buttons -->
         <div id="actionButtons">
           <button class="action-btn" id="anonymizeBtn" aria-label="Anonymize" data-i18n-alt="anonymize">
             <span class="icon">🛡️</span>
@@ -3629,45 +3755,34 @@ async function runTests() {
         </div>
       </div>
     </main>
-    
-    <!-- Footer (currently empty, reserved for future use) -->
+
+    <!-- Footer -->
     <footer>
     </footer>
-    
-    <!-- Modals -->
-    
-    <body>
-      <!-- First Run Modal -->
-      <div id="firstRunModal" class="modal">
-        <div class="modal-content">
-          <h3 data-i18n="firstRunModal.title">
-            <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
-          </h3>
-          <p data-i18n="firstRunModal.text">
-            Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
-          </p>
-          <div class="first-run-checkbox">
-            <input type="checkbox" id="firstRunCheckbox">
-            <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
-          </div>
-          <div class="first-run-button">
-            <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
-          </div>
-          <div class="language-settings">
-            <!-- Sprachauswahl wird dynamisch aus dem vorhandenen generalModal übernommen -->
-          </div>
+
+    <!-- First Run Modal -->
+    <div id="firstRunModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="firstRunModal.title">
+          <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
+        </h3>
+        <p data-i18n="firstRunModal.text">
+          Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
+        </p>
+        <div class="first-run-checkbox">
+          <input type="checkbox" id="firstRunCheckbox">
+          <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
+        </div>
+        <div class="first-run-button">
+          <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
+        </div>
+        <div class="language-settings">
+          <!-- Dynamisch via JavaScript gefüllt -->
         </div>
       </div>
-      
-      
-      
-    
-      <!-- Existing content -->
-      <!-- Header, nav, main etc. -->
-    </body>
-    
+    </div>
 
-    <!-- Settings Modal: Allows configuration of placeholder settings -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="placeholderOptions">Platzhaltereinstellungen</h3>
@@ -3677,8 +3792,8 @@ async function runTests() {
         </div>
       </div>
     </div>
-    
-    <!-- General Modal: For changing the interface language -->
+
+    <!-- General Modal -->
     <div id="generalModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="languageChange">Sprache ändern</h3>
@@ -3692,25 +3807,25 @@ async function runTests() {
         </div>
       </div>
     </div>
-    
-    <!-- Help/About Modal: Provides information about the tool -->
+
+    <!-- Help/About Modal -->
     <div id="helpModal" class="modal">
       <div class="modal-content">
-        <h3 data-i18n="helpTitle">Über Anonymizer</h3>
+        <h3 data-i18n="helpTitle">Über Anonymat</h3>
         <p data-i18n="helpDescription">
-          Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.
+          Anonymat ist ein Tool zur teilautomatisierten Maskierung und Anonymisierung personenbezogener Daten in Texten.
         </p>
         <p data-i18n="helpLocal">
-          This application runs entirely locally in your browser and does not communicate with external services.
+          Diese Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten.
         </p>
         <p data-i18n="helpDsGvo">
-          The tool is designed to support GDPR-compliant workflows. (The GDPR — General Data Protection Regulation — is a European regulation for data privacy and security.)
+          Das Tool unterstützt DSGVO-konforme Arbeitsabläufe. (Die DSGVO – Datenschutz-Grundverordnung – ist eine europäische Verordnung zum Schutz personenbezogener Daten.)
         </p>
         <p data-i18n="helpResponsibility">
-          Important: Anonymizer offers partial automation. The final responsibility and verification always remain with the user.
+          Wichtig: Anonymat bietet eine Teilautomatisierung. Die Endverantwortung und Kontrolle liegen immer beim Anwender.
         </p>
         <p data-i18n="helpLicense">
-          This project is open source and licensed under the MIT license.
+          Dieses Projekt ist Open Source und steht unter der GPL-3-Lizenz.
         </p>
         <p data-i18n-html="helpVersion"></p>
         <div style="text-align: center; margin-top: 20px;">
@@ -3718,43 +3833,50 @@ async function runTests() {
         </div>
       </div>
     </div>
-    
-    
-    <!-- Mapping Modal: Displays the mapping between original data and placeholders -->
+
+    <!-- Mapping Modal -->
     <div id="mappingModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="mapping">Mapping-Liste</h3>
-        <div id="mappingModalContent">
-          <!-- Mapping table will be dynamically inserted here -->
-        </div>
+        <div id="mappingModalContent"></div>
         <div style="text-align: center; margin-top: 20px;">
           <button id="resetMappingBtn">Mapping zurücksetzen</button>
           <button id="closeMappingModalBtn" data-i18n="close">Schließen</button>
         </div>
       </div>
     </div>
-    
-    <!-- Custom Placeholder Modal: For adding user-defined placeholders -->
+
+    <!-- Custom Placeholder Modal -->
     <div id="customPlaceholderModal" class="modal" style="display:none;">
       <div class="modal-content">
-        <h3>Platzhalter hinzufügen</h3>
-        <label for="customPattern">Muster:</label>
-        <input type="text" id="customPattern" data-i18n-placeholder="customPatternPlaceholder" placeholder="Enter text to be replaced" />
+        <h3 data-i18n="addPlaceholder">Platzhalter hinzufügen</h3>
+        <label for="customPattern" data-i18n-placeholder="customPatternPlaceholder">Muster:</label>
+        <input type="text" id="customPattern" placeholder="Enter text to be replaced"/>
         <label for="customLabel">Bezeichnung:</label>
-        <input type="text" id="customLabel" placeholder="e.g. Secret" />
+        <input type="text" id="customLabel" placeholder="e.g. Secret"/>
         <div class="modal-buttons">
           <button id="saveCustomPlaceholderBtn">Speichern</button>
           <button id="cancelCustomPlaceholderBtn">Abbrechen</button>
         </div>
       </div>
     </div>
-    
-    <!-- Context Menu: Provides quick actions based on text selection -->
+
+    <!-- Context Menu -->
     <div id="contextMenu" class="context-menu">
       <button id="ctxAddPlaceholder"><span class="icon">📝</span> Platzhalter hinzufügen</button>
       <button id="ctxDoNotAnonymize"><span class="icon">⛔</span> Diesen Text nicht anonymisieren</button>
     </div>
-    
-    <!-- Note: Download functionality is implemented in ui.js -->
+
+    <!-- Test Results Modal -->
+    <div id="testResultsModal" class="modal">
+      <div class="modal-content">
+        <h3>Testergebnisse</h3>
+        <div id="testResultsContent" style="max-height:60vh; overflow:auto;"></div>
+        <div style="text-align:center; margin-top:10px;">
+          <button id="copyTestErrorsBtn">Fehlermeldungen kopieren</button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>

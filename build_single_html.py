@@ -1,9 +1,8 @@
+#!/usr/bin/env python3
 import re
 import os
 import time
 import argparse
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 
 def inline_file(match):
     tag = match.group(0)
@@ -15,30 +14,44 @@ def inline_file(match):
     if tag.startswith('<link'):
         return f"<style>\n{content}\n</style>"
     else:
+        # Escaping </script> für safety
         content = content.replace("</script>", "<\\/script>")
         return f"<script>\n{content}\n</script>"
 
 def bundle_html(input_file, output_file, version):
     with open(input_file, 'r', encoding='utf-8') as f:
         html = f.read()
-    html = re.sub(r'window\.appVersion\s*=\s*".*?"', f'window.appVersion = "{version}"', html)
-    html = re.sub(r'<script\s+src="([^"]+)"></script>', inline_file, html)
-    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">', inline_file, html)
+    # Version updaten
+    html = re.sub(r'window\.appVersion\s*=\s*".*?"',
+                  f'window.appVersion = "{version}"', html)
+    # JS und CSS inline
+    html = re.sub(r'<script\s+src="([^"]+)"></script>',
+                  inline_file, html)
+    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
+                  inline_file, html)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
 def build_test_html(input_file, output_file, version, test_js_file):
     with open(input_file, 'r', encoding='utf-8') as f:
         html = f.read()
-    html = re.sub(r'window\.appVersion\s*=\s*".*?"', f'window.appVersion = "{version}"', html)
-    html = re.sub(r'<script\s+src="([^"]+)"></script>', inline_file, html)
-    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">', inline_file, html)
+    html = re.sub(r'window\.appVersion\s*=\s*".*?"',
+                  f'window.appVersion = "{version}"', html)
+    html = re.sub(r'<script\s+src="([^"]+)"></script>',
+                  inline_file, html)
+    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
+                  inline_file, html)
+    # Test-Script einbinden
     if os.path.exists(test_js_file):
         with open(test_js_file, 'r', encoding='utf-8') as f:
-            test_js_content = f.read()
+            test_js = f.read()
     else:
-        test_js_content = ""
-    html = re.sub(r'</head>', f'<script>\n{test_js_content}\n</script>\n</head>', html, flags=re.IGNORECASE)
+        test_js = ""
+    html = re.sub(r'</head>',
+                  f'<script>\n{test_js}\n</script>\n</head>',
+                  html, flags=re.IGNORECASE)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
@@ -47,127 +60,83 @@ def read_version():
     if os.path.exists(version_file):
         with open(version_file, 'r', encoding='utf-8') as f:
             return f.read().strip()
-    else:
-        return "0.0.0"
+    return "0.0.0"
 
 def get_all_mod_times(root_dir):
     mod_times = {}
     for dirpath, dirnames, filenames in os.walk(root_dir):
         if 'dist' in dirnames:
             dirnames.remove('dist')
-        for filename in filenames:
-            filepath = os.path.join(dirpath, filename)
+        for fn in filenames:
+            path = os.path.join(dirpath, fn)
             try:
-                mod_times[filepath] = os.path.getmtime(filepath)
+                mod_times[path] = os.path.getmtime(path)
             except OSError:
                 pass
     return mod_times
 
-def run_chrome_tests(test_file_path):
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.set_capability("goog:loggingPrefs", {"browser": "ALL"})
-    driver = webdriver.Chrome(options=options)
-    file_url = "file://" + os.path.abspath(test_file_path)
-    driver.get(file_url)
-    time.sleep(5)  # Wait for tests to execute
-    try:
-        results = driver.execute_script("return window.testResults;")
-    except Exception:
-        results = None
-    try:
-        logs = driver.get_log("browser")
-    except Exception:
-        logs = []
-    driver.quit()
-    return results, logs
-
-def build_all():
+def build_normal():
     version = read_version()
-    normal_build = f"./dist/anonymat-{version}.html"
-    test_build = f"./dist/anonymat-test-{version}.html"
-    bundle_html("index.html", normal_build, version)
-    build_test_html("index.html", test_build, version, "test.js")
-    return normal_build, test_build
+    out = f"./dist/anonymat-{version}.html"
+    bundle_html("index.html", out, version)
+    return out
 
-def run_build_and_tests():
-    normal_build, test_build = build_all()
-    results, _ = run_chrome_tests(test_build)
-
-    if not results or not results.get("success", False):
-        print("TESTS FAILED!")
-        errors = results.get("errors", [])
-        if errors and isinstance(errors, list):
-            print("\n=== Test Errors ===")
-            for error in errors:
-                print(f"- {error.get('description', 'Unknown test')}")
-                print(f"  Input: {error.get('input', '')}")
-                
-                # Anonymization results
-                print(f"  Anonymization expected: {error.get('expected_anonymized', '')}")
-                print(f"  Anonymization output  : {error.get('anonymize_output', '')}")
-                
-                # Deanonymization results
-                print(f"  Deanonymization expected: {error.get('input', '')}")
-                print(f"  Deanonymization output  : {error.get('deanonymize_output', '')}")
-                
-                print()
-            print("=====================")
-        else:
-            print("No specific errors reported.")
-    else:
-        print("All tests passed successfully!")
+def build_test():
+    version = read_version()
+    out = f"./dist/anonymat-test-{version}.html"
+    build_test_html("index.html", out, version, "test.js")
+    return out
 
 def delete_test_build():
     version = read_version()
-    test_build = f"./dist/anonymat-test-{version}.html"
-    if os.path.exists(test_build):
+    test_path = f"./dist/anonymat-test-{version}.html"
+    if os.path.exists(test_path):
         try:
-            os.remove(test_build)
-            print(f"Test build {test_build} deleted.")
+            os.remove(test_path)
+            print(f"Test build gelöscht: {test_path}")
         except Exception as e:
-            print(f"Error deleting test build: {e}")
+            print(f"Fehler beim Löschen: {e}")
     else:
-        print("No test build found to delete.")
+        print("Kein Test-Build zum Löschen gefunden.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Build script for Anonymat.")
-    parser.add_argument("-w", "--watch", action="store_true", help="Activate watch mode.")
-    parser.add_argument("-t", "--test", action="store_true", help="Run tests (creates test build).")
-    parser.add_argument("-d", "--delete-testbuild", action="store_true", help="Delete the test build if it exists.")
+    parser = argparse.ArgumentParser(description="Build script für Anonymat.")
+    parser.add_argument("-w", "--watch", action="store_true",
+                        help="Änderungen überwachen und neu bauen.")
+    parser.add_argument("-t", "--test", action="store_true",
+                        help="Nur Test-Version bauen.")
+    parser.add_argument("-d", "--delete-testbuild", action="store_true",
+                        help="Test-Version löschen, falls vorhanden.")
     args = parser.parse_args()
-
-    version = read_version()
-    normal_build = f"./dist/anonymat-{version}.html"
-    
-    if args.test:
-        run_build_and_tests()
-    else:
-        bundle_html("index.html", normal_build, version)
-        print(f"Build completed: {normal_build}")
 
     if args.delete_testbuild:
         delete_test_build()
+        return
+
+    if args.test:
+        path = build_test()
+        print(f"Test-Build erstellt: {path}")
+    else:
+        path = build_normal()
+        print(f"Build abgeschlossen: {path}")
 
     if args.watch:
-        print("Watch mode activated. Monitoring for file changes... (Press Ctrl+C to exit)")
-        last_mod_times = get_all_mod_times(".")
+        print("Watch-Modus aktiv. (Strg+C zum Beenden)")
+        last = get_all_mod_times(".")
         try:
             while True:
                 time.sleep(1)
-                current_mod_times = get_all_mod_times(".")
-                if current_mod_times != last_mod_times:
+                current = get_all_mod_times(".")
+                if current != last:
                     if args.test:
-                        run_build_and_tests()
+                        p = build_test()
+                        print(f"Test-Build aktualisiert: {p}")
                     else:
-                        version = read_version()
-                        normal_build = f"./dist/anonymat-{version}.html"
-                        bundle_html("index.html", normal_build, version)
-                        print(f"Build completed: {normal_build}")
-                    last_mod_times = current_mod_times
+                        p = build_normal()
+                        print(f"Build abgeschlossen: {p}")
+                    last = current
         except KeyboardInterrupt:
-            print("Watch mode stopped.")
+            print("Watch-Modus beendet.")
 
 if __name__ == "__main__":
     main()

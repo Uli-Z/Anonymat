@@ -3,8 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>Anonymat</title>
-    
-    <!-- Configuration block (set language, etc.) -->
+
     <!-- CONFIG-START -->
     <script>
       window.AppConfig = {
@@ -14,21 +13,14 @@
     <!-- CONFIG-END -->
 
     <script>
-      // App version (will be replaced by build script)
       window.appVersion = "0.0.0";
     </script>
-    
-    <!-- Responsive meta tag for proper scaling on mobile devices -->
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    <!-- Link to external stylesheet -->
     <link rel="stylesheet" href="style.css">
-    
-    <!-- Include translations and configuration scripts -->
+
     <script src="translations.js"></script>
     <script src="config.js"></script>
-    
-    <!-- Include additional libraries and modules -->
     <script src="images.js"></script>
     <script src="placeholder.js"></script>
     <script src="date.js"></script>
@@ -38,15 +30,11 @@
     <script src="modal.js"></script>
     <script src="editor.js"></script>
     <script src="contextMenu.js"></script>
-
   </head>
   <body>
     <!-- Header section -->
     <header>
-      <!-- Hamburger menu (visible on small screens) -->
       <div class="hamburger" id="openMenu" aria-label="Open Menu" title="Open Menu">&#9776;</div>
-      
-      <!-- Site title and logo -->
       <div class="header-title">
         <div class="header-logo" id="headerLogo" aria-label="Logo"></div>
         <div class="header-text">
@@ -54,101 +42,89 @@
           <span data-i18n="headerSubtitle">Persönliche Informationen lokal maskieren</span>
         </div>
       </div>
-      
-      <!-- Action buttons in the header using emoji icons -->
       <div class="header-actions">
-        <!-- Button to add a new placeholder -->
         <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder">
           <span class="icon">➕</span>
         </button>
-        <!-- Button for placeholder settings -->
         <button id="headerSettings" data-i18n-alt="settings">
           <span class="icon">🛠️</span>
         </button>
-        <!-- Button to change the language -->
         <button id="headerGeneral" data-i18n-alt="languageChange">
           <span class="icon">🌐</span>
         </button>
-        <!-- Button to show help/about information -->
         <button id="headerHelp" data-i18n-alt="help">
           <span class="icon">💡</span>
         </button>
-        <!-- Button to view the mapping (anonymization data) -->
         <button id="headerMapping" data-i18n-alt="mapping">
           <span class="icon">📋</span>
         </button>
-        <!-- Button to download the program as a separate file -->
         <button id="downloadProgramBtn" data-i18n-alt="programSave">
           <span class="icon">⬇️</span>
         </button>
       </div>
     </header>
-    
+
     <!-- Off-canvas side menu for small screens -->
     <nav id="sideMenu">
-      <!-- Close button for side menu -->
       <div class="close-menu" id="closeMenu" aria-label="Close Menu" title="Close Menu">&times;</div>
       <ul>
         <li>
-          <a href="#" id="menuAddPlaceholder" title="Add Placeholder" aria-label="Add Placeholder">
+          <a href="#" id="menuAddPlaceholder">
             <span class="icon" data-i18n-alt="addPlaceholder">➕</span>
             <span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuSettings" title="Placeholder Settings" aria-label="Placeholder Settings">
+          <a href="#" id="menuSettings">
             <span class="icon" data-i18n-alt="settings">🛠️</span>
             <span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuGeneral" title="Change Language" aria-label="Change Language">
+          <a href="#" id="menuGeneral">
             <span class="icon" data-i18n-alt="languageChange">🌐</span>
             <span class="menu-text" data-i18n="languageChange">Sprache ändern</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuHelp" title="Help/About" aria-label="Help/About">
+          <a href="#" id="menuHelp">
             <span class="icon" data-i18n-alt="help">💡</span>
             <span class="menu-text" data-i18n="help">Hilfe/About</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuMapping" title="Show Mapping" aria-label="Show Mapping">
+          <a href="#" id="menuMapping">
             <span class="icon" data-i18n-alt="mapping">📋</span>
             <span class="menu-text" data-i18n="mapping">Mapping anzeigen</span>
           </a>
         </li>
         <li>
-          <a href="#" id="menuDownload" title="Save program as separate file" aria-label="Save program as separate file">
+          <a href="#" id="menuDownload">
             <span class="icon" data-i18n-alt="programSave">⬇️</span>
             <span class="menu-text" data-i18n="programSave">Programm speichern</span>
           </a>
         </li>
       </ul>
     </nav>
-    
+
     <!-- Main content area -->
     <main>
       <div id="container">
         <div id="scrollable">
-          <!-- Highlight layer for displaying colored overlays on detected text -->
           <pre id="highlight"></pre>
-          <!-- Transparent textarea for actual text input -->
-          <!-- Removed native placeholder attribute so that the placeholder is only shown in the highlight area -->
           <textarea id="editor" spellcheck="false"></textarea>
         </div>
-        
+
         <!-- Button overlay to copy text to clipboard -->
         <button id="copyOverlayBtn" data-i18n="copyToClipboard">In Zwischenablage kopieren</button>
-        
-        <!-- Progress bar to show scan/anonymization status -->
+
+        <!-- Progress bar -->
         <div id="progressBar">
           <div id="progressFill"></div>
           <div id="progressText">Loading...</div>
         </div>
-        
-        <!-- Action buttons for anonymization and deanonymization -->
+
+        <!-- Action buttons -->
         <div id="actionButtons">
           <button class="action-btn" id="anonymizeBtn" aria-label="Anonymize" data-i18n-alt="anonymize">
             <span class="icon">🛡️</span>
@@ -161,45 +137,34 @@
         </div>
       </div>
     </main>
-    
-    <!-- Footer (currently empty, reserved for future use) -->
+
+    <!-- Footer -->
     <footer>
     </footer>
-    
-    <!-- Modals -->
-    
-    <body>
-      <!-- First Run Modal -->
-      <div id="firstRunModal" class="modal">
-        <div class="modal-content">
-          <h3 data-i18n="firstRunModal.title">
-            <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
-          </h3>
-          <p data-i18n="firstRunModal.text">
-            Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
-          </p>
-          <div class="first-run-checkbox">
-            <input type="checkbox" id="firstRunCheckbox">
-            <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
-          </div>
-          <div class="first-run-button">
-            <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
-          </div>
-          <div class="language-settings">
-            <!-- Sprachauswahl wird dynamisch aus dem vorhandenen generalModal übernommen -->
-          </div>
+
+    <!-- First Run Modal -->
+    <div id="firstRunModal" class="modal">
+      <div class="modal-content">
+        <h3 data-i18n="firstRunModal.title">
+          <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
+        </h3>
+        <p data-i18n="firstRunModal.text">
+          Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
+        </p>
+        <div class="first-run-checkbox">
+          <input type="checkbox" id="firstRunCheckbox">
+          <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
+        </div>
+        <div class="first-run-button">
+          <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
+        </div>
+        <div class="language-settings">
+          <!-- Dynamisch via JavaScript gefüllt -->
         </div>
       </div>
-      
-      
-      
-    
-      <!-- Existing content -->
-      <!-- Header, nav, main etc. -->
-    </body>
-    
+    </div>
 
-    <!-- Settings Modal: Allows configuration of placeholder settings -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="placeholderOptions">Platzhaltereinstellungen</h3>
@@ -209,8 +174,8 @@
         </div>
       </div>
     </div>
-    
-    <!-- General Modal: For changing the interface language -->
+
+    <!-- General Modal -->
     <div id="generalModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="languageChange">Sprache ändern</h3>
@@ -224,25 +189,25 @@
         </div>
       </div>
     </div>
-    
-    <!-- Help/About Modal: Provides information about the tool -->
+
+    <!-- Help/About Modal -->
     <div id="helpModal" class="modal">
       <div class="modal-content">
-        <h3 data-i18n="helpTitle">Über Anonymizer</h3>
+        <h3 data-i18n="helpTitle">Über Anonymat</h3>
         <p data-i18n="helpDescription">
-          Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.
+          Anonymat ist ein Tool zur teilautomatisierten Maskierung und Anonymisierung personenbezogener Daten in Texten.
         </p>
         <p data-i18n="helpLocal">
-          This application runs entirely locally in your browser and does not communicate with external services.
+          Diese Anwendung läuft vollständig lokal im Browser und kommuniziert nicht mit externen Diensten.
         </p>
         <p data-i18n="helpDsGvo">
-          The tool is designed to support GDPR-compliant workflows. (The GDPR — General Data Protection Regulation — is a European regulation for data privacy and security.)
+          Das Tool unterstützt DSGVO-konforme Arbeitsabläufe. (Die DSGVO – Datenschutz-Grundverordnung – ist eine europäische Verordnung zum Schutz personenbezogener Daten.)
         </p>
         <p data-i18n="helpResponsibility">
-          Important: Anonymizer offers partial automation. The final responsibility and verification always remain with the user.
+          Wichtig: Anonymat bietet eine Teilautomatisierung. Die Endverantwortung und Kontrolle liegen immer beim Anwender.
         </p>
         <p data-i18n="helpLicense">
-          This project is open source and licensed under the MIT license.
+          Dieses Projekt ist Open Source und steht unter der GPL-3-Lizenz.
         </p>
         <p data-i18n-html="helpVersion"></p>
         <div style="text-align: center; margin-top: 20px;">
@@ -250,43 +215,50 @@
         </div>
       </div>
     </div>
-    
-    
-    <!-- Mapping Modal: Displays the mapping between original data and placeholders -->
+
+    <!-- Mapping Modal -->
     <div id="mappingModal" class="modal">
       <div class="modal-content">
         <h3 data-i18n="mapping">Mapping-Liste</h3>
-        <div id="mappingModalContent">
-          <!-- Mapping table will be dynamically inserted here -->
-        </div>
+        <div id="mappingModalContent"></div>
         <div style="text-align: center; margin-top: 20px;">
           <button id="resetMappingBtn">Mapping zurücksetzen</button>
           <button id="closeMappingModalBtn" data-i18n="close">Schließen</button>
         </div>
       </div>
     </div>
-    
-    <!-- Custom Placeholder Modal: For adding user-defined placeholders -->
+
+    <!-- Custom Placeholder Modal -->
     <div id="customPlaceholderModal" class="modal" style="display:none;">
       <div class="modal-content">
-        <h3>Platzhalter hinzufügen</h3>
-        <label for="customPattern">Muster:</label>
-        <input type="text" id="customPattern" data-i18n-placeholder="customPatternPlaceholder" placeholder="Enter text to be replaced" />
+        <h3 data-i18n="addPlaceholder">Platzhalter hinzufügen</h3>
+        <label for="customPattern" data-i18n-placeholder="customPatternPlaceholder">Muster:</label>
+        <input type="text" id="customPattern" placeholder="Enter text to be replaced"/>
         <label for="customLabel">Bezeichnung:</label>
-        <input type="text" id="customLabel" placeholder="e.g. Secret" />
+        <input type="text" id="customLabel" placeholder="e.g. Secret"/>
         <div class="modal-buttons">
           <button id="saveCustomPlaceholderBtn">Speichern</button>
           <button id="cancelCustomPlaceholderBtn">Abbrechen</button>
         </div>
       </div>
     </div>
-    
-    <!-- Context Menu: Provides quick actions based on text selection -->
+
+    <!-- Context Menu -->
     <div id="contextMenu" class="context-menu">
       <button id="ctxAddPlaceholder"><span class="icon">📝</span> Platzhalter hinzufügen</button>
       <button id="ctxDoNotAnonymize"><span class="icon">⛔</span> Diesen Text nicht anonymisieren</button>
     </div>
-    
-    <!-- Note: Download functionality is implemented in ui.js -->
+
+    <!-- Test Results Modal -->
+    <div id="testResultsModal" class="modal">
+      <div class="modal-content">
+        <h3>Testergebnisse</h3>
+        <div id="testResultsContent" style="max-height:60vh; overflow:auto;"></div>
+        <div style="text-align:center; margin-top:10px;">
+          <button id="copyTestErrorsBtn">Fehlermeldungen kopieren</button>
+        </div>
+      </div>
+    </div>
+
   </body>
 </html>

@@ -3,8 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>Anonymat</title>
-    
-    <!-- Configuration block (set language, etc.) -->
+
     <!-- CONFIG-START -->
     <script>
       window.AppConfig = {
@@ -14,14 +13,10 @@
     <!-- CONFIG-END -->
 
     <script>
-      // App version (will be replaced by build script)
       window.appVersion = "0.9.1";
     </script>
-    
-    <!-- Responsive meta tag for proper scaling on mobile devices -->
+
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    <!-- Link to external stylesheet -->
     <style>
 /* ------------------------------
    Reset & Base Styles
@@ -748,8 +743,7 @@ header svg,
 }
 
 </style>
-    
-    <!-- Include translations and configuration scripts -->
+
     <script>
 (function (window) {
   window.translations = {
@@ -952,8 +946,6 @@ header svg,
   })(window);
   
 </script>
-    
-    <!-- Include additional libraries and modules -->
     <script>
 "use strict";
 
@@ -1120,6 +1112,9 @@ function escapeRegExp(string) {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Global counter for generating unique placeholder IDs
+let phIdCounter = 0;
+
 /* Base class for detection strategies */
 class DetectionStrategy {
   detect(text, currentMapping) {
@@ -1129,14 +1124,6 @@ class DetectionStrategy {
 
 /* Regex detection strategy with optional prefixes and suffixes */
 class RegexDetectionStrategy extends DetectionStrategy {
-  /**
-   * Options:
-   *   - regex: RegExp for the main pattern.
-   *   - description: Description of the strategy.
-   *   - groupIndex: Capture group index for the main match (default 0).
-   *   - prefixes: Optional array of strings that must precede the main match.
-   *   - suffixes: Optional array of strings that must follow the main match.
-   */
   constructor(options) {
     super();
     this.description = options.description;
@@ -1192,6 +1179,8 @@ class GenericPlaceholderType {
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
     this.enabled = true;
+    // Assign a unique ID to each placeholder instance
+    this.id = "ph_" + placeholderPrefix + "_" + (++phIdCounter);
   }
 
   // Returns next available token name
@@ -1230,12 +1219,9 @@ class GenericPlaceholderType {
   }
 }
 
-// Implementation of CustomPlaceholderType with English comments
+/* Implementation of CustomPlaceholderType with English comments */
 class CustomPlaceholderType extends GenericPlaceholderType {
   constructor(pattern, placeholderPrefix) {
-    // Check if the pattern is a regex literal (e.g., "/pattern/")
-    // If yes, remove the leading and trailing slashes and create a RegExp with global flag.
-    // Otherwise, treat the pattern as a literal and escape special regex characters.
     let regex;
     if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
       const regexBody = pattern.slice(1, -1);
@@ -1243,42 +1229,28 @@ class CustomPlaceholderType extends GenericPlaceholderType {
     } else {
       regex = new RegExp(escapeRegExp(pattern), "g");
     }
-    
-    // Create a detection strategy for the custom pattern using RegexDetectionStrategy.
     const strategy = new RegexDetectionStrategy({
       regex: regex,
       description: `Custom placeholder detection for pattern: ${pattern}`,
       groupIndex: 0
     });
-    
-    // Call the parent class constructor with the custom prefix and an array containing the detection strategy.
     super(placeholderPrefix, [strategy]);
-    
-    // Save the original pattern for reference.
     this.pattern = pattern;
-    
-    // Mark this placeholder type as custom.
     this.isCustom = true;
   }
 
-  // Method to identify PII using the detection strategy.
   identifyPII(text, currentMapping) {
-    // Delegates to the inherited detect() method.
     return this.detect(text, currentMapping);
   }
 
-  // Optional method to immediately apply the placeholder if needed.
   apply() {
-    // Can implement direct anonymization logic here if required.
-    // Currently left empty because the external anonymizer handles applying the changes.
+    // Optional direct anonymization logic
   }
 }
-
 
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex to match numbers with at least 3 digits.
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
     const numberStrategy = new RegexDetectionStrategy({
       regex: numberRegex,
@@ -1292,7 +1264,6 @@ class NumberPlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting names using regex with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Prefixes to detect names.
     const prefixes = [
       "Mit freundlichen Grüßen,?",
       "Liebe Grüße,?",
@@ -1331,7 +1302,6 @@ class NamePlaceholder extends GenericPlaceholderType {
       "Querida",
       "Saludos cordiales,?"
     ];
-    // Regex pattern for full names with optional hyphenated parts.
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
     const nameStrategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
@@ -1346,7 +1316,6 @@ class NamePlaceholder extends GenericPlaceholderType {
 /* Placeholder for detecting email addresses */
 class EmailPlaceholder extends GenericPlaceholderType {
   constructor() {
-    // Regex for emails: matches any characters except '@' and whitespace before and after '@', then a dot and any characters.
     const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
     const emailStrategy = new RegexDetectionStrategy({
       regex: emailRegex,
@@ -1363,6 +1332,7 @@ window.GenericPlaceholderType = GenericPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
 window.EmailPlaceholder = EmailPlaceholder;
+window.CustomPlaceholderType = CustomPlaceholderType;
 
 </script>
     <script>
@@ -1817,19 +1787,21 @@ const dateFormats = [
       }
       const customPlaceholder = new CustomPlaceholderType(pattern, uniqueLabel);
       this.placeholderTypes.push(customPlaceholder);
-
+    
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII
-                        ? customPlaceholder.identifyPII(currentText, this.mapping) || []
+      const results = customPlaceholder.identifyPII 
+                        ? customPlaceholder.identifyPII(currentText, this.mapping) || [] 
                         : [];
       results.forEach(entry => {
-        this.addToMappingList(entry[0], entry[1], customPlaceholder, customPlaceholder.rank);
+        // Verwende entry.original statt entry[0] und entry.token statt entry[1]
+        this.addToMappingList(entry.original, entry.token, customPlaceholder, customPlaceholder.rank);
       });
-
+    
       if (direct && typeof customPlaceholder.apply === 'function') {
         customPlaceholder.apply();
       }
     }
+    
 
     getUniqueSecretLabel() {
       let maxNum = 0;
@@ -1849,31 +1821,73 @@ const dateFormats = [
     removePlaceholder(id) {
       const ph = this.getPlaceholderByID(id);
       if (!ph) return;
+    
+      // Deanonymize: Replace all tokens belonging to the placeholder with their original text
       let currentText = this.textWrapper.get();
       this.mapping.forEach(entry => {
         if (entry[2].id === ph.id && entry[1] !== null) {
-          const regex = new RegExp(this._escapeRegExp(entry[1]), "g");
-          currentText = currentText.replace(regex, entry[0]);
+          const token = entry[1];
+          const original = entry[0];
+          const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+          currentText = currentText.replace(regex, original);
         }
       });
+      
+      // Update the text with deanonymized content
+      this.textWrapper.set(currentText);
+    
+      // Remove mapping entries related to the placeholder
       this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+    
+      // Remove the placeholder if it is custom, otherwise disable it
       if (ph.isCustom) {
         const index = this.placeholderTypes.findIndex(item => item.id === ph.id);
-        if (index !== -1) this.placeholderTypes.splice(index, 1);
+        if (index !== -1) {
+          this.placeholderTypes.splice(index, 1);
+        }
       } else {
         ph.enabled = false;
       }
-      this.textWrapper.set(currentText);
+    
+      // Trigger callbacks to notify mapping and text changes
+      this._triggerMappingChange();
+      this._triggerTextChange();
+    
+      // Re-identify PII in the updated text
       this.identifyPII();
     }
+    
+    
 
     setPlaceholderStatus(id, status) {
       const ph = this.getPlaceholderByID(id);
       if (ph) {
+        // If disabling, first deanonymize all tokens associated with this placeholder
+        if (!status) {
+          let currentText = this.textWrapper.get();
+          this.mapping.forEach(entry => {
+            if (entry[2].id === ph.id && entry[1] !== null) {
+              const token = entry[1];
+              const original = entry[0];
+              const regex = new RegExp(window.Utils.escapeRegExp(token), "g");
+              currentText = currentText.replace(regex, original);
+            }
+          });
+          // Update the text with deanonymized content
+          this.textWrapper.set(currentText);
+          // Remove mapping entries related to this placeholder
+          this.mapping = this.mapping.filter(entry => entry[2].id !== ph.id);
+          // Trigger mapping and text change callbacks
+          this._triggerMappingChange();
+          this._triggerTextChange();
+        }
+        // Set placeholder enabled status
         ph.enabled = status;
+        // Re-run PII identification after changes
         this.identifyPII();
       }
     }
+    
     
     // Singular anonymization: replace all occurrences of a specific original text.
     anonymizeSingleText(originalText) {
@@ -3354,15 +3368,10 @@ document.addEventListener("DOMContentLoaded", function () {
 })(window);
 
 </script>
-
   </head>
   <body>
-    <!-- Header section -->
     <header>
-      <!-- Hamburger menu (visible on small screens) -->
       <div class="hamburger" id="openMenu" aria-label="Open Menu" title="Open Menu">&#9776;</div>
-      
-      <!-- Site title and logo -->
       <div class="header-title">
         <div class="header-logo" id="headerLogo" aria-label="Logo"></div>
         <div class="header-text">
@@ -3370,239 +3379,73 @@ document.addEventListener("DOMContentLoaded", function () {
           <span data-i18n="headerSubtitle">Persönliche Informationen lokal maskieren</span>
         </div>
       </div>
-      
-      <!-- Action buttons in the header using emoji icons -->
       <div class="header-actions">
-        <!-- Button to add a new placeholder -->
-        <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder">
-          <span class="icon">➕</span>
-        </button>
-        <!-- Button for placeholder settings -->
-        <button id="headerSettings" data-i18n-alt="settings">
-          <span class="icon">🛠️</span>
-        </button>
-        <!-- Button to change the language -->
-        <button id="headerGeneral" data-i18n-alt="languageChange">
-          <span class="icon">🌐</span>
-        </button>
-        <!-- Button to show help/about information -->
-        <button id="headerHelp" data-i18n-alt="help">
-          <span class="icon">💡</span>
-        </button>
-        <!-- Button to view the mapping (anonymization data) -->
-        <button id="headerMapping" data-i18n-alt="mapping">
-          <span class="icon">📋</span>
-        </button>
-        <!-- Button to download the program as a separate file -->
-        <button id="downloadProgramBtn" data-i18n-alt="programSave">
-          <span class="icon">⬇️</span>
-        </button>
+        <button id="headerAddPlaceholder" data-i18n-alt="addPlaceholder"><span class="icon">➕</span></button>
+        <button id="headerSettings" data-i18n-alt="settings"><span class="icon">🛠️</span></button>
+        <button id="headerGeneral" data-i18n-alt="languageChange"><span class="icon">🌐</span></button>
+        <button id="headerHelp" data-i18n-alt="help"><span class="icon">💡</span></button>
+        <button id="headerMapping" data-i18n-alt="mapping"><span class="icon">📋</span></button>
+        <button id="downloadProgramBtn" data-i18n-alt="programSave"><span class="icon">⬇️</span></button>
       </div>
     </header>
-    
-    <!-- Off-canvas side menu for small screens -->
+
     <nav id="sideMenu">
-      <!-- Close button for side menu -->
       <div class="close-menu" id="closeMenu" aria-label="Close Menu" title="Close Menu">&times;</div>
       <ul>
-        <li>
-          <a href="#" id="menuAddPlaceholder" title="Add Placeholder" aria-label="Add Placeholder">
-            <span class="icon" data-i18n-alt="addPlaceholder">➕</span>
-            <span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span>
-          </a>
-        </li>
-        <li>
-          <a href="#" id="menuSettings" title="Placeholder Settings" aria-label="Placeholder Settings">
-            <span class="icon" data-i18n-alt="settings">🛠️</span>
-            <span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span>
-          </a>
-        </li>
-        <li>
-          <a href="#" id="menuGeneral" title="Change Language" aria-label="Change Language">
-            <span class="icon" data-i18n-alt="languageChange">🌐</span>
-            <span class="menu-text" data-i18n="languageChange">Sprache ändern</span>
-          </a>
-        </li>
-        <li>
-          <a href="#" id="menuHelp" title="Help/About" aria-label="Help/About">
-            <span class="icon" data-i18n-alt="help">💡</span>
-            <span class="menu-text" data-i18n="help">Hilfe/About</span>
-          </a>
-        </li>
-        <li>
-          <a href="#" id="menuMapping" title="Show Mapping" aria-label="Show Mapping">
-            <span class="icon" data-i18n-alt="mapping">📋</span>
-            <span class="menu-text" data-i18n="mapping">Mapping anzeigen</span>
-          </a>
-        </li>
-        <li>
-          <a href="#" id="menuDownload" title="Save program as separate file" aria-label="Save program as separate file">
-            <span class="icon" data-i18n-alt="programSave">⬇️</span>
-            <span class="menu-text" data-i18n="programSave">Programm speichern</span>
-          </a>
-        </li>
+        <li><a href="#" id="menuAddPlaceholder"><span class="icon">➕</span><span class="menu-text" data-i18n="addPlaceholder">Platzhalter hinzufügen</span></a></li>
+        <li><a href="#" id="menuSettings"><span class="icon">🛠️</span><span class="menu-text" data-i18n="settings">Platzhaltereinstellungen</span></a></li>
+        <li><a href="#" id="menuGeneral"><span class="icon">🌐</span><span class="menu-text" data-i18n="languageChange">Sprache ändern</span></a></li>
+        <li><a href="#" id="menuHelp"><span class="icon">💡</span><span class="menu-text" data-i18n="help">Hilfe/About</span></a></li>
+        <li><a href="#" id="menuMapping"><span class="icon">📋</span><span class="menu-text" data-i18n="mapping">Mapping anzeigen</span></a></li>
+        <li><a href="#" id="menuDownload"><span class="icon">⬇️</span><span class="menu-text" data-i18n="programSave">Programm speichern</span></a></li>
       </ul>
     </nav>
-    
-    <!-- Main content area -->
+
     <main>
       <div id="container">
         <div id="scrollable">
-          <!-- Highlight layer for displaying colored overlays on detected text -->
           <pre id="highlight"></pre>
-          <!-- Transparent textarea for actual text input -->
-          <!-- Removed native placeholder attribute so that the placeholder is only shown in the highlight area -->
           <textarea id="editor" spellcheck="false"></textarea>
         </div>
-        
-        <!-- Button overlay to copy text to clipboard -->
         <button id="copyOverlayBtn" data-i18n="copyToClipboard">In Zwischenablage kopieren</button>
-        
-        <!-- Progress bar to show scan/anonymization status -->
         <div id="progressBar">
           <div id="progressFill"></div>
           <div id="progressText">Loading...</div>
         </div>
-        
-        <!-- Action buttons for anonymization and deanonymization -->
         <div id="actionButtons">
-          <button class="action-btn" id="anonymizeBtn" aria-label="Anonymize" data-i18n-alt="anonymize">
-            <span class="icon">🛡️</span>
-            <span class="label" data-i18n="anonymize">Anonymisieren</span>
-          </button>
-          <button class="action-btn" id="deanonymizeBtn" aria-label="Deanonymize" data-i18n-alt="deanonymize">
-            <span class="icon">👀</span>
-            <span class="label" data-i18n="deanonymize">Deanonymisieren</span>
-          </button>
+          <button class="action-btn" id="anonymizeBtn" data-i18n-alt="anonymize"><span class="icon">🛡️</span><span class="label" data-i18n="anonymize">Anonymisieren</span></button>
+          <button class="action-btn" id="deanonymizeBtn" data-i18n-alt="deanonymize"><span class="icon">👀</span><span class="label" data-i18n="deanonymize">Deanonymisieren</span></button>
         </div>
       </div>
     </main>
-    
-    <!-- Footer (currently empty, reserved for future use) -->
-    <footer>
-    </footer>
-    
-    <!-- Modals -->
-    
-    <body>
-      <!-- First Run Modal -->
-      <div id="firstRunModal" class="modal">
-        <div class="modal-content">
-          <h3 data-i18n="firstRunModal.title">
-            <span class="warning-emoji">⚠️</span> Wichtiger Hinweis:
-          </h3>
-          <p data-i18n="firstRunModal.text">
-            Dieses Programm übernimmt keine Garantie für die hundertprozentige Erkennung sensibler Informationen in Texten. Die Endverantwortung liegt beim Benutzer. Dieses Tool dient ausschließlich als semiautomatische Unterstützung zur Anonymisierung von Texten.
-          </p>
-          <div class="first-run-checkbox">
-            <input type="checkbox" id="firstRunCheckbox">
-            <label for="firstRunCheckbox" data-i18n="firstRunModal.checkbox">Ich habe das gelesen und verstanden</label>
-          </div>
-          <div class="first-run-button">
-            <button id="firstRunOk" disabled data-i18n="firstRunModal.okButton">OK</button>
-          </div>
-          <div class="language-settings">
-            <!-- Sprachauswahl wird dynamisch aus dem vorhandenen generalModal übernommen -->
-          </div>
-        </div>
-      </div>
-      
-      
-      
-    
-      <!-- Existing content -->
-      <!-- Header, nav, main etc. -->
-    </body>
-    
 
-    <!-- Settings Modal: Allows configuration of placeholder settings -->
-    <div id="settingsModal" class="modal">
+    <footer></footer>
+
+    <!-- First Run Modal -->
+    <div id="firstRunModal" class="modal">…</div>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">…</div>
+    <!-- General Modal -->
+    <div id="generalModal" class="modal">…</div>
+    <!-- Help/About Modal -->
+    <div id="helpModal" class="modal">…</div>
+    <!-- Mapping Modal -->
+    <div id="mappingModal" class="modal">…</div>
+    <!-- Custom Placeholder Modal -->
+    <div id="customPlaceholderModal" class="modal">…</div>
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">…</div>
+
+    <!-- Test Results Modal -->
+    <div id="testResultsModal" class="modal">
       <div class="modal-content">
-        <h3 data-i18n="placeholderOptions">Platzhaltereinstellungen</h3>
-        <div id="placeholderOptionsContent"></div>
-        <div style="text-align: center;">
-          <button id="closeSettingsModalBtn" data-i18n="close">Schließen</button>
+        <h3>Testergebnisse</h3>
+        <pre id="testResultsContent" style="max-height:60vh; overflow:auto;"></pre>
+        <div style="text-align:center; margin-top:10px;">
+          <button id="copyTestErrorsBtn">Fehlermeldungen kopieren</button>
         </div>
       </div>
     </div>
-    
-    <!-- General Modal: For changing the interface language -->
-    <div id="generalModal" class="modal">
-      <div class="modal-content">
-        <h3 data-i18n="languageChange">Sprache ändern</h3>
-        <label for="languageSelect" data-i18n="languageChange">Sprache der Benutzerschnittstelle:</label>
-        <select id="languageSelect" style="padding: 8px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px;">
-          <option value="de">🇩🇪 Deutsch</option>
-          <option value="en">🇬🇧 English</option>
-        </select>
-        <div style="text-align: center; margin-top: 20px;">
-          <button id="closeGeneralModalBtn" data-i18n="close">Schließen</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Help/About Modal: Provides information about the tool -->
-    <div id="helpModal" class="modal">
-      <div class="modal-content">
-        <h3 data-i18n="helpTitle">Über Anonymizer</h3>
-        <p data-i18n="helpDescription">
-          Anonymizer is a tool for semi-automatic masking and anonymization of personal data in texts.
-        </p>
-        <p data-i18n="helpLocal">
-          This application runs entirely locally in your browser and does not communicate with external services.
-        </p>
-        <p data-i18n="helpDsGvo">
-          The tool is designed to support GDPR-compliant workflows. (The GDPR — General Data Protection Regulation — is a European regulation for data privacy and security.)
-        </p>
-        <p data-i18n="helpResponsibility">
-          Important: Anonymizer offers partial automation. The final responsibility and verification always remain with the user.
-        </p>
-        <p data-i18n="helpLicense">
-          This project is open source and licensed under the MIT license.
-        </p>
-        <p data-i18n-html="helpVersion"></p>
-        <div style="text-align: center; margin-top: 20px;">
-          <button id="closeHelpModalBtn" data-i18n="close">Schließen</button>
-        </div>
-      </div>
-    </div>
-    
-    
-    <!-- Mapping Modal: Displays the mapping between original data and placeholders -->
-    <div id="mappingModal" class="modal">
-      <div class="modal-content">
-        <h3 data-i18n="mapping">Mapping-Liste</h3>
-        <div id="mappingModalContent">
-          <!-- Mapping table will be dynamically inserted here -->
-        </div>
-        <div style="text-align: center; margin-top: 20px;">
-          <button id="resetMappingBtn">Mapping zurücksetzen</button>
-          <button id="closeMappingModalBtn" data-i18n="close">Schließen</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Custom Placeholder Modal: For adding user-defined placeholders -->
-    <div id="customPlaceholderModal" class="modal" style="display:none;">
-      <div class="modal-content">
-        <h3>Platzhalter hinzufügen</h3>
-        <label for="customPattern">Muster:</label>
-        <input type="text" id="customPattern" data-i18n-placeholder="customPatternPlaceholder" placeholder="Enter text to be replaced" />
-        <label for="customLabel">Bezeichnung:</label>
-        <input type="text" id="customLabel" placeholder="e.g. Secret" />
-        <div class="modal-buttons">
-          <button id="saveCustomPlaceholderBtn">Speichern</button>
-          <button id="cancelCustomPlaceholderBtn">Abbrechen</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Context Menu: Provides quick actions based on text selection -->
-    <div id="contextMenu" class="context-menu">
-      <button id="ctxAddPlaceholder"><span class="icon">📝</span> Platzhalter hinzufügen</button>
-      <button id="ctxDoNotAnonymize"><span class="icon">⛔</span> Diesen Text nicht anonymisieren</button>
-    </div>
-    
-    <!-- Note: Download functionality is implemented in ui.js -->
+
   </body>
 </html>
