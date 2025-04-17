@@ -43,34 +43,41 @@ def bundle_html(input_file, output_file, version):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
 
-def build_test_html(input_file, output_file, version, test_js_file):
-    with open(input_file, 'r', encoding='utf-8') as f:
+def build_normal():
+    version = read_version()
+    out = f"./dist/anonymat-{version}.html"
+    bundle_html("index.html", out, version)
+    print(f"Normal build created: {out}")
+    return out
+
+def build_test():
+    version = read_version()
+    out = f"./dist/anonymat-test-{version}.html"
+    # First bundle the normal index.html
+    bundle_html("index.html", out, version)
+    # Then inject test.js into the head
+    with open("index.html", 'r', encoding='utf-8') as f:
         html = f.read()
-    # Update appVersion
     html = re.sub(
         r'window\.appVersion\s*=\s*".*?"',
         f'window.appVersion = "{version}"',
         html
     )
-    # Inline JS
     html = re.sub(
         r'<script\s+src="([^"]+)"></script>',
         inline_file,
         html
     )
-    # Inline CSS
     html = re.sub(
         r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
         inline_file,
         html
     )
     # Read test.js
-    if os.path.exists(test_js_file):
-        with open(test_js_file, 'r', encoding='utf-8') as f:
-            test_js = f.read()
-    else:
-        test_js = ""
-    # Inject test.js before </head>
+    test_js = ""
+    if os.path.exists("test.js"):
+        with open("test.js", 'r', encoding='utf-8') as tf:
+            test_js = tf.read()
     injection = f"<script>\n{test_js}\n</script>\n</head>"
     html = re.sub(
         r'</head>',
@@ -78,9 +85,23 @@ def build_test_html(input_file, output_file, version, test_js_file):
         html,
         flags=re.IGNORECASE
     )
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, 'w', encoding='utf-8') as f:
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
         f.write(html)
+    print(f"Test build created: {out}")
+    return out
+
+def delete_test_build():
+    version = read_version()
+    test_path = f"./dist/anonymat-test-{version}.html"
+    if os.path.exists(test_path):
+        try:
+            os.remove(test_path)
+            print(f"Test build deleted: {test_path}")
+        except Exception as e:
+            print(f"Error deleting test build: {e}")
+    else:
+        print("No test build to delete.")
 
 def read_version():
     version_file = "version.txt"
@@ -102,36 +123,12 @@ def get_all_mod_times(root_dir):
                 pass
     return mod_times
 
-def build_normal():
-    version = read_version()
-    out = f"./dist/anonymat-{version}.html"
-    bundle_html("index.html", out, version)
-    return out
-
-def build_test():
-    version = read_version()
-    out = f"./dist/anonymat-test-{version}.html"
-    build_test_html("index.html", out, version, "test.js")
-    return out
-
-def delete_test_build():
-    version = read_version()
-    test_path = f"./dist/anonymat-test-{version}.html"
-    if os.path.exists(test_path):
-        try:
-            os.remove(test_path)
-            print(f"Test build deleted: {test_path}")
-        except Exception as e:
-            print(f"Error deleting test build: {e}")
-    else:
-        print("No test build to delete.")
-
 def main():
     parser = argparse.ArgumentParser(description="Build script for Anonymat.")
     parser.add_argument("-w", "--watch", action="store_true",
                         help="Watch for changes and rebuild.")
     parser.add_argument("-t", "--test", action="store_true",
-                        help="Build test version only.")
+                        help="Build test version (and also normal).")
     parser.add_argument("-d", "--delete-testbuild", action="store_true",
                         help="Delete existing test build.")
     args = parser.parse_args()
@@ -140,12 +137,12 @@ def main():
         delete_test_build()
         return
 
+    # Always build normal version
+    build_normal()
+
+    # If test flag, also build test version
     if args.test:
-        path = build_test()
-        print(f"Test build created: {path}")
-    else:
-        path = build_normal()
-        print(f"Build completed: {path}")
+        build_test()
 
     if args.watch:
         print("Watch mode active. Press Ctrl+C to exit.")
@@ -155,12 +152,10 @@ def main():
                 time.sleep(1)
                 current = get_all_mod_times(".")
                 if current != last:
+                    # rebuild both
+                    build_normal()
                     if args.test:
-                        p = build_test()
-                        print(f"Test build updated: {p}")
-                    else:
-                        p = build_normal()
-                        print(f"Build completed: {p}")
+                        build_test()
                     last = current
         except KeyboardInterrupt:
             print("Watch mode stopped.")
