@@ -2415,7 +2415,7 @@ window.anonymizer = new Anonymizer();
   function openCustomPlaceholderModal(selectedText) {
     const modal = document.getElementById("customPlaceholderModal");
     if (modal) {
-      // Zuerst das Modal anzeigen, damit der Fokus korrekt gesetzt werden kann.
+      // Show modal first so focus works
       modal.style.display = "block";
       const customPatternInput = modal.querySelector("#customPattern");
       const customLabelInput = modal.querySelector("#customLabel");
@@ -2424,7 +2424,6 @@ window.anonymizer = new Anonymizer();
       }
       if (customLabelInput && window.anonymizer) {
         customLabelInput.value = window.anonymizer.getUniqueSecretLabel();
-        // Mit setTimeout sicherstellen, dass der Fokus gesetzt wird, nachdem das Modal gerendert wurde.
         setTimeout(() => {
           customLabelInput.focus();
           customLabelInput.select();
@@ -2447,7 +2446,6 @@ window.anonymizer = new Anonymizer();
         const label = document.getElementById("customLabel").value.trim();
         if (pattern && label) {
           window.anonymizer.addCustomPlaceholder(label, pattern, false);
-          // Nach dem Hinzufügen automatisch anonymisieren
           window.anonymizer.anonymize_singleText(pattern);
           const editor = document.getElementById("editor");
           if (editor) {
@@ -2543,23 +2541,23 @@ window.anonymizer = new Anonymizer();
     if (inactivePlaceholders.length > 0) {
       const inactiveSection = document.createElement("div");
       inactiveSection.classList.add("placeholder-section");
-      const headerInactive = document.createElement("h4");
-      headerInactive.textContent = window.translate("contextMenu.additionalPlaceholders") || "Weitere Platzhalter";
-      
-      // Toggle button.
+      const headerInactive = document.createElement("div");
+      const titleInactive = document.createElement("h4");
+      titleInactive.textContent = window.translate("contextMenu.additionalPlaceholders") || "Weitere Platzhalter";
       const toggleButton = document.createElement("button");
       toggleButton.textContent = window.translate("contextMenu.showAdditionalPlaceholders") || "Anzeigen";
       toggleButton.classList.add("toggle-button");
+      headerInactive.appendChild(titleInactive);
       headerInactive.appendChild(toggleButton);
       inactiveSection.appendChild(headerInactive);
-      
+
       const inactiveContainer = document.createElement("div");
       inactiveContainer.classList.add("placeholder-list", "inactive-list");
-      inactiveContainer.style.display = "none"; // collapsed by default
+      inactiveContainer.style.display = "none";
       inactivePlaceholders.forEach(ph => inactiveContainer.appendChild(createPlaceholderCheckbox(ph)));
       inactiveSection.appendChild(inactiveContainer);
       container.appendChild(inactiveSection);
-      
+
       toggleButton.addEventListener("click", () => {
         if (inactiveContainer.style.display === "none") {
           inactiveContainer.style.display = "block";
@@ -2570,7 +2568,7 @@ window.anonymizer = new Anonymizer();
         }
       });
     }
-    
+
     // Update Button.
     const updateButton = document.createElement("button");
     updateButton.textContent = window.translate("contextMenu.updateStatus") || "Status aktualisieren";
@@ -2596,68 +2594,60 @@ window.anonymizer = new Anonymizer();
     updatePlaceholderOptions
   };
 
-  document.addEventListener("DOMContentLoaded", function() {
+  document.addEventListener("DOMContentLoaded", function () {
     setupCustomPlaceholderModal();
   });
 
-  // Expose updatePlaceholderOptions globally if benötigt.
-  window.updatePlaceholderOptions = updatePlaceholderOptions;
-
-  
+  // First-run modal logic
   document.addEventListener("DOMContentLoaded", function() {
     if (!localStorage.getItem("firstRunAcknowledged")) {
       const modal = document.getElementById("firstRunModal");
       const okBtn = document.getElementById("firstRunOk");
       const checkbox = document.getElementById("firstRunCheckbox");
       const languageContainer = document.querySelector("#firstRunModal .language-settings");
-  
-      // Reuse language selection from the general modal
-      const generalLanguageSelect = document.getElementById("languageSelect");
-      const generalLanguageLabel = document.querySelector("label[for='languageSelect']");
-      if (generalLanguageSelect && generalLanguageLabel && languageContainer) {
-        // Clone the label and select elements
-        const clonedLabel = generalLanguageLabel.cloneNode(true);
-        const clonedSelect = generalLanguageSelect.cloneNode(true);
-        // Remove duplicate IDs and 'for' attribute to avoid conflicts
+      // reuse language selection from general modal
+      const generalSelect = document.getElementById("languageSelect");
+      const generalLabel = document.querySelector("label[for='languageSelect']");
+      if (generalSelect && generalLabel && languageContainer) {
+        const clonedLabel = generalLabel.cloneNode(true);
+        const clonedSelect = generalSelect.cloneNode(true);
         clonedSelect.removeAttribute("id");
         clonedLabel.removeAttribute("for");
-  
-        // Clear the container and append the clones
         languageContainer.innerHTML = "";
         languageContainer.appendChild(clonedLabel);
         languageContainer.appendChild(clonedSelect);
-  
-        // Set the select's value from the current configuration
         if (window.Config && typeof window.Config.get === "function") {
           clonedSelect.value = window.Config.get("language") || "de";
         }
         clonedSelect.addEventListener("change", function(e) {
           window.Config.set("language", e.target.value);
-            if (typeof window.updateLanguage === "function") {
-              window.updateLanguage();
-            }
+          if (typeof window.updateLanguage === "function") {
+            window.updateLanguage();
+          }
         });
       }
-  
       modal.style.display = "block";
-  
-      // Enable OK button only when the checkbox is checked
-      checkbox.addEventListener("change", function() {
+      checkbox.addEventListener("change", function () {
         okBtn.disabled = !checkbox.checked;
       });
-  
-      okBtn.addEventListener("click", function() {
+      okBtn.addEventListener("click", function () {
         localStorage.setItem("firstRunAcknowledged", "true");
         modal.style.display = "none";
       });
     }
   });
-  
-  
-  
+
+  // Make any modal dismissable by clicking outside its content
+  window.addEventListener("click", function (event) {
+    if (event.target.classList.contains("modal")) {
+      const modalId = event.target.id;
+      if (modalId) {
+        hideModal(modalId);
+      }
+    }
+  });
+
 })(window);
-
-
 
 </script>
     <script>
