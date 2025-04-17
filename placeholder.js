@@ -46,20 +46,12 @@ class RegexDetectionStrategy extends DetectionStrategy {
     while ((m = regex.exec(text)) !== null) {
       const detectedValue = m[this.groupIndex] || m[0];
       if (!detectedValue) continue;
-      if (currentMapping.some(e => e[1] === detectedValue && e[2] === this))
-        continue;
+      if (currentMapping.some(e => e[1] === detectedValue && e[2] === this)) continue;
       let offset = m[0].indexOf(detectedValue);
       if (offset < 0) offset = 0;
       const start = m.index + offset;
       const end = start + detectedValue.length;
-      results.push({
-        original: detectedValue,
-        token: null,
-        strategy: this,
-        rank: 1,
-        start: start,
-        end: end
-      });
+      results.push({ original: detectedValue, token: null, strategy: this, rank: 1, start, end });
     }
     return results;
   }
@@ -72,11 +64,9 @@ class GenericPlaceholderType {
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
     this.enabled = true;
-    // Assign a unique ID to each placeholder instance
     this.id = "ph_" + placeholderPrefix + "_" + (++phIdCounter);
   }
 
-  // Returns next available token name
   getNextTokenName(currentMapping) {
     let token = `[${this.placeholderPrefix}]`;
     if (!currentMapping.some(e => e[1] === token)) return token;
@@ -89,42 +79,44 @@ class GenericPlaceholderType {
     return token;
   }
 
-  // Run all detection strategies and aggregate results.
   detect(text, currentMapping) {
     let results = [];
     for (const strategy of this.detectionStrategies) {
-      const detected = strategy.detect(text, currentMapping);
-      results = results.concat(detected);
+      results = results.concat(strategy.detect(text, currentMapping));
     }
     return this.cleanMatches(results);
   }
 
-  // Remove duplicate matches and those completely overlapped by another.
   cleanMatches(matches) {
     const unique = [];
     for (const m of matches) {
-      if (!unique.some(u => u.start === m.start && u.end === m.end))
-        unique.push(m);
+      if (!unique.some(u => u.start === m.start && u.end === m.end)) unique.push(m);
     }
     return unique.filter(m =>
-      !unique.some(other => other !== m && other.start <= m.start && other.end >= m.end)
+      !unique.some(o => o !== m && o.start <= m.start && o.end >= m.end)
     );
   }
 }
 
-/* Implementation of CustomPlaceholderType with English comments */
+/* CustomPlaceholderType – now with robust slash‑regex parsing */
 class CustomPlaceholderType extends GenericPlaceholderType {
   constructor(pattern, placeholderPrefix) {
     let regex;
-    if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
-      const regexBody = pattern.slice(1, -1);
-      regex = new RegExp(regexBody, "g");
+    // parse /pattern/flags
+    const slashRe = /^\/(.+)\/([gimsuy]*)$/;
+    const match = pattern.match(slashRe);
+    if (match) {
+      const body = match[1];
+      let flags = match[2] || "";
+      if (!flags.includes("g")) flags += "g";
+      regex = new RegExp(body, flags);
     } else {
+      // literal string match
       regex = new RegExp(escapeRegExp(pattern), "g");
     }
     const strategy = new RegexDetectionStrategy({
       regex: regex,
-      description: `Custom placeholder detection for pattern: ${pattern}`,
+      description: `Custom placeholder for pattern: ${pattern}`,
       groupIndex: 0
     });
     super(placeholderPrefix, [strategy]);
@@ -135,94 +127,60 @@ class CustomPlaceholderType extends GenericPlaceholderType {
   identifyPII(text, currentMapping) {
     return this.detect(text, currentMapping);
   }
-
-  apply() {
-    // Optional direct anonymization logic
-  }
 }
 
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
-    const numberStrategy = new RegexDetectionStrategy({
+    const strategy = new RegexDetectionStrategy({
       regex: numberRegex,
       description: "Number detection",
       groupIndex: 0
     });
-    super("Number", [numberStrategy]);
+    super("Number", [strategy]);
   }
 }
 
-/* Placeholder for detecting names using regex with prefixes */
+/* Placeholder for detecting names with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
     const prefixes = [
-      "Mit freundlichen Grüßen,?",
-      "Liebe Grüße,?",
-      "Viele Grüße,?",
-      "Best regards,?",
-      "Cordialement,?",
-      "Guten Morgen",
-      "Guten Tag",
-      "Hallo",
-      "Liebe",
-      "Lieber",
-      "Moin",
-      "Grüß dich",
-      "Servus",
-      "Sehr geehrte(r)? (?:Herr|Frau)",
-      "Herr",
-      "Herrn",
-      "Frau",
-      "Prof\\.",
-      "Dr\\.",
-      "Dear Mr\\.",
-      "Dear Mrs\\.",
-      "Dear Ms\\.",
-      "Dear Miss",
-      "Hello",
-      "Hi",
-      "Hey",
-      "Greetings",
-      "Chère(?: Monsieur| Madame)?",
-      "Salut",
-      "Monsieur",
-      "Madame",
-      "Estimado(?: Sr\\.?| Señor|Señora)?",
-      "Hola",
-      "Querido",
-      "Querida",
-      "Saludos cordiales,?"
+      "Mit freundlichen Grüßen,?", "Liebe Grüße,?", "Viele Grüße,?",
+      "Best regards,?", "Cordialement,?", "Guten Morgen", "Guten Tag",
+      "Hallo", "Liebe", "Lieber", "Moin", "Grüß dich", "Servus",
+      "Sehr geehrte(r)? (?:Herr|Frau)", "Herr", "Herrn", "Frau",
+      "Prof\\.", "Dr\\.", "Dear Mr\\.", "Hello", "Hi", "Hey", "Greetings"
     ];
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
-    const nameStrategy = new RegexDetectionStrategy({
+    const strategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
       description: "Name detection with prefixes",
       groupIndex: 0,
       prefixes: prefixes
     });
-    super("Name", [nameStrategy]);
+    super("Name", [strategy]);
   }
 }
 
 /* Placeholder for detecting email addresses */
 class EmailPlaceholder extends GenericPlaceholderType {
   constructor() {
-    const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
-    const emailStrategy = new RegexDetectionStrategy({
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+    const strategy = new RegexDetectionStrategy({
       regex: emailRegex,
       description: "Email detection",
       groupIndex: 0
     });
-    super("Email", [emailStrategy]);
+    super("Email", [strategy]);
   }
 }
 
+// expose globally
 window.DetectionStrategy = DetectionStrategy;
 window.RegexDetectionStrategy = RegexDetectionStrategy;
 window.GenericPlaceholderType = GenericPlaceholderType;
+window.CustomPlaceholderType = CustomPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
 window.EmailPlaceholder = EmailPlaceholder;
-window.CustomPlaceholderType = CustomPlaceholderType;

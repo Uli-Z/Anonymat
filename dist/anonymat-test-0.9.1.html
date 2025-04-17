@@ -1153,20 +1153,12 @@ class RegexDetectionStrategy extends DetectionStrategy {
     while ((m = regex.exec(text)) !== null) {
       const detectedValue = m[this.groupIndex] || m[0];
       if (!detectedValue) continue;
-      if (currentMapping.some(e => e[1] === detectedValue && e[2] === this))
-        continue;
+      if (currentMapping.some(e => e[1] === detectedValue && e[2] === this)) continue;
       let offset = m[0].indexOf(detectedValue);
       if (offset < 0) offset = 0;
       const start = m.index + offset;
       const end = start + detectedValue.length;
-      results.push({
-        original: detectedValue,
-        token: null,
-        strategy: this,
-        rank: 1,
-        start: start,
-        end: end
-      });
+      results.push({ original: detectedValue, token: null, strategy: this, rank: 1, start, end });
     }
     return results;
   }
@@ -1179,11 +1171,9 @@ class GenericPlaceholderType {
     this.detectionStrategies = detectionStrategies;
     this.rank = 1;
     this.enabled = true;
-    // Assign a unique ID to each placeholder instance
     this.id = "ph_" + placeholderPrefix + "_" + (++phIdCounter);
   }
 
-  // Returns next available token name
   getNextTokenName(currentMapping) {
     let token = `[${this.placeholderPrefix}]`;
     if (!currentMapping.some(e => e[1] === token)) return token;
@@ -1196,42 +1186,44 @@ class GenericPlaceholderType {
     return token;
   }
 
-  // Run all detection strategies and aggregate results.
   detect(text, currentMapping) {
     let results = [];
     for (const strategy of this.detectionStrategies) {
-      const detected = strategy.detect(text, currentMapping);
-      results = results.concat(detected);
+      results = results.concat(strategy.detect(text, currentMapping));
     }
     return this.cleanMatches(results);
   }
 
-  // Remove duplicate matches and those completely overlapped by another.
   cleanMatches(matches) {
     const unique = [];
     for (const m of matches) {
-      if (!unique.some(u => u.start === m.start && u.end === m.end))
-        unique.push(m);
+      if (!unique.some(u => u.start === m.start && u.end === m.end)) unique.push(m);
     }
     return unique.filter(m =>
-      !unique.some(other => other !== m && other.start <= m.start && other.end >= m.end)
+      !unique.some(o => o !== m && o.start <= m.start && o.end >= m.end)
     );
   }
 }
 
-/* Implementation of CustomPlaceholderType with English comments */
+/* CustomPlaceholderType – now with robust slash‑regex parsing */
 class CustomPlaceholderType extends GenericPlaceholderType {
   constructor(pattern, placeholderPrefix) {
     let regex;
-    if (pattern.startsWith("/") && pattern.endsWith("/") && pattern.length > 2) {
-      const regexBody = pattern.slice(1, -1);
-      regex = new RegExp(regexBody, "g");
+    // parse /pattern/flags
+    const slashRe = /^\/(.+)\/([gimsuy]*)$/;
+    const match = pattern.match(slashRe);
+    if (match) {
+      const body = match[1];
+      let flags = match[2] || "";
+      if (!flags.includes("g")) flags += "g";
+      regex = new RegExp(body, flags);
     } else {
+      // literal string match
       regex = new RegExp(escapeRegExp(pattern), "g");
     }
     const strategy = new RegexDetectionStrategy({
       regex: regex,
-      description: `Custom placeholder detection for pattern: ${pattern}`,
+      description: `Custom placeholder for pattern: ${pattern}`,
       groupIndex: 0
     });
     super(placeholderPrefix, [strategy]);
@@ -1242,97 +1234,63 @@ class CustomPlaceholderType extends GenericPlaceholderType {
   identifyPII(text, currentMapping) {
     return this.detect(text, currentMapping);
   }
-
-  apply() {
-    // Optional direct anonymization logic
-  }
 }
 
 /* Placeholder for detecting numbers */
 class NumberPlaceholder extends GenericPlaceholderType {
   constructor() {
     const numberRegex = /(?<!\d)[1-9](?:[ .\-\/\\]*\d){2,}(?!\d)/g;
-    const numberStrategy = new RegexDetectionStrategy({
+    const strategy = new RegexDetectionStrategy({
       regex: numberRegex,
       description: "Number detection",
       groupIndex: 0
     });
-    super("Number", [numberStrategy]);
+    super("Number", [strategy]);
   }
 }
 
-/* Placeholder for detecting names using regex with prefixes */
+/* Placeholder for detecting names with prefixes */
 class NamePlaceholder extends GenericPlaceholderType {
   constructor() {
     const prefixes = [
-      "Mit freundlichen Grüßen,?",
-      "Liebe Grüße,?",
-      "Viele Grüße,?",
-      "Best regards,?",
-      "Cordialement,?",
-      "Guten Morgen",
-      "Guten Tag",
-      "Hallo",
-      "Liebe",
-      "Lieber",
-      "Moin",
-      "Grüß dich",
-      "Servus",
-      "Sehr geehrte(r)? (?:Herr|Frau)",
-      "Herr",
-      "Herrn",
-      "Frau",
-      "Prof\\.",
-      "Dr\\.",
-      "Dear Mr\\.",
-      "Dear Mrs\\.",
-      "Dear Ms\\.",
-      "Dear Miss",
-      "Hello",
-      "Hi",
-      "Hey",
-      "Greetings",
-      "Chère(?: Monsieur| Madame)?",
-      "Salut",
-      "Monsieur",
-      "Madame",
-      "Estimado(?: Sr\\.?| Señor|Señora)?",
-      "Hola",
-      "Querido",
-      "Querida",
-      "Saludos cordiales,?"
+      "Mit freundlichen Grüßen,?", "Liebe Grüße,?", "Viele Grüße,?",
+      "Best regards,?", "Cordialement,?", "Guten Morgen", "Guten Tag",
+      "Hallo", "Liebe", "Lieber", "Moin", "Grüß dich", "Servus",
+      "Sehr geehrte(r)? (?:Herr|Frau)", "Herr", "Herrn", "Frau",
+      "Prof\\.", "Dr\\.", "Dear Mr\\.", "Hello", "Hi", "Hey", "Greetings"
     ];
     const namePattern = "[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+(?:-[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+)?(?:\\s+[A-ZÄÖÜÀ-ÖØ-Ý][a-zäöüßà-öø-ÿ]+){0,2}";
-    const nameStrategy = new RegexDetectionStrategy({
+    const strategy = new RegexDetectionStrategy({
       regex: new RegExp(namePattern, "g"),
       description: "Name detection with prefixes",
       groupIndex: 0,
       prefixes: prefixes
     });
-    super("Name", [nameStrategy]);
+    super("Name", [strategy]);
   }
 }
 
 /* Placeholder for detecting email addresses */
 class EmailPlaceholder extends GenericPlaceholderType {
   constructor() {
-    const emailRegex = /[^@\s]+@[^@\s]+\.[^@\s]+/g;
-    const emailStrategy = new RegexDetectionStrategy({
+    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+    const strategy = new RegexDetectionStrategy({
       regex: emailRegex,
       description: "Email detection",
       groupIndex: 0
     });
-    super("Email", [emailStrategy]);
+    super("Email", [strategy]);
   }
 }
 
+// expose globally
 window.DetectionStrategy = DetectionStrategy;
 window.RegexDetectionStrategy = RegexDetectionStrategy;
 window.GenericPlaceholderType = GenericPlaceholderType;
+window.CustomPlaceholderType = CustomPlaceholderType;
 window.NumberPlaceholder = NumberPlaceholder;
 window.NamePlaceholder = NamePlaceholder;
 window.EmailPlaceholder = EmailPlaceholder;
-window.CustomPlaceholderType = CustomPlaceholderType;
 
 </script>
     <script>
@@ -3371,10 +3329,10 @@ document.addEventListener("DOMContentLoaded", function () {
   <script>
 "use strict";
 
-// First-Run-Modal im Test-Build deaktivieren
+// Disable first-run modal in the test build
 localStorage.setItem("firstRunAcknowledged", "true");
 
-// Globaler Error-Handler für unvorhergesehene Fehler
+// Global error handler for unexpected errors
 window.addEventListener("error", function (event) {
   console.error("Global error caught:", event.error);
   window.testResults = {
@@ -3388,7 +3346,7 @@ window.addEventListener("error", function (event) {
 });
 
 // =============================================
-// Basis-Klasse für alle Testfälle
+// Base class for all test cases
 // =============================================
 class TestCase {
   constructor({ description, input, expectedOutput }) {
@@ -3396,13 +3354,14 @@ class TestCase {
     this.input = input;
     this.expectedOutput = expectedOutput;
   }
+
   async run() {
-    throw new Error("run() muss in Subklasse implementiert sein");
+    throw new Error("run() must be implemented in subclass");
   }
 }
 
 // =============================================
-// TestCase für einfache Ein-/Ausgabe-Vergleiche
+// Simple I/O Test Case
 // =============================================
 class SimpleIOTestCase extends TestCase {
   async run() {
@@ -3414,10 +3373,10 @@ class SimpleIOTestCase extends TestCase {
 
     let errors = [];
     if (anonymizedOutput !== this.expectedOutput) {
-      errors.push(`Anonymize: erwartet "${this.expectedOutput}", aber bekommen "${anonymizedOutput}"`);
+      errors.push(`Anonymize: expected "${this.expectedOutput}", but got "${anonymizedOutput}"`);
     }
     if (deanonymizedOutput !== this.input) {
-      errors.push(`Deanonymize: erwartet "${this.input}", aber bekommen "${deanonymizedOutput}"`);
+      errors.push(`Deanonymize: expected "${this.input}", but got "${deanonymizedOutput}"`);
     }
 
     return { description: this.description, passed: errors.length === 0, errors };
@@ -3425,13 +3384,14 @@ class SimpleIOTestCase extends TestCase {
 }
 
 // =============================================
-// TestCase für benutzerdefinierte Platzhalter
+// Custom Placeholder Test Case
 // =============================================
 class CustomPlaceholderTestCase extends TestCase {
   constructor(opts) {
     super(opts);
     this.customPlaceholder = opts.customPlaceholder;
   }
+
   async run() {
     const anonymizer = new window.Anonymizer();
     anonymizer.setText(this.input);
@@ -3447,10 +3407,10 @@ class CustomPlaceholderTestCase extends TestCase {
 
     let errors = [];
     if (anonymizedOutput !== this.expectedOutput) {
-      errors.push(`Anonymize: erwartet "${this.expectedOutput}", aber bekommen "${anonymizedOutput}"`);
+      errors.push(`Anonymize: expected "${this.expectedOutput}", but got "${anonymizedOutput}"`);
     }
     if (deanonymizedOutput !== this.input) {
-      errors.push(`Deanonymize: erwartet "${this.input}", aber bekommen "${deanonymizedOutput}"`);
+      errors.push(`Deanonymize: expected "${this.input}", but got "${deanonymizedOutput}"`);
     }
 
     return { description: this.description, passed: errors.length === 0, errors };
@@ -3458,7 +3418,7 @@ class CustomPlaceholderTestCase extends TestCase {
 }
 
 // =============================================
-// Liste aller Testfälle
+// List of all test cases
 // =============================================
 const testCases = [
   new SimpleIOTestCase({
@@ -3492,7 +3452,7 @@ const testCases = [
     expectedOutput: "Order 12, then [Number_4], then [Number_2], [Number_3] and [Number]."
   }),
   new SimpleIOTestCase({
-    description: "Name with prefix detection",
+    description: "Name with greeting prefix detection",
     input: "Hallo John",
     expectedOutput: "Hallo [Name]"
   }),
@@ -3502,7 +3462,7 @@ const testCases = [
     expectedOutput: "Guten Tag [Name], wie geht es?"
   }),
   new SimpleIOTestCase({
-    description: "Name without prefix should not be detected",
+    description: "Name without greeting prefix should not be detected",
     input: "John",
     expectedOutput: "John"
   }),
@@ -3541,12 +3501,12 @@ const testCases = [
     description: "Custom regex literal test",
     input: "FOO1 and FOO2.",
     expectedOutput: "[Custom] and [Custom_2].",
-    customPlaceholder: { label: "Custom", pattern: "/FOO(\d)/" }
+    customPlaceholder: { label: "Custom", pattern: "/FOO\\d/g" }
   })
 ];
 
 // =============================================
-// Test-Runner
+// Test runner
 // =============================================
 async function runAllTests() {
   let allPassed = true;
@@ -3567,7 +3527,7 @@ async function runAllTests() {
 }
 
 // =============================================
-// Tests starten und Test-Modal anzeigen
+// Start tests and display modal
 // =============================================
 (async () => {
   window.testStatus = "started";
@@ -3588,22 +3548,23 @@ async function runAllTests() {
   }
 
   function showTestResults() {
-    // Modal öffnen
+    // Open the modal
     window.Modal.showModal("testResultsModal");
 
+    // Container for results
     const container = document.getElementById("testResultsContent");
     container.innerHTML = "";
 
-    // Zusammenfassung
+    // Summary
     const total = testCases.length;
     const failed = window.testResults.errors.length;
     const summary = document.createElement("p");
     summary.textContent = failed > 0
-      ? `${failed} von ${total} Tests fehlgeschlagen.`
-      : `Alle ${total} Tests erfolgreich!`;
+      ? `${failed} of ${total} tests failed.`
+      : `All ${total} tests passed successfully!`;
     container.appendChild(summary);
 
-    // Fehler-Tabelle, falls Fehler existieren
+    // Detailed error table if there are failures
     if (failed > 0) {
       const table = document.createElement("table");
       table.style.width = "100%";
@@ -3613,7 +3574,7 @@ async function runAllTests() {
       thead.innerHTML = `
         <tr>
           <th style="text-align:left;padding:4px">Test</th>
-          <th style="text-align:left;padding:4px">Fehler</th>
+          <th style="text-align:left;padding:4px">Errors</th>
         </tr>`;
       table.appendChild(thead);
 
@@ -3630,13 +3591,13 @@ async function runAllTests() {
       container.appendChild(table);
     }
 
-    // Copy-Button Handler
+    // Copy button handler
     const copyBtn = document.getElementById("copyTestErrorsBtn");
     copyBtn.onclick = () => {
       const text = JSON.stringify(window.testResults, null, 2);
       navigator.clipboard.writeText(text);
-      copyBtn.textContent = "Kopiert!";
-      setTimeout(() => copyBtn.textContent = "Fehlermeldungen kopieren", 2000);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => copyBtn.textContent = "Copy error messages", 2000);
     };
   }
 

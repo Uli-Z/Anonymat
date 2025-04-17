@@ -172,7 +172,7 @@ const testCases = [
     description: "Custom regex literal test",
     input: "FOO1 and FOO2.",
     expectedOutput: "[Custom] and [Custom_2].",
-    customPlaceholder: { label: "Custom", pattern: "/FOO(\d)/" }
+    customPlaceholder: { label: "Custom", pattern: "/FOO\\d/g" }
   })
 ];
 

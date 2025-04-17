@@ -14,21 +14,31 @@ def inline_file(match):
     if tag.startswith('<link'):
         return f"<style>\n{content}\n</style>"
     else:
-        # Escaping </script> für safety
+        # Escape closing </script> for safety
         content = content.replace("</script>", "<\\/script>")
         return f"<script>\n{content}\n</script>"
 
 def bundle_html(input_file, output_file, version):
     with open(input_file, 'r', encoding='utf-8') as f:
         html = f.read()
-    # Version updaten
-    html = re.sub(r'window\.appVersion\s*=\s*".*?"',
-                  f'window.appVersion = "{version}"', html)
-    # JS und CSS inline
-    html = re.sub(r'<script\s+src="([^"]+)"></script>',
-                  inline_file, html)
-    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
-                  inline_file, html)
+    # Update appVersion
+    html = re.sub(
+        r'window\.appVersion\s*=\s*".*?"',
+        f'window.appVersion = "{version}"',
+        html
+    )
+    # Inline JS
+    html = re.sub(
+        r'<script\s+src="([^"]+)"></script>',
+        inline_file,
+        html
+    )
+    # Inline CSS
+    html = re.sub(
+        r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
+        inline_file,
+        html
+    )
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
@@ -36,21 +46,38 @@ def bundle_html(input_file, output_file, version):
 def build_test_html(input_file, output_file, version, test_js_file):
     with open(input_file, 'r', encoding='utf-8') as f:
         html = f.read()
-    html = re.sub(r'window\.appVersion\s*=\s*".*?"',
-                  f'window.appVersion = "{version}"', html)
-    html = re.sub(r'<script\s+src="([^"]+)"></script>',
-                  inline_file, html)
-    html = re.sub(r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
-                  inline_file, html)
-    # Test-Script einbinden
+    # Update appVersion
+    html = re.sub(
+        r'window\.appVersion\s*=\s*".*?"',
+        f'window.appVersion = "{version}"',
+        html
+    )
+    # Inline JS
+    html = re.sub(
+        r'<script\s+src="([^"]+)"></script>',
+        inline_file,
+        html
+    )
+    # Inline CSS
+    html = re.sub(
+        r'<link\s+rel="stylesheet"\s+href="([^"]+)">',
+        inline_file,
+        html
+    )
+    # Read test.js
     if os.path.exists(test_js_file):
         with open(test_js_file, 'r', encoding='utf-8') as f:
             test_js = f.read()
     else:
         test_js = ""
-    html = re.sub(r'</head>',
-                  f'<script>\n{test_js}\n</script>\n</head>',
-                  html, flags=re.IGNORECASE)
+    # Inject test.js before </head>
+    injection = f"<script>\n{test_js}\n</script>\n</head>"
+    html = re.sub(
+        r'</head>',
+        lambda m: injection,
+        html,
+        flags=re.IGNORECASE
+    )
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html)
@@ -93,20 +120,20 @@ def delete_test_build():
     if os.path.exists(test_path):
         try:
             os.remove(test_path)
-            print(f"Test build gelöscht: {test_path}")
+            print(f"Test build deleted: {test_path}")
         except Exception as e:
-            print(f"Fehler beim Löschen: {e}")
+            print(f"Error deleting test build: {e}")
     else:
-        print("Kein Test-Build zum Löschen gefunden.")
+        print("No test build to delete.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Build script für Anonymat.")
+    parser = argparse.ArgumentParser(description="Build script for Anonymat.")
     parser.add_argument("-w", "--watch", action="store_true",
-                        help="Änderungen überwachen und neu bauen.")
+                        help="Watch for changes and rebuild.")
     parser.add_argument("-t", "--test", action="store_true",
-                        help="Nur Test-Version bauen.")
+                        help="Build test version only.")
     parser.add_argument("-d", "--delete-testbuild", action="store_true",
-                        help="Test-Version löschen, falls vorhanden.")
+                        help="Delete existing test build.")
     args = parser.parse_args()
 
     if args.delete_testbuild:
@@ -115,13 +142,13 @@ def main():
 
     if args.test:
         path = build_test()
-        print(f"Test-Build erstellt: {path}")
+        print(f"Test build created: {path}")
     else:
         path = build_normal()
-        print(f"Build abgeschlossen: {path}")
+        print(f"Build completed: {path}")
 
     if args.watch:
-        print("Watch-Modus aktiv. (Strg+C zum Beenden)")
+        print("Watch mode active. Press Ctrl+C to exit.")
         last = get_all_mod_times(".")
         try:
             while True:
@@ -130,13 +157,13 @@ def main():
                 if current != last:
                     if args.test:
                         p = build_test()
-                        print(f"Test-Build aktualisiert: {p}")
+                        print(f"Test build updated: {p}")
                     else:
                         p = build_normal()
-                        print(f"Build abgeschlossen: {p}")
+                        print(f"Build completed: {p}")
                     last = current
         except KeyboardInterrupt:
-            print("Watch-Modus beendet.")
+            print("Watch mode stopped.")
 
 if __name__ == "__main__":
     main()
