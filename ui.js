@@ -1,3 +1,4 @@
+// ui.js
 "use strict";
 
 (function (window) {
@@ -27,14 +28,14 @@
     }
     function updateLanguage() {
       const lang = window.Config.get("language") || "en";
-      // Für normale Textinhalte:
+      // For plain text elements:
       document.querySelectorAll("[data-i18n]").forEach(el => {
         const key = el.getAttribute("data-i18n");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
           el.textContent = window.translations[lang][key];
         }
       });
-      // Für HTML-Inhalte (z.B. Version-Text mit GitHub-Link):
+      // For HTML content (e.g. version link):
       document.querySelectorAll("[data-i18n-html]").forEach(el => {
         const key = el.getAttribute("data-i18n-html");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
@@ -45,7 +46,7 @@
           el.innerHTML = trans;
         }
       });
-      // Update von alt/title/placeholder wie gehabt...
+      // For alt/title attributes:
       document.querySelectorAll("[data-i18n-alt]").forEach(el => {
         const key = el.getAttribute("data-i18n-alt");
         if (window.translations && window.translations[lang] && window.translations[lang][key]) {
@@ -60,7 +61,7 @@
           el.placeholder = window.translations[lang][key];
         }
       });
-      // Editor-Update etc.
+      // Trigger editor repaint if needed
       const editor = document.getElementById("editor");
       if (editor) {
         editor.dispatchEvent(new Event("input"));
@@ -71,7 +72,7 @@
 
 
     // -----------------------------
-    // Modal Close Button Handlers using window.Modal functions
+    // Modal Close Button Handlers
     // -----------------------------
     const closeSettingsModalBtn = document.getElementById("closeSettingsModalBtn");
     const closeGeneralModalBtn = document.getElementById("closeGeneralModalBtn");
@@ -244,7 +245,7 @@
       });
     }
     if (menuDownload) {
-      menuDownload.addEventListener("click", async function (e) {
+      menuDownload.addEventListener("click", function (e) {
         e.preventDefault();
         const configBlock = `<!-- CONFIG-START -->
 <script>
@@ -261,10 +262,10 @@
                 accept: { "text/html": [".html"] }
               }]
             };
-            const handle = await window.showSaveFilePicker(opts);
-            const writable = await handle.createWritable();
-            await writable.write(finalHtml);
-            await writable.close();
+            const handle = window.showSaveFilePicker(opts);
+            const writable = handle.createWritable();
+            writable.write(finalHtml);
+            writable.close();
           } catch (err) {
             console.error("Save cancelled", err);
           }
@@ -307,65 +308,14 @@
     };
 
     // -----------------------------
-    // Context Menu: Managed exclusively in contextMenu.js.
-    // Initialize the context menu.
+    // Context Menu: Managed in contextMenu.js.
     if (window.ContextMenu && typeof window.ContextMenu.init === "function") {
       window.ContextMenu.init("editor", "contextMenu");
     }
 
     // -----------------------------
-    // Highlight and Editor Management
-    // -----------------------------
-    const editor = document.getElementById("editor");
-    const highlight = document.getElementById("highlight");
-    function updateHighlight() {
-      const text = editor.value;
-      if (text.trim() === "") {
-        highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
-        highlight.className = "";
-        return;
-      }
-
-      let intervals = [];
-      // Collect intervals for detected PII and placeholders.
-      let detectedIntervals = Utils.collectIntervals(text, window.anonymizer.getMapping().map(entry => entry[0]), "detected");
-      detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
-      intervals = intervals.concat(detectedIntervals);
-      intervals = intervals.concat(Utils.collectIntervals(text, window.anonymizer.getMapping().map(entry => entry[1]), "anonymized"));
-
-      // Add whitelist intervals.
-      const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
-      intervals = intervals.concat(Utils.collectIntervals(text, whitelistItems, "whitelisted"));
-
-      intervals.sort((a, b) => a.start - b.start);
-
-      let result = "";
-      let currentIndex = 0;
-      intervals.forEach(interval => {
-        result += Utils.escapeHtml(text.substring(currentIndex, interval.start));
-        result += `<span class="${interval.className}">` + Utils.escapeHtml(text.substring(interval.start, interval.end)) + "</span>";
-        currentIndex = interval.end;
-      });
-      result += Utils.escapeHtml(text.substring(currentIndex));
-      highlight.innerHTML = result;
-
-      // Set highlight classes.
-      if (window.anonymizer.getMapping().some(entry => text.indexOf(entry[0]) !== -1)) {
-        highlight.classList.add("highlight-detected");
-        highlight.classList.remove("highlight-clean");
-      } else {
-        highlight.classList.add("highlight-clean");
-        highlight.classList.remove("highlight-detected");
-      }
-      highlight.style.height = editor.scrollHeight + "px";
-    }
-    editor.addEventListener("input", function () {
-      updateHighlight();
-    });
-    editor.addEventListener("scroll", function () {
-      highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
-    });
-    updateHighlight();
+    // No more duplicated updateHighlight here —
+    // editor.js now owns all highlight logic.
   });
 
   window.addEventListener("DOMContentLoaded", function () {

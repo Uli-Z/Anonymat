@@ -1,3 +1,4 @@
+// editor.js
 "use strict";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -116,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (hideBarAnimationTimeout) {
       clearTimeout(hideBarAnimationTimeout);
     }
-    
+
     progressBar.style.display = "block";
     progressBar.classList.add("active");
     progressBar.classList.remove("fade-out");
@@ -136,97 +137,11 @@ document.addEventListener("DOMContentLoaded", function () {
         progressText.style.cursor = "default";
       }
     }
-    
+
     progressHideTimeout = setTimeout(function() {
       hideProgressBar();
     }, 2000);
   }
-
-  // Update highlight, mapping lists, button states, and the debug table.
-  function mappingChangeHandler() {
-    updateCurrentMappingLists();
-    updateHighlight();
-    updateButtonStates();
-    updatePlaceholdersTable();
-  }
-
-  // Update text based on anonymizer changes.
-  function handleTextChange() {
-    editor.value = window.anonymizer.getText();
-    updateCurrentMappingLists();
-    updateHighlight();
-    updatePlaceholdersTable();
-  }
-
-  const throttledMappingChange = Utils.throttle(mappingChangeHandler, 100);
-
-  // Update the highlight layer based on detected intervals.
-  function updateHighlight() {
-    const text = editor.value;
-    if (text.trim() === "") {
-      highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
-      highlight.className = "";
-      return;
-    }
-  
-    // Collect and merge detected intervals.
-    let detectedIntervals = Utils.collectIntervals(
-      text,
-      window.anonymizer.getMapping().map(entry => entry[0]),
-      "detected"
-    );
-    detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals);
-  
-    // Collect anonymized token intervals (if needed).
-    let anonymizedIntervals = Utils.collectIntervals(
-      text,
-      window.anonymizer.getMapping().map(entry => entry[1]),
-      "anonymized"
-    );
-  
-    // Collect and merge whitelist intervals.
-    const whitelistItems = window.anonymizer.whitelist.filter(item => item.trim() !== "");
-    let whitelistIntervals = Utils.collectIntervals(text, whitelistItems, "whitelisted");
-    whitelistIntervals = Utils.mergeOverlappingIntervals(whitelistIntervals);
-  
-    // Remove detected intervals that overlap with whitelist intervals.
-    detectedIntervals = detectedIntervals.filter(detected => {
-      return !whitelistIntervals.some(whitelist =>
-        whitelist.start <= detected.end && whitelist.end >= detected.start
-      );
-    });
-  
-    // Combine all intervals – whitelist takes precedence.
-    let intervals = [].concat(whitelistIntervals, detectedIntervals, anonymizedIntervals);
-    intervals.sort((a, b) => a.start - b.start);
-  
-    // Build the highlight HTML layer.
-    let result = "";
-    let currentIndex = 0;
-    intervals.forEach(interval => {
-      if (currentIndex > interval.start) return; // Skip overlapping intervals.
-      result += Utils.escapeHtml(text.substring(currentIndex, interval.start));
-      result += `<span class="${interval.className}">` +
-                Utils.escapeHtml(text.substring(interval.start, interval.end)) +
-                `</span>`;
-      currentIndex = interval.end;
-    });
-    result += Utils.escapeHtml(text.substring(currentIndex));
-    highlight.innerHTML = result;
-    
-    // Update highlight container classes. (Background color change)
-    if (highlight.innerHTML.includes('class="detected"')) {
-      highlight.classList.add("highlight-detected");
-      highlight.classList.remove("highlight-clean");
-    } else {
-      highlight.classList.add("highlight-clean");
-      highlight.classList.remove("highlight-detected");
-    }
-  
-    // Match highlight height to editor scroll height.
-    highlight.style.height = editor.scrollHeight + "px";
-  }
-  
 
   // Update button states based on current text.
   function updateButtonStates() {
@@ -234,22 +149,109 @@ document.addEventListener("DOMContentLoaded", function () {
     deanonymizeBtn.disabled = placeholderTokensInText.length === 0;
   }
 
+  // Unified highlight routine
+  function updateHighlight() {
+    const text = editor.value;
+    // If editor is empty, show placeholder and reset classes
+    if (!text.trim()) {
+      highlight.innerHTML = `<span class="placeholder">${editor.placeholder}</span>`;
+      highlight.className = "";
+      return;
+    }
+
+    // 1) Collect intervals
+    const mapping = window.anonymizer.getMapping();
+    const whitelistItems = window.anonymizer.whitelist.filter(wl => wl.trim() !== "");
+
+    // Whitelist intervals, merged
+    let whitelistIntervals = Utils.collectIntervals(text, whitelistItems, "whitelisted");
+    whitelistIntervals = Utils.mergeOverlappingIntervals(whitelistIntervals);
+
+    // Detected intervals, merged, then filter out those covered by whitelist
+    let detectedIntervals = Utils.collectIntervals(text, mapping.map(entry => entry[0]), "detected");
+    detectedIntervals = Utils.mergeOverlappingIntervals(detectedIntervals)
+      .filter(det => !whitelistIntervals.some(wl => wl.start <= det.start && wl.end >= det.end));
+
+    // Anonymized token intervals
+    const anonymizedIntervals = Utils.collectIntervals(text, mapping.map(entry => entry[1]), "anonymized");
+
+    // 2) Combine all, sort by start
+    const allIntervals = [...whitelistIntervals, ...detectedIntervals, ...anonymizedIntervals]
+      .sort((a, b) => a.start - b.start);
+
+    // 3) Build the highlight HTML
+    let resultHtml = "";
+    let currentIndex = 0;
+    for (const { start, end, className } of allIntervals) {
+      if (currentIndex < start) {
+        resultHtml += Utils.escapeHtml(text.substring(currentIndex, start));
+      }
+      resultHtml += `<span class="${className}">` +
+                    Utils.escapeHtml(text.substring(start, end)) +
+                    `</span>`;
+      currentIndex = end;
+    }
+    if (currentIndex < text.length) {
+      resultHtml += Utils.escapeHtml(text.substring(currentIndex));
+    }
+    highlight.innerHTML = resultHtml;
+
+    // 4) Update background class
+    if (detectedIntervals.length > 0) {
+      highlight.classList.add("highlight-detected");
+      highlight.classList.remove("highlight-clean");
+    } else {
+      highlight.classList.add("highlight-clean");
+      highlight.classList.remove("highlight-detected");
+    }
+
+    // 5) Sync height to editor
+    highlight.style.height = editor.scrollHeight + "px";
+  }
+
+  // throttle the heavy highlight redraw to max. once every 100 ms
+  const throttledUpdateHighlight = Utils.throttle(updateHighlight, 100);
+
+  // Update on mapping changes
+  function mappingChangeHandler() {
+    updateCurrentMappingLists();
+    updatePlaceholdersTable();
+    throttledUpdateHighlight();
+  }
+
+  // Update on textChange callback
+  function handleTextChange() {
+    editor.value = window.anonymizer.getText();
+    updateCurrentMappingLists();
+    throttledUpdateHighlight();
+    updatePlaceholdersTable();
+  }
+
+  // Register anonymizer callbacks
+  window.anonymizer.setOnMappingChange(mappingChangeHandler);
+  window.anonymizer.setOnProgress(throttledProgressUI);
+  window.anonymizer.setOnComplete(function(mapping) {
+    handleProgressComplete();
+    throttledUpdateHighlight();
+  });
+  window.anonymizer.setOnTextChange(handleTextChange);
+
+  // Editor event listeners
   editor.addEventListener("input", function () {
     clearTimeout(progressHideTimeout);
     clearTimeout(hideBarAnimationTimeout);
-    highlight.innerText = editor.value;
     window.anonymizer.setText(editor.value);
     window.anonymizer.identifyPII();
-    throttledMappingChange.flush();
+    throttledUpdateHighlight();
   });
 
   editor.addEventListener("scroll", function () {
     highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
+    updateHighlight();
   });
 
-  // Update highlight and layout on window resize.
   window.addEventListener("resize", function () {
-    updateHighlight();
+    throttledUpdateHighlight();
     highlight.style.transform = `translate(-${editor.scrollLeft}px, -${editor.scrollTop}px)`;
   });
 
@@ -273,12 +275,6 @@ document.addEventListener("DOMContentLoaded", function () {
       `<span style="font-size:24px; color: green;">${Icons.check}</span> ${window.translate("deanonymizedStatus")}`
     );
   });
-
-  // Register anonymizer callbacks.
-  window.anonymizer.setOnMappingChange(throttledMappingChange);
-  window.anonymizer.setOnProgress(throttledProgressUI);
-  window.anonymizer.setOnComplete(handleProgressComplete);
-  window.anonymizer.setOnTextChange(handleTextChange);
 
   // Overlay copy button handler.
   const copyOverlayBtn = document.getElementById("copyOverlayBtn");
