@@ -721,3 +721,16 @@ header svg,
   justify-content: center;
   gap: 8px;
 }
+
+/* ======================================================
+   Hide scrollbar in the textarea, keep scrolling active
+   ====================================================== */
+   #editor {
+    scrollbar-width: none;        /* Firefox */
+    -ms-overflow-style: none;     /* IE 10+ */
+  }
+  #editor::-webkit-scrollbar {    /* Chrome, Safari, Edge */
+    width: 0;
+    height: 0;
+  }
+  

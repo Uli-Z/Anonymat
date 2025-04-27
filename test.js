@@ -173,7 +173,33 @@ const testCases = [
     input: "FOO1 and FOO2.",
     expectedOutput: "[Custom] and [Custom_2].",
     customPlaceholder: { label: "Custom", pattern: "/FOO\\d/g" }
-  })
+  }),
+  // --- Case‑insensitive NamePrefix Tests ---
+new SimpleIOTestCase({
+  description: "Lowercase greeting prefix 'hallo John'",
+  input: "hallo John",
+  expectedOutput: "[Name]"
+}),
+new SimpleIOTestCase({
+  description: "Uppercase greeting prefix 'HALLO John'",
+  input: "HALLO John",
+  expectedOutput: "[Name]"
+}),
+new SimpleIOTestCase({
+  description: "Mixed‑case prefix 'gUtEn TaG Maria Müller'",
+  input: "gUtEn TaG Maria Müller, wie geht es?",
+  expectedOutput: "[Name], wie geht es?"
+}),
+new SimpleIOTestCase({
+  description: "Informal 'hey Alice' prefix lowercase",
+  input: "hey Alice, schön dich zu sehen.",
+  expectedOutput: "[Name], schön dich zu sehen."
+}),
+new SimpleIOTestCase({
+  description: "Formal 'Sehr geehrte Frau Müller' prefix mixed case",
+  input: "sEhR gEeHrTe fRaU Müller",
+  expectedOutput: "[Name]"
+}),
 ];
 
 // =============================================
