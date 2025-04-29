@@ -178,29 +178,100 @@ const testCases = [
 new SimpleIOTestCase({
   description: "Lowercase greeting prefix 'hallo John'",
   input: "hallo John",
-  expectedOutput: "[Name]"
+  expectedOutput: "hallo [Name]"
 }),
 new SimpleIOTestCase({
   description: "Uppercase greeting prefix 'HALLO John'",
   input: "HALLO John",
-  expectedOutput: "[Name]"
+  expectedOutput: "HALLO [Name]"
 }),
 new SimpleIOTestCase({
   description: "Mixed‑case prefix 'gUtEn TaG Maria Müller'",
   input: "gUtEn TaG Maria Müller, wie geht es?",
-  expectedOutput: "[Name], wie geht es?"
+  expectedOutput: "gUtEn TaG [Name], wie geht es?"
 }),
 new SimpleIOTestCase({
   description: "Informal 'hey Alice' prefix lowercase",
   input: "hey Alice, schön dich zu sehen.",
-  expectedOutput: "[Name], schön dich zu sehen."
+  expectedOutput: "hey [Name], schön dich zu sehen."
 }),
 new SimpleIOTestCase({
   description: "Formal 'Sehr geehrte Frau Müller' prefix mixed case",
   input: "sEhR gEeHrTe fRaU Müller",
-  expectedOutput: "[Name]"
+  expectedOutput: "sEhR gEeHrTe fRaU [Name]"
 }),
 ];
+
+// Zusätzliche Testfälle für kontextbezogene Namens-Erkennung
+const additionalNameTestCases = [
+  new SimpleIOTestCase({
+    description: "Formal salutation with Prof. and Dr.",
+    input: "Herr Prof. Dr. Schmidt",
+    expectedOutput: "Herr Prof. Dr. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Formal salutation with trailing period",
+    input: "Herr Prof. Dr. Schmidt.",
+    expectedOutput: "Herr Prof. Dr. [Name]."
+  }),
+  new SimpleIOTestCase({
+    description: "Titles in reversed order",
+    input: "Herr Dr. Prof. Schmidt",
+    expectedOutput: "Herr Dr. Prof. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Informal greeting with multiple titles",
+    input: "Hallo liebe Frau Prof. Dr. Uta Müller",
+    expectedOutput: "Hallo liebe Frau Prof. Dr. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "lowercase informal greeting with titles",
+    input: "hallo liebe frau prof. dr. uta müller",
+    expectedOutput: "hallo liebe frau prof. dr. uta müller" // No detection
+  }),
+  new SimpleIOTestCase({
+    description: "Complex formal salutation with engineering title",
+    input: "Sehr geehrter Herr Prof. Dr. Ing. Karl-Heinz Müller",
+    expectedOutput: "Sehr geehrter Herr Prof. Dr. Ing. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Complex formal salutation with medical title",
+    input: "Sehr geehrte Frau Dr. med. Anna-Lena Schmidt",
+    expectedOutput: "Sehr geehrte Frau Dr. med. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Greeting with French accented name",
+    input: "Guten Tag Frau François Dupont",
+    expectedOutput: "Guten Tag Frau [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Welcome phrase with Spanish accented compound name",
+    input: "Guten Tag Frau José-Luis García, willkommen.",
+    expectedOutput: "Guten Tag Frau [Name], willkommen."
+  }),
+  new SimpleIOTestCase({
+    description: "Mixed-case formal salutation",
+    input: "sEhR gEeHrTe fRaU Dr. Élodie Müller",
+    expectedOutput: "sEhR gEeHrTe fRaU Dr. [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Evening greeting with titles",
+    input: "Guten Abend Herr Müller-Schmidt",
+    expectedOutput: "Guten Abend Herr [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Multiple-word hyphenated name",
+    input: "Guten Tag Frau Anna-Lena von der Leyen",
+    expectedOutput: "Guten Tag Frau [Name]"
+  }),
+  new SimpleIOTestCase({
+    description: "Uppercase informal with titles and umlaut",
+    input: "HALLO FRAU PROF. DR. BÄCKER",
+    expectedOutput: "HALLO FRAU PROF. DR. [Name]"
+  }),
+];
+
+additionalNameTestCases.forEach(tc => testCases.push(tc));
 
 // =============================================
 // Test runner
