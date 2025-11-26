@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420" role="img" aria-labelledby="title desc">
+  <title id="title">Anonymization flow for Anonymat</title>
+  <desc id="desc">Clockwise flow showing original English text with personal data, anonymized English text, anonymized German text processed by AI, and German text with personal data restored locally.</desc>
+
+  <style>
+    .box {
+      fill: #ffffff;
+      stroke: #333333;
+      stroke-width: 1.5;
+      rx: 8;
+      ry: 8;
+    }
+    .title {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      fill: #111111;
+    }
+    .body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      fill: #222222;
+    }
+    .arrow {
+      stroke: #555555;
+      stroke-width: 1.5;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+    .label {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 12px;
+      fill: #555555;
+    }
+  </style>
+
+  <defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#555555" />
+    </marker>
+  </defs>
+
+  <!-- Positions -->
+  <!-- Top left: A -->
+  <rect class="box" x="40" y="40" width="320" height="130" />
+  <text class="title" x="60" y="65">EN with PII</text>
+  <text class="body" x="60" y="90">
+    <tspan x="60" dy="0">Please contact John Doe at +1 555 123 4567</tspan>
+    <tspan x="60" dy="16">or john.doe@example.com for more information.</tspan>
+  </text>
+
+  <!-- Top right: B -->
+  <rect class="box" x="500" y="40" width="320" height="130" />
+  <text class="title" x="520" y="65">EN anonymized</text>
+  <text class="body" x="520" y="90">
+    <tspan x="520" dy="0">Please contact [Name] at [Number] or [Email]</tspan>
+    <tspan x="520" dy="16">for more information.</tspan>
+  </text>
+
+  <!-- Bottom right: C -->
+  <rect class="box" x="500" y="250" width="320" height="130" />
+  <text class="title" x="520" y="275">DE anonymized (AI output)</text>
+  <text class="body" x="520" y="300">
+    <tspan x="520" dy="0">Bitte kontaktieren Sie [Name] unter [Number]</tspan>
+    <tspan x="520" dy="16">oder [Email] für weitere Informationen.</tspan>
+  </text>
+
+  <!-- Bottom left: D -->
+  <rect class="box" x="40" y="250" width="320" height="130" />
+  <text class="title" x="60" y="275">DE with PII (restored locally)</text>
+  <text class="body" x="60" y="300">
+    <tspan x="60" dy="0">Bitte kontaktieren Sie John Doe unter +1 555 123 4567</tspan>
+    <tspan x="60" dy="16">oder john.doe@example.com für weitere Informationen.</tspan>
+  </text>
+
+  <!-- Arrows -->
+  <!-- A to B -->
+  <path class="arrow" d="M400,105 H490" />
+  <text class="label" x="410" y="95">Anonymat: Anonymize</text>
+
+  <!-- B to C -->
+  <path class="arrow" d="M680,170 V240" />
+  <text class="label" x="690" y="210">AI: translate / rewrite</text>
+
+  <!-- C to D -->
+  <path class="arrow" d="M500,315 H400" />
+  <text class="label" x="410" y="305">Anonymat: Deanonymize</text>
+
+  <!-- D to A -->
+  <path class="arrow" d="M220,250 V180" />
+  <text class="label" x="230" y="215">Next text</text>
+</svg>
