@@ -12,17 +12,7 @@ A simple, clean user interface ensures anonymization can be done with minimal ef
 > Important: This is a partial automation tool. Final responsibility for proper anonymization remains with the user.  
 > Detection is intentionally simple and purely pattern-based. Expect incomplete and sometimes incorrect matches — this is a helper for local pre-processing, not a guaranteed anonymization service.  
 
-```mermaid
-flowchart TB
-  A["**EN with PII**<br/>Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information."]
-  B["**EN anonymized**<br/>Please contact \[Name\] at \[Number\] or \[Email\] for more information."]
-  C["**DE anonymized**<br/>Bitte kontaktieren Sie \[Name\] unter \[Number\] oder \[Email\] für weitere Informationen."]
-  D["**DE with PII**<br/>Bitte kontaktieren Sie John Doe unter +1 555 123 4567 oder john.doe@example.com für weitere Informationen."]
-
-  A -->|Anonymat: Anonymize| B
-  B -->|AI: Translate EN to DE| C
-  C -->|Anonymat: Deanonymize| D
-```
+![Anonymization flow](docs/anonymization-flow.svg)
 
 ---
 
