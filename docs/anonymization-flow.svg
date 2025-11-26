@@ -76,18 +76,14 @@
 
   <!-- Arrows -->
   <!-- A to B -->
-  <path class="arrow" d="M400,105 H490" />
-  <text class="label" x="410" y="95">Anonymat: Anonymize</text>
+  <path class="arrow" d="M360,105 H500" />
+  <text class="label" x="395" y="95">Anonymat: Anonymize</text>
 
   <!-- B to C -->
-  <path class="arrow" d="M680,170 V240" />
-  <text class="label" x="690" y="210">AI: translate / rewrite</text>
+  <path class="arrow" d="M660,170 V250" />
+  <text class="label" x="670" y="215">AI: translate / rewrite</text>
 
   <!-- C to D -->
-  <path class="arrow" d="M500,315 H400" />
-  <text class="label" x="410" y="305">Anonymat: Deanonymize</text>
-
-  <!-- D to A -->
-  <path class="arrow" d="M220,250 V180" />
-  <text class="label" x="230" y="215">Next text</text>
+  <path class="arrow" d="M500,315 H360" />
+  <text class="label" x="395" y="305">Anonymat: Deanonymize</text>
 </svg>
