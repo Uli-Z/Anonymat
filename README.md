@@ -58,6 +58,12 @@ This ensures that the tool can be used within GDPR-regulated environments and re
 
 ---
 
+## Browser Support & Privacy
+- Requires a modern browser with ES2018+ regex support (lookbehind, Unicode classes). Tested on recent Chrome/Edge/Firefox; Safari 16+ recommended.
+- Everything runs locally; no network requests are made. The app stores language preferences in a short-lived `AppConfig` cookie and sets no telemetry.
+
+---
+
 ## Contributing  
 Suggestions and pull requests are welcome!  
 Please open an issue before making significant changes.  
