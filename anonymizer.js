@@ -222,11 +222,11 @@
     addToWhitelist(item) {
       if (!this.whitelist.includes(item)) {
         let currentText = this.textWrapper.get();
-        const regex = new RegExp(this._escapeRegExp(item), "g");
+        const regex = new RegExp(window.Utils.escapeRegExp(item), "g");
         const matches = currentText.match(regex);
         if (matches) {
           matches.forEach(match => {
-            const regex = new RegExp(this._escapeRegExp(match), "g");
+            const regex = new RegExp(window.Utils.escapeRegExp(match), "g");
             const mappingEntry = this.mapping.find(entry => entry[1] === match);
             if (mappingEntry) {
               const originalText = mappingEntry[0];
@@ -265,9 +265,7 @@
       this.placeholderTypes.push(customPlaceholder);
     
       const currentText = this.textWrapper.get();
-      const results = customPlaceholder.identifyPII 
-                        ? customPlaceholder.identifyPII(currentText, this.mapping) || [] 
-                        : [];
+      const results = customPlaceholder.detect(currentText, this.mapping) || [];
       results.forEach(entry => {
         // Verwende entry.original statt entry[0] und entry.token statt entry[1]
         this.addToMappingList(entry.original, entry.token, customPlaceholder, customPlaceholder.rank);
