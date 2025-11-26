@@ -34,7 +34,7 @@ flowchart LR
   - IBANs  
 - Fully local execution (no data leaves your device)  
 - GDPR-compliant workflow  
-  > *GDPR (General Data Protection Regulation) is an EU law enforcing strict privacy and data protection standards — widely recognized as one of the most robust frameworks for handling personal data.*  
+  > *GDPR (General Data Protection Regulation) is an EU law enforcing strict privacy and data protection standards.*  
 - Easy deanonymization for re-importing edited texts  
 - Designed for professional use cases in regulated environments  
 - Zero installation: runs as a single file in any modern browser  
