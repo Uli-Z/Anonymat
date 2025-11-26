@@ -14,10 +14,10 @@ A simple, clean user interface ensures anonymization can be done with minimal ef
 
 ```mermaid
 flowchart TB
-  A["EN with PII<br/>Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information."]
-  B["EN anonymized<br/>Please contact &#91;Name&#93; at &#91;Number&#93; or &#91;Email&#93; for more information."]
-  C["DE anonymized<br/>Bitte kontaktieren Sie &#91;Name&#93; unter &#91;Number&#93; oder &#91;Email&#93; für weitere Informationen."]
-  D["DE with PII<br/>Bitte kontaktieren Sie John Doe unter +1 555 123 4567 oder john.doe@example.com für weitere Informationen."]
+  A["**EN with PII**<br/>Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information."]
+  B["**EN anonymized**<br/>Please contact \[Name\] at \[Number\] or \[Email\] for more information."]
+  C["**DE anonymized**<br/>Bitte kontaktieren Sie \[Name\] unter \[Number\] oder \[Email\] für weitere Informationen."]
+  D["**DE with PII**<br/>Bitte kontaktieren Sie John Doe unter +1 555 123 4567 oder john.doe@example.com für weitere Informationen."]
 
   A -->|Anonymat: Anonymize| B
   B -->|AI: Translate EN to DE| C
