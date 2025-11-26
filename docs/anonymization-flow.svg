@@ -51,19 +51,19 @@
   </text>
 
   <!-- Top right: B -->
-  <rect class="box" x="500" y="40" width="320" height="130" />
-  <text class="title" x="520" y="65">EN anonymized</text>
-  <text class="body" x="520" y="90">
-    <tspan x="520" dy="0">Please contact [Name] at [Number] or [Email]</tspan>
-    <tspan x="520" dy="16">for more information.</tspan>
+  <rect class="box" x="520" y="40" width="320" height="130" />
+  <text class="title" x="540" y="65">EN anonymized</text>
+  <text class="body" x="540" y="90">
+    <tspan x="540" dy="0">Please contact [Name] at [Number] or [Email]</tspan>
+    <tspan x="540" dy="16">for more information.</tspan>
   </text>
 
   <!-- Bottom right: C -->
-  <rect class="box" x="500" y="250" width="320" height="130" />
-  <text class="title" x="520" y="275">DE anonymized (AI output)</text>
-  <text class="body" x="520" y="300">
-    <tspan x="520" dy="0">Bitte kontaktieren Sie [Name] unter [Number]</tspan>
-    <tspan x="520" dy="16">oder [Email] für weitere Informationen.</tspan>
+  <rect class="box" x="520" y="250" width="320" height="130" />
+  <text class="title" x="540" y="275">DE anonymized (AI output)</text>
+  <text class="body" x="540" y="300">
+    <tspan x="540" dy="0">Bitte kontaktieren Sie [Name] unter [Number]</tspan>
+    <tspan x="540" dy="16">oder [Email] für weitere Informationen.</tspan>
   </text>
 
   <!-- Bottom left: D -->
@@ -76,14 +76,14 @@
 
   <!-- Arrows -->
   <!-- A to B -->
-  <path class="arrow" d="M360,105 H500" />
-  <text class="label" x="395" y="95">Anonymat: Anonymize</text>
+  <path class="arrow" d="M360,105 H520" />
+  <text class="label" x="400" y="95">Anonymat: Anonymize</text>
 
   <!-- B to C -->
-  <path class="arrow" d="M660,170 V250" />
-  <text class="label" x="670" y="215">AI: translate / rewrite</text>
+  <path class="arrow" d="M680,170 V250" />
+  <text class="label" x="690" y="215">AI: translate / rewrite</text>
 
   <!-- C to D -->
-  <path class="arrow" d="M500,315 H360" />
-  <text class="label" x="395" y="305">Anonymat: Deanonymize</text>
+  <path class="arrow" d="M520,315 H360" />
+  <text class="label" x="400" y="305">Anonymat: Deanonymize</text>
 </svg>
