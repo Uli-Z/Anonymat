@@ -78,7 +78,7 @@
   <!-- Arrows -->
   <!-- A to B -->
   <path class="arrow" d="M360,105 H520" />
-  <text class="label" x="400" y="115">
+  <text class="label" x="400" y="125">
     <tspan x="400" dy="0">Anonymat:</tspan>
     <tspan x="400" dy="14">Anonymize</tspan>
   </text>
