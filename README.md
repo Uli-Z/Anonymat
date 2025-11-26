@@ -13,7 +13,7 @@ A simple, clean user interface ensures anonymization can be done with minimal ef
 > Detection is intentionally simple and purely pattern-based. Expect incomplete and sometimes incorrect matches — this is a helper for local pre-processing, not a guaranteed anonymization service.  
 
 ```mermaid
-flowchart LR
+flowchart TB
   A["EN with PII<br/>Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information."]
   B["EN anonymized<br/>Please contact NAME at NUMBER or EMAIL for more information."]
   C["DE anonymized<br/>Bitte kontaktieren Sie NAME unter NUMBER oder EMAIL für weitere Informationen."]
