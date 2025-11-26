@@ -10,6 +10,7 @@ The tool runs as a single HTML file directly in the browser on almost any office
 A simple, clean user interface ensures anonymization can be done with minimal effort and time.  
 
 > Important: This is a partial automation tool. Final responsibility for proper anonymization remains with the user.  
+> Detection is intentionally simple and purely pattern-based. Expect incomplete and sometimes incorrect matches — this is a helper for local pre-processing, not a guaranteed anonymization service.  
 
 ---
 
@@ -29,6 +30,28 @@ A simple, clean user interface ensures anonymization can be done with minimal ef
 
 ---
 
+## Example: Anonymize Before Using AI  
+1. Original text:  
+   `Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information.`  
+2. In Anonymat, click `Anonymize` → for example:  
+   `Please contact [Name] at [Number] or [Email] for more information.`  
+3. Send this anonymized sentence to an AI system (e.g. for translation or rewriting).  
+4. Paste the AI output back into Anonymat and click `Deanonymize` to restore the original name, phone number, and email locally.  
+
+```mermaid
+flowchart LR
+  A["EN with PII<br/>\"Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information.\""]
+  B["EN anonymized<br/>\"Please contact [Name] at [Number] or [Email] for more information.\""]
+  C["DE anonymized<br/>\"Bitte kontaktieren Sie [Name] unter [Number] oder [Email] für weitere Informationen.\""]
+  D["DE with PII<br/>\"Bitte kontaktieren Sie John Doe unter +1 555 123 4567 oder john.doe@example.com für weitere Informationen.\""]
+
+  A -->|Anonymat: Anonymize| B
+  B -->|AI: Translate EN → DE| C
+  C -->|Anonymat: Deanonymize| D
+```
+
+---
+
 ## Use Cases  
 - Anonymize internal or client texts before sending them to AI tools for translation, correction, or summarization  
 - Temporarily remove personal identifiers from reports or documentation for external review  
@@ -43,7 +66,7 @@ This ensures that the tool can be used within GDPR-regulated environments and re
 ---
 
 ## How It Works  
-1. Download the file dist/Anonymat.html and open the HTML file in your browser.  
+1. Download the file `dist/anonymat-<version>.html` and open the HTML file in your browser.  
 2. Paste or type the text.  
 3. Click `Anonymize` — detected personal data will be replaced by placeholders.  
 4. Edit or process the anonymized text in external tools.  
