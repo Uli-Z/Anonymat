@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Build production bundle
+        run: python3 build_single_html.py
+      - name: Build test bundle
+        run: python3 build_single_html.py -t
+      - name: Verify artifacts
+        run: |
+          ls -lh dist
+          VERSION=$(cat version.txt)
+          test -f "dist/anonymat-${VERSION}.html"
+          test -f "dist/anonymat-test-${VERSION}.html"
