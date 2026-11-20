@@ -164,6 +164,12 @@ export function scanDates(source:string,options:DateOptions={}):DateScan{
 export function parseDate(text:string,options:DateOptions={}):DateMatch|null{
   return scanDates(text,options).matches.find(m=>m.start===0&&m.end===text.length)??null;
 }
+/** Signed difference of two validated UTC calendar days. */
+export function calendarDayDifference(fromIso:string,toIso:string):number|null{
+  if(!shiftIsoDay(fromIso,0)||!shiftIsoDay(toIso,0))return null;
+  const [fy,fm,fd]=parts(fromIso),[ty,tm,td]=parts(toIso);
+  return (Date.UTC(ty,tm-1,td)-Date.UTC(fy,fm-1,fd))/86400000;
+}
 export function formatLike(iso:string,template:DateMatch):string{
   const [y,m,d]=parts(iso),day=String(d).padStart(template.padDay?2:1,'0');
   const month=String(m).padStart(template.padMonth?2:1,'0');
@@ -209,19 +215,30 @@ export function randomDateOffset():number{
 /** Reverse only dates actually exported by this session; unknown dates are not touched. */
 export function restoreShiftedDates(source:string,shiftedIsos:readonly string[],offset:number,options:DateOptions={}):DateRestoreResult{
   if(!shiftedIsos.length)return {text:source,warnings:[],changed:0};
-  const allowed=new Set(shiftedIsos),scan=scanDates(source,options);
+  const remaining=new Map<string,number>();
+  for(const iso of shiftedIsos)remaining.set(iso,(remaining.get(iso)??0)+1);
+  const scan=scanDates(source,options);
   const warnings=scan.issues.map(item=>'Datum "'+item.text+'": '+item.reason+'.');
   let text='',pos=0,changed=0;
   for(const match of scan.matches){
     text+=source.slice(pos,match.start);
-    if(!allowed.has(match.iso)){
-      text+=match.text;warnings.push('Unbekanntes Datum "'+match.text+'" nicht zurückverschoben.');
+    const count=remaining.get(match.iso)??0;
+    if(count===0){
+      text+=match.text;
+      warnings.push('Unbekanntes oder zusätzliches Datum "'+match.text+'" nicht zurückverschoben.');
     }else{
       const original=shiftIsoDay(match.iso,-offset);
-      if(original){text+=formatLike(original,match);changed++;}
-      else{text+=match.text;warnings.push('Datum "'+match.text+'" kann nicht zurückverschoben werden.');}
+      if(original){
+        text+=formatLike(original,match);changed++;
+        remaining.set(match.iso,count-1);
+      }else{
+        text+=match.text;
+        warnings.push('Datum "'+match.text+'" kann nicht zurückverschoben werden.');
+      }
     }
     pos=match.end;
   }
+  for(const [iso,count] of remaining)if(count>0)
+    warnings.push('Verschobenes Datum '+iso+' fehlt '+count+'-mal in der KI-Antwort.');
   return {text:text+source.slice(pos),warnings,changed};
 }
