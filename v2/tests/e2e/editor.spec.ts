@@ -17,7 +17,7 @@ test('automatic highlights open an inline context menu and can be ignored', asyn
 
   await page.locator('.cm-anonymat-auto').first().click();
   await expect(page.getByRole('dialog', { name: 'Markierung bearbeiten' })).toBeVisible();
-  await page.getByRole('button', { name: /Diese Stelle ignorieren/ }).click();
+  await page.getByRole('button', { name: /Nur diese Stelle ignorieren/ }).click();
   await expect(page.locator('.cm-anonymat-ignored')).toHaveCount(1);
   await expect(page.locator('.placeholder-token')).toHaveCount(1);
 
@@ -44,7 +44,7 @@ test('manual highlights persist after editing elsewhere and can be removed', asy
   await expect(page.locator('.cm-anonymat-manual')).toHaveText('FREIGABE');
 
   await page.locator('.cm-anonymat-manual').click();
-  await page.getByRole('button', { name: /Platzhalter entfernen/ }).click();
+  await page.getByRole('button', { name: /Manuelle Erkennungsregel entfernen/ }).click();
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(0);
   await expect(page.locator('.placeholder-token')).toHaveCount(0);
 });

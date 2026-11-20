@@ -16,7 +16,7 @@
     value: string;
     marks: EditorMark[];
     onChange: (value: string, changes: ChangeDesc) => void;
-    onSelect: (from: number, to: number) => void;
+    onSelect: (from: number, to: number, position?: {x: number; y: number}) => void;
     onHit: (id: string, rect: DOMRect) => void;
   }
 
@@ -70,7 +70,8 @@
             if (update.docChanged) onChange(update.state.doc.toString(), update.changes);
             if (update.selectionSet || update.docChanged) {
               const { from, to } = update.state.selection.main;
-              onSelect(from, to);
+              const rect = to > from ? view?.coordsAtPos(to) : null;
+              onSelect(from, to, rect ? {x: rect.left, y: rect.bottom} : undefined);
             }
           }),
           EditorView.domEventHandlers({

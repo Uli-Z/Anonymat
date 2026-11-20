@@ -4,11 +4,11 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 ## Funktionen im Alpha-Prototyp
 
-- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden.
-- Beliebige Textauswahl markieren und einer Platzhalterkategorie zuweisen.
+- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden. Aus „Frau Müller“ wird „Müller“ für alle weiteren Vorkommen im aktuellen Dokument gelernt.
+- Beliebige Textauswahl mit **einem Klick** auf die eingeblendete Aktion „Auswahl anonymisieren“ markieren; die gewählte Stelle lehrt Anonymat den gleichen Begriff für weitere Vorkommen.
 - Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
 - Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.
-- Vorgeschlagene Treffer per Checkbox akzeptieren/ablehnen.
+- Pro Begriff gruppierte Trefferliste (z. B. „Müller × 3“) statt doppelter Zeilen; die Checkbox schaltet alle Vorkommen um. Im Text lässt sich separat genau eine Stelle ignorieren.
 - Vorschau des pseudonymisierten Textes und Kopieren in die Zwischenablage.
 - KI-Antwort mit Platzhaltern einfügen und lokal zurückübersetzen; Warnungen bei fehlenden/unbekannten Tokens.
 - Keine Speicherung des Texts oder der Token-Zuordnung. Kein Backend.
