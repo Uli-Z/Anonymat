@@ -1,3 +1,4 @@
+import { scanDates, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 /**
  * Rule-based PII candidates. A contextual name also becomes a temporary
@@ -53,7 +54,7 @@ export function removeOverlaps(findings:Finding[]):Finding[] {
 export function mergeManual(auto:Finding[],manual:Finding[]):Finding[]{
   return removeOverlaps([...manual,...auto]);
 }
-export function detectPII(text:string):Finding[]{
+export function detectPII(text:string,numericOrder:NumericDateOrder='auto'):Finding[]{
   const candidates:Finding[]=[];
   const knownNames=new Set<string>();
   const add=(kind:Kind,start:number,value:string)=>{
@@ -66,6 +67,7 @@ export function detectPII(text:string):Finding[]{
   for(const match of text.matchAll(/\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]){11,30}\b/gi)){
     if(ibanValid(match[0]))add('IBAN',match.index,match[0]);
   }
+  for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   // Salutation-derived names. Keep full names together and learn the surname.
   for(const match of text.matchAll(/\b(?:Herrn?|Frau)\s+(?:(?:Dr|Prof)\.\s+)?([A-ZÄÖÜ][\p{L}\p{M}'-]+(?:\s+[A-ZÄÖÜ][\p{L}\p{M}'-]+)?)/gu)){
     const name=match[1];
@@ -83,8 +85,8 @@ export function detectPII(text:string):Finding[]{
  * Automatic detection -> learned terms -> explicit source-anchored overrides.
  * Manual classifications outrank automatic, even when they split a larger hit.
  */
-export function scanDocument(text:string,anchors:readonly Finding[]):Finding[]{
-  const inferred=detectPII(text);
+export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto'):Finding[]{
+  const inferred=detectPII(text,numericOrder);
   const manual:Finding[]=[];
   const learned=new Map<string,{term:string;kind:Kind;anchorId:string}>();
   for(const anchor of anchors){
