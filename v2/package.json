@@ -1,7 +1,7 @@
 {
   "name": "anonymat-v2",
   "private": true,
-  "version": "2.0.0-alpha.2",
+  "version": "2.0.0-alpha.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,9 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
     "verify": "npm run check && npm run test && npm run build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:translation": "vitest run tests/translation.test.ts",
+    "test:rules": "vitest run tests/overrides.test.ts tests/replacement-rules.test.ts tests/term-index.test.ts"
   },
   "dependencies": {
     "svelte": "5.58.0",

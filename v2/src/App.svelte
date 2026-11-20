@@ -5,14 +5,20 @@
   import { reviewDocument, type TermGroup } from './lib/session';
   import { remapFindings } from './lib/marks';
   import { maskText, restoreText, splitForPreview } from './lib/replace';
+  import { splitFullName } from './lib/overrides';
+  import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
 
-  const kinds: Kind[] = ['PERSON', 'EMAIL', 'PHONE', 'IBAN', 'OTHER'];
+  const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'OTHER'];
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
   let ignoredPlaces = $state<Finding[]>([]);
   let ignoredTerms = $state<string[]>([]);
   let selectedKind = $state<Kind>('PERSON');
+  let replacementRules = $state<Record<string, ReplacementRule>>({});
+  let editingReplacement = $state<string | null>(null);
+  let replacementDraft = $state('');
+  let replacementError = $state('');
   let selectedRange = $state({ from: 0, to: 0 });
   let quickAction = $state<{x: number; y: number} | null>(null);
   let reply = $state('');
@@ -30,7 +36,7 @@
     ignored: !active.some(item => item.id === hit.id),
     manual: hit.origin === 'manual'
   })));
-  let prepared = $derived(maskText(source, active));
+  let prepared = $derived(maskText(source, active, replacementRules));
   let preview = $derived(splitForPreview(prepared.text));
   let restored = $derived(restoreText(reply, prepared.mapping));
   let selectedHit = $derived(findings.find(hit => hit.id === menu?.id));
@@ -127,6 +133,62 @@
     notice = 'Manuelle Erkennungsregel entfernt.';
   }
 
+  /** Refine an automatic full-name proposal with two anchored override rules. */
+  function splitName(hit: Finding): void {
+    const parts = splitFullName(hit);
+    if (!parts) {
+      notice = 'Vor-/Nachname kann hier nicht eindeutig getrennt werden. Bitte beide Teile einzeln markieren.';
+      return;
+    }
+    manual = [...manual.filter(item => !spansOverlap(item, hit)), ...parts];
+    ignoredPlaces = ignoredPlaces.filter(item => !spansOverlap(item, hit));
+    menu = null;
+    notice = 'Vorname und Nachname getrennt. Beide Regeln gelten auch für weitere Vorkommen.';
+  }
+
+  function replacementFor(group: TermGroup): string {
+    if (group.activeCount === 0) return 'Nicht ersetzt';
+    return prepared.mapping.find(entry =>
+      entry.kind === group.kind && sameTerm(entry.original, group.text)
+    )?.token ?? '—';
+  }
+
+  function editReplacement(group: TermGroup): void {
+    const key = replacementKey(group.kind, group.text);
+    editingReplacement = key;
+    const rule = replacementRules[key];
+    replacementDraft = rule?.mode === 'custom-token' ? rule.token : replacementFor(group);
+    replacementError = '';
+  }
+
+  function saveReplacement(group: TermGroup): void {
+    const key = replacementKey(group.kind, group.text);
+    const token = replacementDraft.trim();
+    if (!token) {
+      const rules = {...replacementRules};
+      delete rules[key];
+      replacementRules = rules;
+    } else {
+      const error = validateCustomToken(token);
+      if (error) { replacementError = error; return; }
+      if (source.includes(token)) {
+        replacementError = 'Der Token kommt bereits im Originaltext vor.';
+        return;
+      }
+      const duplicate = Object.entries(replacementRules).some(([otherKey, rule]) =>
+        otherKey !== key && rule.mode === 'custom-token' && rule.token === token
+      );
+      if (duplicate) {
+        replacementError = 'Dieser Ersatzwert wird bereits für eine andere Angabe verwendet.';
+        return;
+      }
+      replacementRules = {...replacementRules, [key]:{mode:'custom-token',kind:group.kind,token}};
+    }
+    editingReplacement = null;
+    replacementError = '';
+    notice = 'Ersatzwert aktualisiert. Rückübersetzung bleibt möglich.';
+  }
+
   function onHit(id: string, rect: DOMRect): void {
     quickAction = null;
     menu = {
@@ -147,6 +209,9 @@
     manual = [];
     ignoredPlaces = [];
     ignoredTerms = [];
+    replacementRules = {};
+    editingReplacement = null;
+    replacementError = '';
     selectedRange = {from: 0, to: 0};
     quickAction = null;
     reply = '';
@@ -275,7 +340,7 @@
             <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
             <div class="findings-list">
               {#each groups as group (group.key)}
-                <label class="finding-row" class:muted-finding={group.activeCount === 0}>
+                <div class="finding-row" class:muted-finding={group.activeCount === 0}>
                   <input type="checkbox" checked={group.activeCount > 0}
                     aria-label={group.text + ' im ganzen Text anonymisieren'}
                     onchange={event => toggleGroup(group, event.currentTarget.checked)} />
@@ -284,8 +349,24 @@
                     <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell gelernt' : 'Automatisch erkannt'}
                       {#if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
                     </span>
+                    {#if group.activeCount > 0}
+                      {#if editingReplacement === replacementKey(group.kind,group.text)}
+                        <form class="replacement-editor" onsubmit={(event) => { event.preventDefault(); saveReplacement(group); }}>
+                          <input type="text" aria-label={'Ersatzwert für '+group.text} bind:value={replacementDraft} spellcheck="false" />
+                          <button type="submit">Speichern</button>
+                          <button type="button" onclick={() => editingReplacement = null}>Abbrechen</button>
+                          {#if replacementError}<div class="replacement-error">{replacementError}</div>{/if}
+                        </form>
+                      {:else}
+                        <div class="replacement-inline">
+                          <span class="replacement-arrow" aria-hidden="true">→</span>
+                          <code>{replacementFor(group)}</code>
+                          <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
+                        </div>
+                      {/if}
+                    {/if}
                   </span>
-                </label>
+                </div>
               {/each}
             </div>
           {/if}
@@ -312,6 +393,9 @@
           <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
         {/if}
       </div>
+      {#if prepared.warnings.length}
+        <div class="inline-warning">{prepared.warnings.join(' ')}</div>
+      {/if}
       {#if source.trim() && prepared.mapping.length === 0}
         <div class="inline-warning">Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.</div>
       {/if}
@@ -385,6 +469,9 @@
         {:else}
           <button type="button" onclick={() => suppressOne(selectedHit!)}>✕ Nur diese Stelle ignorieren</button>
           <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Begriff im ganzen Text ignorieren</button>
+        {/if}
+        {#if splitFullName(selectedHit)}
+          <button type="button" onclick={() => splitName(selectedHit!)}>↳ In Vorname und Nachname aufteilen</button>
         {/if}
         {#if manual.some(anchor => anchor.id === selectedHit?.id)}
           <button type="button" onclick={() => removeManualRule(selectedHit!)}>− Manuelle Erkennungsregel entfernen</button>

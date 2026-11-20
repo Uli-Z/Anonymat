@@ -35,3 +35,22 @@ Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root u
 Alles bleibt im Arbeitsspeicher dieses Browser-Tabs. Keine Browser-Speicherung der Inhalte, keine Modellaufrufe, keine Analytik. Manuelle Markierungen und lokale Ausnahmen werden bei Texteingaben positionsgenau mitverschoben. Nur vollständig gelöschte Markierungen oder geänderte, bewusst ignorierte Texte werden neu bewertet.
 
 **Pseudonymisierung ist nicht gleich Anonymisierung.** Auch nach Ersetzungen können indirekte Identifikatoren im Text verbleiben.
+
+
+## Regelpipeline und Tests (Alpha 3)
+
+Die neue **Prioritätsfolge** lautet: automatische Detektoren → dokumentweit gelernte Begriffe → explizite manuelle Klassifizierung (überschreibt Auto-Erkennung) → lokale/globale Ausnahmen → Ersetzungsregel → Wiederherstellung.
+
+Die Kategorie kann im Kontextmenü manuell auf **Vorname**, **Nachname**, **Datum** oder **Uhrzeit** geändert werden. Bei genau zweigliedrigen vollständigen Namen steht die Aktion **„In Vorname und Nachname aufteilen“** zur Verfügung; mehrdeutige Namen werden nicht automatisch zerlegt.
+
+Die Ersetzungsliste zeigt den konkret eingesetzten Token und ermöglicht seine Bearbeitung. Benutzerdefinierte Tokens müssen eindeutig und in eckige Klammern gesetzt sein, z. B. \`[PATIENT_A]\`. Freitext wird bewusst nicht akzeptiert, da er sich nach einer KI-Übersetzung derzeit nicht zuverlässig rekonstruieren ließe. Ein künftiger Generator synthetischer Namen/E-Mail-Adressen oder die Datums-/Uhrzeitverschiebung ist **noch nicht implementiert**.
+
+Für viele gelernte Wörter verwendet die Erkennung einen **Aho-Corasick-Mehrfachsuchindex** statt eines regulären Ausdrucks pro Begriff. Manuelle Treffer bleiben im Editor über ihre Textposition verankert.
+
+Ausführung:
+
+    npm run test:rules
+    npm run test:translation
+    npm run test:e2e
+
+Unter \`tests/fixtures/translation/\` liegen **synthetische** deutsch-englische, -französische und -spanische Texte mit stabilen Platzhaltern. Diese prüfen die **Rückübersetzung** nach simulierten KI-Antworten, **nicht** die Übersetzungsqualität eines realen Modells. Die Datumsbeispiele in \`future-date-cases.json\` sind als **noch offene Tests** markiert. Details: [Testkonzept](docs/TESTING.md) und [Architektur](docs/ARCHITECTURE.md).

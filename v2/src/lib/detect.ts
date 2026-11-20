@@ -1,8 +1,9 @@
+import { findTerms } from './term-index';
 /**
  * Rule-based PII candidates. A contextual name also becomes a temporary
  * document-wide detection term (with Unicode-aware word boundaries).
  */
-export type Kind = 'PERSON' | 'EMAIL' | 'PHONE' | 'IBAN' | 'OTHER';
+export type Kind = 'PERSON' | 'FIRST_NAME' | 'LAST_NAME' | 'EMAIL' | 'PHONE' | 'IBAN' | 'DATE' | 'TIME' | 'OTHER';
 export interface Finding {
   id: string;
   kind: Kind;
@@ -12,29 +13,10 @@ export interface Finding {
   origin: 'automatic' | 'manual';
 }
 export const KIND_LABELS: Record<Kind, string> = {
-  PERSON:'Person', EMAIL:'E-Mail', PHONE:'Telefon', IBAN:'IBAN', OTHER:'Sonstiges'
+  PERSON:'Name', FIRST_NAME:'Vorname', LAST_NAME:'Nachname', EMAIL:'E-Mail', PHONE:'Telefon', IBAN:'IBAN', DATE:'Datum', TIME:'Uhrzeit', OTHER:'Sonstiges'
 };
-const wordChar = /[\p{L}\p{M}\p{N}_]/u;
-
-export function sameTerm(a: string, b: string): boolean {
-  return a.normalize('NFC').toLocaleLowerCase('de') === b.normalize('NFC').toLocaleLowerCase('de');
-}
-export function overlaps(a: Pick<Finding,'start'|'end'>, b: Pick<Finding,'start'|'end'>): boolean {
-  return a.start < b.end && b.start < a.end;
-}
-
 export function wholeTermMatches(text: string, term: string): Array<{start:number; end:number; text:string}> {
-  if (!term.trim() || term.length > 200) return [];
-  const safe = term.replace(/[\^$.*+?()[\]{}|\\]/g, '\\$&');
-  const pattern = new RegExp(safe, 'giu');
-  const out: Array<{start:number; end:number; text:string}> = [];
-  for (const match of text.matchAll(pattern)) {
-    const start = match.index, end = start + match[0].length;
-    if (start > 0 && wordChar.test(text[start-1])) continue;
-    if (end < text.length && wordChar.test(text[end])) continue;
-    out.push({start, end, text:match[0]});
-  }
-  return out;
+  return findTerms(text, [term]);
 }
 
 function ibanValid(value:string):boolean {
@@ -85,28 +67,36 @@ export function detectPII(text:string):Finding[]{
     const parts=name.split(/\s+/);
     if(parts.length>1 && parts.at(-1)!.length>1) knownNames.add(parts.at(-1)!);
   }
-  for(const name of knownNames){
-    for(const hit of wholeTermMatches(text,name))
-      candidates.push(candidate('PERSON',hit.start,hit.text,'automatic','learned'));
-  }
+  for(const hit of findTerms(text,[...knownNames]))
+    candidates.push(candidate('PERSON',hit.start,hit.text,'automatic','learned'));
   return removeOverlaps(candidates);
 }
 
-/** Manual selections are document-local recognition seeds, including later occurrences. */
+/**
+ * Automatic detection -> learned terms -> explicit source-anchored overrides.
+ * Manual classifications outrank automatic, even when they split a larger hit.
+ */
 export function scanDocument(text:string,anchors:readonly Finding[]):Finding[]{
   const inferred=detectPII(text);
   const manual:Finding[]=[];
+  const learned=new Map<string,{term:string;kind:Kind;anchorId:string}>();
   for(const anchor of anchors){
     if(text.slice(anchor.start,anchor.end)!==anchor.text)continue;
     manual.push(anchor);
-    const phrases=[anchor.text];
+    const terms=[anchor.text];
     if(anchor.kind==='PERSON'){
       const parts=anchor.text.trim().split(/\s+/);
-      if(parts.length>1 && parts.at(-1)!.length>1)phrases.push(parts.at(-1)!);
+      if(parts.length>1 && parts.at(-1)!.length>1)terms.push(parts.at(-1)!);
     }
-    for(const phrase of phrases)
-      for(const match of wholeTermMatches(text,phrase))
-        manual.push(candidate(anchor.kind,match.start,match.text,'manual','repeated-'+anchor.id));
+    for(const term of terms){
+      const key=term.toLocaleLowerCase('de');
+      if(key && !learned.has(key))learned.set(key,{term,kind:anchor.kind,anchorId:anchor.id});
+    }
+  }
+  for(const hit of findTerms(text,[...learned.values()].map(rule=>rule.term))){
+    const rule=learned.get(hit.term.toLocaleLowerCase('de'));
+    if(!rule)continue;
+    manual.push(candidate(rule.kind,hit.start,hit.text,'manual','repeated-'+rule.anchorId));
   }
   return mergeManual(inferred,manual);
 }

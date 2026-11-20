@@ -1,0 +1,30 @@
+[
+  {
+    "id": "de-en-visit",
+    "lang": "en",
+    "source": "Frau Müller wurde kontaktiert. E-Mail anna@example.org.",
+    "translated": "Ms. [PERSON_001] was contacted. Email: [EMAIL_001].",
+    "expected": "Ms. Müller was contacted. Email: anna@example.org."
+  },
+  {
+    "id": "de-fr-summary",
+    "lang": "fr",
+    "source": "Herr Müller meldete sich. Müller erhielt einen Brief.",
+    "translated": "M. [PERSON_001] a appelé. Une lettre a été envoyée à [PERSON_001].",
+    "expected": "M. Müller a appelé. Une lettre a été envoyée à Müller."
+  },
+  {
+    "id": "de-es-order",
+    "lang": "es",
+    "source": "Frau Anna Müller antwortete. Müller bestätigte.",
+    "translated": "La Sra. [PERSON_001] respondió. Después, [PERSON_002] confirmó.",
+    "expected": "La Sra. Anna Müller respondió. Después, Müller confirmó."
+  },
+  {
+    "id": "de-local-reordering",
+    "lang": "de",
+    "source": "Frau Müller und Frau Schulz diskutierten.",
+    "translated": "[PERSON_002] antwortete zuerst; danach [PERSON_001].",
+    "expected": "Schulz antwortete zuerst; danach Müller."
+  }
+]
