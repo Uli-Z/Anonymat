@@ -182,7 +182,7 @@
   <title>Anonymat 2.0 · Lokale Pseudonymisierung</title>
 </svelte:head>
 
-<svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; }} />
+<svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; quickAction = null; }} />
 
 <div class="app-shell">
   <header class="topbar">
@@ -227,7 +227,7 @@
         <div class="panel-heading">
           <div>
             <h3 id="source-title">Originaltext</h3>
-            <p>Farbige Treffer anklicken, oder Text markieren und ergänzen</p>
+            <p>Farbige Treffer anklicken oder Text auswählen und sofort anonymisieren</p>
           </div>
           <span class="quiet-count">{source.length.toLocaleString('de-DE')} Zeichen</span>
         </div>
@@ -237,7 +237,7 @@
             {#if selectedRange.to > selectedRange.from}
               {selectedRange.to - selectedRange.from} Zeichen ausgewählt
             {:else}
-              Text markieren und als Platzhalter übernehmen:
+              Text auswählen, dann mit einem Klick anonymisieren:
             {/if}
           </div>
           <div class="selection-actions">
@@ -246,7 +246,7 @@
                 <option value={kind}>{KIND_LABELS[kind]}</option>
               {/each}
             </select>
-            <button type="button" class="small-primary" onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Markieren</button>
+            <button type="button" class="small-primary" onpointerdown={(event) => event.preventDefault()} onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Auswahl anonymisieren</button>
           </div>
         </div>
         <div class="mark-legend" aria-label="Farblegende">
@@ -265,34 +265,27 @@
           <span class="count-badge">{findings.length}</span>
         </div>
         <div class="findings-body">
-          {#if findings.length === 0}
+          {#if groups.length === 0}
             <div class="empty-state">
               <div class="empty-symbol" aria-hidden="true">⌕</div>
               <strong>Noch keine Treffer</strong>
-              <p>Füge links einen Text ein oder markiere eine sensible Stelle selbst.</p>
+              <p>Text einfügen oder links einen Bereich auswählen und anonymisieren.</p>
             </div>
           {:else}
-            <div class="list-caption">{active.length} von {findings.length} Treffern aktiv</div>
+            <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
             <div class="findings-list">
-              {#each findings as finding (finding.id)}
-                <label class="finding-row" class:muted-finding={!isActive(finding)}>
-                  <input type="checkbox" checked={isActive(finding)}
-                    onchange={event => toggle(finding, event.currentTarget.checked)} />
+              {#each groups as group (group.key)}
+                <label class="finding-row" class:muted-finding={group.activeCount === 0}>
+                  <input type="checkbox" checked={group.activeCount > 0}
+                    aria-label={group.text + ' im ganzen Text anonymisieren'}
+                    onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
-                    <span class="finding-value">{finding.text}</span>
-                    <span class="finding-meta">{KIND_LABELS[finding.kind]} · {finding.origin === 'manual' ? 'Manuell' : 'Automatisch'}</span>
+                    <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
+                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell gelernt' : 'Automatisch erkannt'}
+                      {#if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                    </span>
                   </span>
                 </label>
-              {/each}
-            </div>
-          {/if}
-          {#if ignoredTerms.length}
-            <div class="excluded-terms">
-              <h4>Dauerhaft ignorierte Begriffe</h4>
-              {#each ignoredTerms as term (term)}
-                <button type="button" class="ignored-term" title="Wieder zulassen" onclick={() => { ignoredTerms = ignoredTerms.filter(t => !sameTerm(t, term)); }}>
-                  {term} <span aria-hidden="true">×</span>
-                </button>
               {/each}
             </div>
           {/if}
@@ -366,6 +359,13 @@
 
   <footer class="site-footer"><span>Anonymat 2.0 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
 
+  {#if quickAction && selectedRange.to > selectedRange.from && !menu}
+    <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
+      onpointerdown={(event) => event.preventDefault()} role="group" aria-label="Textauswahl anonymisieren">
+      <button type="button" onclick={addManual}>+ Auswahl anonymisieren</button>
+    </div>
+  {/if}
+
   {#if menu && selectedHit}
     <div class="hit-popover" role="dialog" aria-label="Markierung bearbeiten" style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
       <div class="hit-popover-heading">
@@ -381,10 +381,13 @@
       </select>
       <div class="hit-actions">
         {#if !isActive(selectedHit)}
-          <button type="button" onclick={() => unsuppress(selectedHit!)}>✓ Wieder anonymisieren</button>
+          <button type="button" onclick={() => restoreOne(selectedHit!)}>✓ Wieder anonymisieren</button>
         {:else}
-          <button type="button" onclick={() => removeMark(selectedHit!)}>✕ {selectedHit.origin === 'manual' ? 'Platzhalter entfernen' : 'Diese Stelle ignorieren'}</button>
-          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Gleichen Begriff überall ignorieren</button>
+          <button type="button" onclick={() => suppressOne(selectedHit!)}>✕ Nur diese Stelle ignorieren</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Begriff im ganzen Text ignorieren</button>
+        {/if}
+        {#if manual.some(anchor => anchor.id === selectedHit?.id)}
+          <button type="button" onclick={() => removeManualRule(selectedHit!)}>− Manuelle Erkennungsregel entfernen</button>
         {/if}
       </div>
     </div>
