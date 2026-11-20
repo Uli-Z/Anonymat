@@ -40,4 +40,23 @@ describe('document-wide learned terms and clear ignore semantics',()=>{
   it('keeps medical measurements as non-PII',()=>{
     expect(detectPII('Hb 8,2 g/dl, 110/65 mmHg, Na 140 mmol/l.')).toHaveLength(0);
   });
+
+  it('recognizes earlier surnames when the context occurs later', () => {
+    const hits=detectPII('Müller war da. Danach kam Frau Müller.');
+    expect(hits.map(hit=>hit.text)).toEqual(['Müller','Müller']);
+  });
+  it('learns manually selected literal brackets rather than regex syntax', () => {
+    const source='Kundin [ABC] und [ABC] aber [ABCD] bleibt.';
+    const start=source.indexOf('[ABC]');
+    const anchor:Finding={id:'manual-3',origin:'manual',kind:'OTHER',text:'[ABC]',start,end:start+5};
+    const hits=scanDocument(source,[anchor]);
+    expect(hits.map(hit=>hit.text)).toEqual(['[ABC]','[ABC]']);
+  });
+  it('handles backslashes safely in manually learned terms', () => {
+    const source='Ordner C:\\Users und C:\\Users.';
+    const start=source.indexOf('C:\\Users');
+    const anchor:Finding={id:'manual-4',origin:'manual',kind:'OTHER',text:'C:\\Users',start,end:start+8};
+    const hits=scanDocument(source,[anchor]);
+    expect(hits.map(hit=>hit.text)).toEqual(['C:\\Users','C:\\Users']);
+  });
 });
