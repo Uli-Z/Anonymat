@@ -7,7 +7,7 @@
   import { maskText, restoreText, splitForPreview } from './lib/replace';
   import { splitFullName } from './lib/overrides';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
-  import { randomDateOffset, restoreShiftedDates, type NumericDateOrder } from './lib/dates';
+  import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'OTHER'];
@@ -189,13 +189,29 @@
     const key = replacementKey(group.kind, group.text);
     editingReplacement = key;
     const rule = replacementRules[key];
-    replacementDraft = rule?.mode === 'custom-token' ? rule.token : (group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text)) ? '' : replacementFor(group));
+    replacementDraft = rule?.mode === 'custom-token' ? rule.token : replacementFor(group);
     replacementError = '';
   }
 
   function saveReplacement(group: TermGroup): void {
     const key = replacementKey(group.kind, group.text);
     const token = replacementDraft.trim();
+    // Editing a shifted date updates the ONE global offset. Never introduce
+    // an inconsistent per-occurrence replacement that breaks chronology.
+    if(group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text))){
+      const original=parseDate(group.text,{numericOrder});
+      const target=parseDate(token,{numericOrder});
+      const offset=original && target?calendarDayDifference(original.iso,target.iso):null;
+      if(offset===null || !Number.isSafeInteger(offset) || offset===0 || Math.abs(offset)>3650){
+        replacementError='Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).';
+        return;
+      }
+      dateOffset=offset;
+      editingReplacement=null;
+      replacementError='';
+      notice='Tagesoffset für alle verschobenen Kalenderdaten angepasst.';
+      return;
+    }
     if (!token) {
       const rules = {...replacementRules};
       delete rules[key];
@@ -430,15 +446,16 @@
                           <input type="text" aria-label={'Ersatzwert für '+group.text} bind:value={replacementDraft} spellcheck="false" />
                           <button type="submit">Speichern</button>
                           <button type="button" onclick={() => editingReplacement = null}>Abbrechen</button>
+                          {#if group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text))}
+                            <div>Ändert den gemeinsamen Tagesoffset für alle verschobenen Daten.</div>
+                          {/if}
                           {#if replacementError}<div class="replacement-error">{replacementError}</div>{/if}
                         </form>
                       {:else}
                         <div class="replacement-inline">
                           <span class="replacement-arrow" aria-hidden="true">→</span>
                           <code>{replacementFor(group)}</code>
-                          {#if !(group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text)))}
-                            <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
-                          {/if}
+                          <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
                         </div>
                       {/if}
                     {/if}
