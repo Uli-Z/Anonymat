@@ -6,6 +6,8 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 - Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden.
 - Beliebige Textauswahl markieren und einer Platzhalterkategorie zuweisen.
+- Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
+- Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.
 - Vorgeschlagene Treffer per Checkbox akzeptieren/ablehnen.
 - Vorschau des pseudonymisierten Textes und Kopieren in die Zwischenablage.
 - KI-Antwort mit Platzhaltern einfügen und lokal zurückübersetzen; Warnungen bei fehlenden/unbekannten Tokens.
@@ -30,6 +32,6 @@ Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root u
 
 ## Datenschutz
 
-Alles bleibt im Arbeitsspeicher dieses Browser-Tabs. Keine Browser-Speicherung der Inhalte, keine Modellaufrufe, keine Analytik. Ein Bearbeiten des Originaltexts verwirft positionsbezogene manuelle Markierungen, damit keine falschen Stellen ersetzt werden.
+Alles bleibt im Arbeitsspeicher dieses Browser-Tabs. Keine Browser-Speicherung der Inhalte, keine Modellaufrufe, keine Analytik. Manuelle Markierungen und lokale Ausnahmen werden bei Texteingaben positionsgenau mitverschoben. Nur vollständig gelöschte Markierungen oder geänderte, bewusst ignorierte Texte werden neu bewertet.
 
 **Pseudonymisierung ist nicht gleich Anonymisierung.** Auch nach Ersetzungen können indirekte Identifikatoren im Text verbleiben.

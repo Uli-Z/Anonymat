@@ -1,7 +1,7 @@
 {
   "name": "anonymat-v2",
   "private": true,
-  "version": "2.0.0-alpha.1",
+  "version": "2.0.0-alpha.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,16 +9,26 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "test": "vitest run",
-    "verify": "npm run check && npm run test && npm run build"
+    "verify": "npm run check && npm run test && npm run build",
+    "test:e2e": "playwright test"
   },
-  "dependencies": { "svelte": "5.58.0" },
+  "dependencies": {
+    "svelte": "5.58.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.0",
+    "@codemirror/commands": "^6.8.1"
+  },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "7.3.1",
     "svelte-check": "^4.3.0",
     "typescript": "6.0.3",
     "vite": "8.3.8",
     "vite-plugin-singlefile": "2.3.4",
-    "vitest": "5.1.1"
+    "vitest": "5.1.1",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.15.0"
   },
-  "engines": { "node": ">=22.12.0" }
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }

@@ -77,3 +77,40 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .toast{margin-top:14px;background:#e7f5f0;color:#116b64;padding:12px 16px;border-radius:9px;font-size:12px}
 @media(max-width:900px){.workspace-grid{grid-template-columns:1fr}.findings-body{min-height:100px;max-height:250px}.empty-state{min-height:160px}.source-editor{min-height:250px}}
 @media(max-width:680px){.topbar{padding:0 18px}.brand-subtitle{font-size:11px}.topbar-actions{gap:10px}.offline-indicator{font-size:0}.status-dot{height:9px;width:9px}.main-content{padding-top:28px}.page-heading{align-items:flex-start}.page-heading h1{font-size:24px}.reset-button{padding:8px}.reset-button span{display:none}.restore-grid{grid-template-columns:1fr}.selection-toolbar{align-items:stretch;flex-direction:column}.selection-help{font-size:12px}.site-footer{flex-direction:column}.panel-heading{padding:14px}.step-heading p{line-height:1.4}}
+
+
+/* Interactive CodeMirror editor: highlights are real text decorations. */
+.marked-editor{min-height:320px;max-height:530px;overflow:auto;background:#fff}
+.marked-editor .cm-editor{height:auto;min-height:320px;outline:0;font-size:14px;line-height:1.7;color:#253548}
+.marked-editor .cm-scroller{font-family:inherit;line-height:inherit;overflow:auto}
+.marked-editor .cm-content{min-height:320px;padding:18px 20px;caret-color:#0b6570}
+.marked-editor .cm-line{padding:0}
+.marked-editor .cm-editor.cm-focused{outline:2px solid #c5e8e7;outline-offset:-2px}
+.marked-editor .cm-placeholder{color:#9ca9b7}
+.marked-editor .cm-selectionBackground{background:#bbd8ee!important}
+.marked-editor .cm-anonymat-hit{border-radius:3px;padding:1px 0;box-decoration-break:clone;cursor:pointer;text-decoration:none}
+.marked-editor .cm-anonymat-auto{background:#fff0cc;box-shadow:inset 0 -2px 0 #f0ae44;color:#4e3712}
+.marked-editor .cm-anonymat-manual{background:#d8f2e9;box-shadow:inset 0 -2px 0 #1c997e;color:#135d4c}
+.marked-editor .cm-anonymat-ignored{background:#f0f1f4;box-shadow:inset 0 -1px 0 #a2adb8;color:#77818c;text-decoration:line-through}
+.marked-editor .cm-anonymat-hit:hover{filter:brightness(.95)}
+.mark-legend{display:flex;align-items:center;gap:17px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid #edf1f5;background:#fff}
+.mark-legend span{display:flex;gap:6px;align-items:center;color:#677888;font-size:11px}
+.mark-legend i{width:13px;height:11px;border-radius:2px;display:inline-block}
+.legend-auto{background:#fff0cc;border-bottom:2px solid #f0ae44}
+.legend-manual{background:#d8f2e9;border-bottom:2px solid #1c997e}
+.legend-ignored{background:#f0f1f4;border-bottom:2px solid #a2adb8}
+.muted-finding .finding-value{color:#939eaa;text-decoration:line-through}
+.hit-popover{position:fixed;z-index:9000;min-width:245px;width:min(300px,calc(100vw - 24px));padding:13px;background:white;border:1px solid #dce5eb;border-radius:12px;box-shadow:0 14px 45px rgba(20,40,55,.2)}
+.hit-popover-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.hit-popover-title{font-size:13px;font-weight:700;overflow-wrap:anywhere;max-height:65px;overflow:auto}
+.hit-close{background:transparent;border:0;color:#758798;font-size:22px;padding:0 4px;line-height:1}
+.hit-type-label{font-size:11px;color:#65788b;display:block;margin-bottom:5px}
+.hit-type-select{border:1px solid #dce5eb;border-radius:7px;background:#f9fbfc;padding:8px 10px;width:100%;font-size:12px;color:#253548}
+.hit-actions{border-top:1px solid #edf1f5;margin-top:11px;padding-top:6px;display:flex;flex-direction:column}
+.hit-actions button{border:none;background:white;text-align:left;border-radius:6px;padding:9px 6px;font-size:12px;color:#334c60}
+.hit-actions button:hover{background:#eef5f5;color:#0c6870}
+.excluded-terms{border-top:1px solid #edf1f5;padding:12px 18px}
+.excluded-terms h4{margin:0 0 9px;font-size:11px;color:#65788b}
+.ignored-term{border:1px solid #dbe5ea;border-radius:6px;background:#f5f8fa;padding:5px 8px;margin:0 5px 5px 0;font-size:11px;color:#3b5769}
+.ignored-term span{font-size:14px;margin-left:4px}
+@media(max-width:680px){.marked-editor{min-height:250px}.marked-editor .cm-editor,.marked-editor .cm-content{min-height:250px}.mark-legend{gap:12px}}
