@@ -3,7 +3,7 @@ import {detectPII} from '../src/lib/detect';
 import {maskText,restoreText} from '../src/lib/replace';
 import {
   scanDates,parseDate,formatLike,formatIsoDate,shiftIsoDay,
-  restoreShiftedDates,randomDateOffset
+  restoreShiftedDates,randomDateOffset,calendarDayDifference
 } from '../src/lib/dates';
 import {replacementKey} from '../src/lib/replacement-strategies';
 import fixtures from './fixtures/translation/future-date-cases.json';
@@ -109,7 +109,7 @@ describe('date safety and contextual behavior',()=>{
     expect(restored.warnings).toHaveLength(1);
     const ambiguous=restoreShiftedDates('04/09/2026',masked.dates.map(d=>d.shiftedIso),30);
     expect(ambiguous.text).toBe('04/09/2026');
-    expect(ambiguous.warnings).toHaveLength(1);
+    expect(ambiguous.warnings.some(w=>w.includes('Mehrdeutiges'))).toBe(true);
     const explicit=restoreShiftedDates('04/09/2026',masked.dates.map(d=>d.shiftedIso),30,{numericOrder:'MDY'});
     expect(explicit.text).toBe('03/10/2026');
     expect(explicit.warnings).toEqual([]);
@@ -121,6 +121,30 @@ describe('date safety and contextual behavior',()=>{
     expect(result.text).toBe('[DATE_001]');
     expect(result.dates).toEqual([]);
     expect(result.warnings.length).toBeGreaterThan(0);
+  });
+  it('derives a single offset from an edited replacement date',()=>{
+    expect(calendarDayDifference('2026-03-10','2026-04-09')).toBe(30);
+    expect(calendarDayDifference('2024-02-29','2024-03-01')).toBe(1);
+  });
+  it('warns about duplicated or deleted shifted dates',()=>{
+    const duplicated=restoreShiftedDates('9 avril 2026, 9 avril 2026',['2026-04-09'],30);
+    expect(duplicated.text).toBe('10 mars 2026, 9 avril 2026');
+    expect(duplicated.warnings).toHaveLength(1);
+    expect(duplicated.warnings[0]).toContain('zusätzliches');
+    const absent=restoreShiftedDates('Pas de date.',['2026-04-09'],30);
+    expect(absent.text).toBe('Pas de date.');
+    expect(absent.warnings[0]).toContain('fehlt');
+  });
+  it('warns about ambiguous dates even when shifting is not enabled',()=>{
+    const masked=maskText('04/05/2026',detectPII('04/05/2026'));
+    expect(masked.text).toBe('04/05/2026');
+    expect(masked.warnings[0]).toContain('Mehrdeutiges');
+  });
+  it('refuses out-of-range offsets rather than silently using them',()=>{
+    const text='10.03.2026';
+    const masked=maskText(text,detectPII(text),{}, {dateShiftEnabled:true,offsetDays:10000});
+    expect(masked.text).toBe('[DATE_001]');
+    expect(masked.warnings.length).toBeGreaterThan(0);
   });
   it('uses secure nonzero random offsets',()=>{
     for(let i=0;i<10;i++){
