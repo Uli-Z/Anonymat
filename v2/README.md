@@ -4,7 +4,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 ## Funktionen im Alpha-Prototyp
 
-- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden. Aus „Frau Müller“ wird „Müller“ für alle weiteren Vorkommen im aktuellen Dokument gelernt.
+- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
 - Beliebige Textauswahl mit **einem Klick** auf die eingeblendete Aktion „Auswahl anonymisieren“ markieren; die gewählte Stelle lehrt Anonymat den gleichen Begriff für weitere Vorkommen.
 - Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
 - Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.

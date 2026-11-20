@@ -25,7 +25,7 @@ export function overlaps(a: Pick<Finding,'start'|'end'>, b: Pick<Finding,'start'
 
 export function wholeTermMatches(text: string, term: string): Array<{start:number; end:number; text:string}> {
   if (!term.trim() || term.length > 200) return [];
-  const safe = term.replace(/[\^$.*+?()[\]{}|]/g, '\\$&');
+  const safe = term.replace(/[\^$.*+?()[\]{}|\\]/g, '\\term.replace(/[\^$.*+?()[\]{}|]/g, '\\$&')');
   const pattern = new RegExp(safe, 'giu');
   const out: Array<{start:number; end:number; text:string}> = [];
   for (const match of text.matchAll(pattern)) {
