@@ -41,7 +41,8 @@ jobs:
           cp "dist/anonymat-$VERSION.html" site/index.html
           cp "dist/anonymat-$VERSION.html" "site/anonymat-$VERSION.html"
           cp "v2/dist/index.html" "site/v2/index.html"
-          cp "v2/dist/index.html" "site/v2/anonymat-2.0.0-alpha.1.html"
+          V2_VERSION=$(node -p "require('./v2/package.json').version")
+          cp "v2/dist/index.html" "site/v2/anonymat-$V2_VERSION.html"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
