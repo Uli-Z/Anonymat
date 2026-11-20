@@ -46,11 +46,8 @@ export function maskText(
   const mapping: MappingEntry[] = [];
   const dates: DateReplacement[] = [];
   const warnings: string[] = [];
-  const shiftRequested = dateOptions.dateShiftEnabled || Object.values(rules).some(rule=>rule.mode==='shift-date');
-  if(shiftRequested){
-    for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
-      warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
-    }
+  for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
+    warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
   }
   let pos = 0;
   let output = '';
@@ -69,7 +66,7 @@ export function maskText(
     if(shiftThisDate){
       const parsed=parseDate(match.text,{numericOrder:dateOptions.numericOrder});
       const offset=dateOptions.offsetDays;
-      const changed=parsed && Number.isSafeInteger(offset) && offset!==0
+      const changed=parsed && Number.isSafeInteger(offset) && offset!==0 && Math.abs(offset as number)<=3650
         ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);
