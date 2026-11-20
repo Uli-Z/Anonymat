@@ -120,3 +120,27 @@ test('selecting an unknown word offers one-click masking and learns repeated wor
   await page.keyboard.type(' FREIGABE');
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(3);
 });
+
+
+test('user can split an automatically detected full name into first and last name', async ({ page }) => {
+  await page.locator('.cm-content').fill('Frau Anna Müller antwortete. Müller bestätigte.');
+  await expect(page.locator('.cm-anonymat-auto')).toHaveCount(2);
+  await page.locator('.cm-anonymat-auto').first().click();
+  await page.getByRole('button', {name:/In Vorname und Nachname aufteilen/}).click();
+  await expect(page.locator('.cm-anonymat-manual')).toHaveCount(3);
+  await expect(page.locator('.findings-list .finding-row')).toHaveCount(2);
+  await expect(page.locator('.preview')).toContainText(
+    'Frau [FIRST_NAME_001] [LAST_NAME_001] antwortete. [LAST_NAME_001] bestätigte.'
+  );
+});
+
+test('editing a replacement token keeps restoration working after French AI text', async ({ page }) => {
+  await page.locator('.cm-content').fill('Frau Müller antwortete.');
+  await page.getByRole('button', {name:'Ersatzwert für Müller bearbeiten'}).click();
+  await page.getByRole('textbox', {name:'Ersatzwert für Müller'}).fill('[PATIENT_A]');
+  await page.getByRole('button', {name:'Speichern'}).click();
+  await expect(page.locator('.preview')).toContainText('Frau [PATIENT_A] antwortete.');
+  await page.getByRole('textbox', {name:'KI-Antwort mit Platzhaltern'})
+    .fill('Madame [PATIENT_A] a répondu.');
+  await expect(page.locator('.restore-preview')).toContainText('Madame Müller a répondu.');
+});

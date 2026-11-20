@@ -177,3 +177,16 @@ Auf einem neuen Entwicklungsbranch zuerst **Phase 1** umsetzen: Svelte-Projekt m
 - GitHub Actions prüft Svelte/TypeScript, Unit-Tests und Single-HTML-Build. GitHub Pages veröffentlicht Legacy im Root und V2 unter \`/v2/\`.
 
 **Nächster Schritt:** praktische Prüfung des UI im Browser (insbesondere manuelle Markierung, Clipboard und mobile Bedienung), dann Wortlisten/Kontextregeln. Die Datei bleibt ein Alpha-Prototyp und darf vorerst nicht als vollständige Anonymisierungslösung beworben werden.
+
+
+## 10. Neue Regel- und Testarchitektur (20.11.2026, Alpha 3)
+
+**Umgesetzt:**
+- Ebenenmodell für Erkennungen, erlernte Begriffe, manuelle Überschreibungen, lokale/globale Ausschlüsse, Ersetzungswerte und Rückübersetzung. Siehe \`v2/docs/ARCHITECTURE.md\`.
+- Nutzer können automatisch erkannte Namen im Text in **Vorname** und **Nachname** trennen oder manuell eine Kategorie überschreiben. Bei komplexen Namen wird bewusst keine automatische Trennung geraten.
+- Die Ersetzungsliste zeigt tatsächliche Platzhalter und erlaubt **editierbare, eindeutige benutzerdefinierte Tokens** wie \`[PATIENT_A]\`. Freitext wird bislang nicht zugelassen, weil seine sprachübergreifende Rückübersetzung nicht zuverlässig wäre.
+- Dokumentweit gelernte Namen und manuelle Begriffe werden mit einem eigenen Aho-Corasick-Mehrfachsuchindex statt wiederholten Regex-Suchen verarbeitet. Es gibt Unicode-, Spezialzeichen- und Lasttests.
+- In \`v2/tests/fixtures/translation/\` liegen synthetische deutsch-englische, deutsch-französische und deutsch-spanische KI-Rückgaben. Die Rückübersetzungslogik wird über Vitest und Browser-Tests automatisch geprüft.
+- **Grenze:** Die Tests überprüfen deterministisch den Umgang mit Übersetzungen und Platzhaltern, nicht die Qualität realer KI-Übersetzungen. Die Datumsverschiebung und synthetische Personennamen/E-Mail-Adressen sind weiterhin offen. Datumstests stehen als TODO, nicht als bestandene Fälle.
+
+**Nächste Schritte:** Im Anschluss die Datums-/Uhrzeitengine mit de/en/fr/es sicher implementieren und auf den bereits definierten Datumsfixtures prüfen; erst danach synthetische Namen/E-Mail-Adressen als gesonderte Ersetzungsmethoden bewerten. Vor einer produktiven Nutzung weiter vollständige menschliche Sichtprüfung verlangen.
