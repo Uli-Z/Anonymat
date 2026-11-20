@@ -29,9 +29,9 @@ Bei überlappenden Fundstellen gewinnt zuerst die manuelle Festlegung, dann der 
 
 ## Erweiterungspunkte (noch NICHT verfügbar)
 
-Künftige Regeln könnten sein: \`shift-date\`, \`shift-time\`, \`synthetic-name\`, \`synthetic-email\`. Sie sind in \`replacement-strategies.ts\` ausdrücklich als geplante Modi abgegrenzt; sie werden **nicht** in \`replace.ts\` ausgeführt.
+\`shift-date\` ist als optionale Regel umgesetzt. \`dates.ts\` parst vollständige Kalenderdaten in de/en/fr/es, normalisiert auf ISO-Kalendertage und verschiebt sie gemeinsam mittels UTC-Kalendertagsarithmetik. Die Wiederherstellung berücksichtigt nur die im exportierten Text tatsächlich verschobenen ISO-Tage und meldet andere Daten. \`shift-time\`, \`synthetic-name\` und \`synthetic-email\` bleiben geplante, nicht ausführbare Modi.
 
-Besonders für datums- und uhrzeitbasierte Ersetzung müssen Parser/Formatter unabhängig von der Sprache des KI-Texts sein, dürfen ausschließlich eindeutige Daten verändern und müssen die Umkehrrechnung auf echte wiedererkannte Daten begrenzen. Zufallsoffsets sind nur Pseudonymisierung, nicht garantierte Anonymisierung.
+Besonders für datums- und uhrzeitbasierte Ersetzung müssen Parser/Formatter unabhängig von der Sprache des KI-Texts sein, dürfen ausschließlich eindeutige Daten verändern und müssen die Umkehrrechnung auf echte wiedererkannte Daten begrenzen. Zufallsoffsets werden mit Web Crypto erstellt und sind nur Pseudonymisierung, nicht garantierte Anonymisierung.
 
 ## Leistungsziele und Grenzen
 
