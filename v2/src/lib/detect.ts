@@ -15,6 +15,13 @@ export interface Finding {
 export const KIND_LABELS: Record<Kind, string> = {
   PERSON:'Name', FIRST_NAME:'Vorname', LAST_NAME:'Nachname', EMAIL:'E-Mail', PHONE:'Telefon', IBAN:'IBAN', DATE:'Datum', TIME:'Uhrzeit', OTHER:'Sonstiges'
 };
+export function sameTerm(a:string,b:string):boolean {
+  return a.normalize('NFC').toLocaleLowerCase('de') === b.normalize('NFC').toLocaleLowerCase('de');
+}
+export function overlaps(a:Pick<Finding,'start'|'end'>, b:Pick<Finding,'start'|'end'>):boolean {
+  return a.start<b.end && b.start<a.end;
+}
+
 export function wholeTermMatches(text: string, term: string): Array<{start:number; end:number; text:string}> {
   return findTerms(text, [term]);
 }
