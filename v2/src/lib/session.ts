@@ -1,3 +1,4 @@
+import type { NumericDateOrder } from './dates';
 import { scanDocument, sameTerm, overlaps, type Finding, type Kind } from './detect';
 
 export interface TermGroup {
@@ -21,9 +22,10 @@ export function reviewDocument(
   source: string,
   manualAnchors: readonly Finding[],
   ignoredPlaces: readonly Finding[],
-  ignoredTerms: readonly string[]
+  ignoredTerms: readonly string[],
+  numericOrder: NumericDateOrder = 'auto'
 ): ReviewedDocument {
-  const findings = scanDocument(source, manualAnchors);
+  const findings = scanDocument(source, manualAnchors, numericOrder);
   const active = findings.filter(hit =>
     !ignoredTerms.some(term => sameTerm(term, hit.text))
     && !ignoredPlaces.some(place => overlaps(place, hit))
