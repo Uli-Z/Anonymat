@@ -23,14 +23,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Build bundle
+      - name: Build legacy version
         run: python3 build_single_html.py
-      - name: Prepare site
+      - name: Set up Node for version 2
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify and build version 2
+        working-directory: v2
+        run: |
+          npm install --no-audit --no-fund
+          npm run verify
+      - name: Prepare Pages site
         run: |
           VERSION=$(cat version.txt)
-          mkdir -p site
-          cp "dist/anonymat-${VERSION}.html" site/index.html
-          cp "dist/anonymat-${VERSION}.html" "site/anonymat-${VERSION}.html"
+          mkdir -p site/v2
+          cp "dist/anonymat-$VERSION.html" site/index.html
+          cp "dist/anonymat-$VERSION.html" "site/anonymat-$VERSION.html"
+          cp "v2/dist/index.html" "site/v2/index.html"
+          cp "v2/dist/index.html" "site/v2/anonymat-2.0.0-alpha.1.html"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,38 @@
+name: V2 checks
+
+on:
+  push:
+    paths:
+      - "v2/**"
+      - ".github/workflows/ci-v2.yml"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "v2/**"
+      - ".github/workflows/ci-v2.yml"
+      - ".github/workflows/pages.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Type and Svelte checks
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: Produce and inspect standalone HTML
+        run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anonymat-v2-single-html
+          path: v2/dist/index.html
+          if-no-files-found: error
