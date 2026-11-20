@@ -91,7 +91,8 @@ function chooseMonth(word:string,hint:DateLanguage|null,weekday:string|undefined
   return options[0]??null;
 }
 function issue(hit:RegExpMatchArray,reason:string):DateIssue{
-  return {start:hit.index,end:hit.index+hit[0].length,text:hit[0],reason};
+  const start=hit.index??0;
+  return {start,end:start+hit[0].length,text:hit[0],reason};
 }
 function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['style'],options:DateOptions):DateMatch|DateIssue|null{
   const body=hit.groups?.body??'',weekday=hit.groups?.weekday;
@@ -142,7 +143,8 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
     if(!info||info.day!==weekdayOf(iso))return issue(hit,'Wochentag widerspricht dem Datum');
   }
   const weekdayPrefix=weekday?hit[0].slice(0,hit[0].indexOf(body)):undefined;
-  return {start:hit.index,end:hit.index+hit[0].length,text:hit[0],iso,language,
+  const start=hit.index??0;
+  return {start,end:start+hit[0].length,text:hit[0],iso,language,
     style:format,separator,padDay,padMonth,dayDot,monthAbbreviated,monthDot,weekday,weekdayPrefix};
 }
 export function scanDates(source:string,options:DateOptions={}):DateScan{
