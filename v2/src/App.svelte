@@ -34,7 +34,7 @@
   let prepared = $derived(maskText(source, active));
   let preview = $derived(splitForPreview(prepared.text));
   let restored = $derived(restoreText(reply, prepared.mapping));
-  let selectedHit = $derived(menu ? findings.find(hit => hit.id === menu.id) : undefined);
+  let selectedHit = $derived(findings.find(hit => hit.id === menu?.id));
 
   function isActive(hit: Finding): boolean {
     return active.some(item => item.id === hit.id);
