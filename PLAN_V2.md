@@ -164,3 +164,16 @@ Struktur bei Bedarf erweitern, aber **keine vorsorgliche Überarchitektur** scha
 ## 8. Nächster konkreter Schritt
 
 Auf einem neuen Entwicklungsbranch zuerst **Phase 1** umsetzen: Svelte-Projekt mit Single-HTML-Build, minimaler Editor, manuelle Markierung, stabile Platzhalter und Roundtrip. Dann die Erkennungsstrategien schrittweise ergänzen. Das Planungsdokument bleibt auf main auffindbar und kann mit konkreten Erkenntnissen aktualisiert werden.
+
+
+## 9. Implementierungsstand (20.11.2026)
+
+**Phase 1 – technisches Grundgerüst umgesetzt:**
+- Neue Svelte-5-/TypeScript-Anwendung unter \`v2/\`; Legacy-Anwendung bleibt im Repository-Root unverändert.
+- Vite + vite-plugin-singlefile erzeugt \`v2/dist/index.html\`; automatische Prüfung des eigenständigen HTML-Bundles.
+- Grundoberfläche mit Originaltext, automatischen Treffer-Vorschlägen, manueller Markierung, Auswahl der aktiven Treffer, Vorschau und Kopieren.
+- Lokale Wiederherstellung aus KI-Antworttext mit Warnung bei fehlenden oder unbekannten Platzhaltern.
+- Erste, bewusst einfache RegEx-/Kontextdetektoren für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden; noch **keine Wortlisten und keine Datumsverschiebung**.
+- GitHub Actions prüft Svelte/TypeScript, Unit-Tests und Single-HTML-Build. GitHub Pages veröffentlicht Legacy im Root und V2 unter \`/v2/\`.
+
+**Nächster Schritt:** praktische Prüfung des UI im Browser (insbesondere manuelle Markierung, Clipboard und mobile Bedienung), dann Wortlisten/Kontextregeln. Die Datei bleibt ein Alpha-Prototyp und darf vorerst nicht als vollständige Anonymisierungslösung beworben werden.
