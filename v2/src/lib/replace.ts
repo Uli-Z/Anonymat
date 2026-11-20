@@ -1,3 +1,4 @@
+import { parseDate, scanDates, shiftIsoDay, formatLike, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
 import {
   replacementKey, validateCustomToken,
@@ -12,6 +13,7 @@ export interface MappingEntry {
 export interface MaskedResult {
   text: string;
   mapping: MappingEntry[];
+  dates: DateReplacement[];
   warnings: string[];
 }
 export interface RestoredResult {
@@ -19,24 +21,37 @@ export interface RestoredResult {
   missing: string[];
   unknown: string[];
 }
+export interface DateMaskOptions {
+  dateShiftEnabled?: boolean;
+  offsetDays?: number;
+  numericOrder?: NumericDateOrder;
+}
 const TOKEN_PATTERN = /\[[A-Z][A-Z0-9_]{2,63}\]/g;
 
 /**
  * Replacement stage. The default is a typed, reversible token.
- * A per-group custom token is the only additional LIVE strategy; date/time
- * shifting and synthetic name/e-mail values remain explicitly unimplemented.
+ * Date shifting is an opt-in global strategy with per-term overrides;
+ * time shifting and synthetic values are not implemented.
  */
 export function maskText(
   source: string,
   active: readonly Finding[],
-  rules: Readonly<Record<string, ReplacementRule>> = {}
+  rules: Readonly<Record<string, ReplacementRule>> = {},
+  dateOptions: DateMaskOptions = {}
 ): MaskedResult {
   const matches = [...active].sort((a,b)=>a.start-b.start);
   const counts: Partial<Record<Kind,number>> = {};
   const existing = new Map<string,string>();
   const used = new Map<string,string>();
   const mapping: MappingEntry[] = [];
+  const dates: DateReplacement[] = [];
   const warnings: string[] = [];
+  const shiftRequested = dateOptions.dateShiftEnabled || Object.values(rules).some(rule=>rule.mode==='shift-date');
+  if(shiftRequested){
+    for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
+      warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
+    }
+  }
   let pos = 0;
   let output = '';
 
@@ -47,10 +62,27 @@ export function maskText(
 
   for(const match of matches){
     if(match.start<pos || source.slice(match.start,match.end)!==match.text)continue;
+    const spec = rules[replacementKey(match.kind,match.text)];
+    const shiftThisDate = match.kind==='DATE' &&
+      (spec?.mode==='shift-date' ||
+       (dateOptions.dateShiftEnabled && spec?.mode!== 'token' && spec?.mode!=='custom-token'));
+    if(shiftThisDate){
+      const parsed=parseDate(match.text,{numericOrder:dateOptions.numericOrder});
+      const offset=dateOptions.offsetDays;
+      const changed=parsed && Number.isSafeInteger(offset) && offset!==0
+        ?shiftIsoDay(parsed.iso,offset as number):null;
+      if(changed && parsed){
+        const shifted=formatLike(changed,parsed);
+        output+=source.slice(pos,match.start)+shifted;
+        dates.push({original:match.text,shifted,shiftedIso:changed});
+        pos=match.end;
+        continue;
+      }
+      warnings.push('Datum "'+match.text+'" konnte nicht sicher verschoben werden; stattdessen als Token ersetzt.');
+    }
     const key=match.kind+':'+match.text; // exact spelling for a lossless restore
     let token=existing.get(key);
     if(!token){
-      const spec=rules[replacementKey(match.kind,match.text)];
       if(spec?.mode==='custom-token') {
         const error=validateCustomToken(spec.token);
         if(error || source.includes(spec.token) || used.has(spec.token)) {
@@ -73,7 +105,7 @@ export function maskText(
     output += source.slice(pos,match.start)+token;
     pos=match.end;
   }
-  return {text:output+source.slice(pos),mapping,warnings};
+  return {text:output+source.slice(pos),mapping,dates,warnings};
 }
 
 export function restoreText(input:string,mapping:readonly MappingEntry[]):RestoredResult{
