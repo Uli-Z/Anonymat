@@ -114,3 +114,10 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .ignored-term{border:1px solid #dbe5ea;border-radius:6px;background:#f5f8fa;padding:5px 8px;margin:0 5px 5px 0;font-size:11px;color:#3b5769}
 .ignored-term span{font-size:14px;margin-left:4px}
 @media(max-width:680px){.marked-editor{min-height:250px}.marked-editor .cm-editor,.marked-editor .cm-content{min-height:250px}.mark-legend{gap:12px}}
+
+
+/* One-click action follows a selection while leaving native editor selection intact. */
+.selection-popover{position:fixed;z-index:8500;background:#0b6570;border:1px solid #064e57;border-radius:9px;padding:4px;box-shadow:0 7px 24px rgba(10,50,55,.25)}
+.selection-popover button{border:0;border-radius:6px;background:transparent;color:#fff;padding:8px 12px;font-size:12px;font-weight:700;white-space:nowrap}
+.selection-popover button:hover{background:#064b52}
+.count-inline{display:inline-block;background:#eaf0f5;color:#607382;font-size:11px;font-weight:700;border-radius:5px;padding:1px 5px;margin-left:3px;text-decoration:none}

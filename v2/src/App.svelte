@@ -1,33 +1,32 @@
 <script lang="ts">
   import type { ChangeDesc } from '@codemirror/state';
   import MarkedEditor from './components/MarkedEditor.svelte';
-  import { detectPII, mergeManual, KIND_LABELS, type Finding, type Kind } from './lib/detect';
-  import { remapFindings, sameTerm, spansOverlap } from './lib/marks';
+  import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect';
+  import { reviewDocument, type TermGroup } from './lib/session';
+  import { remapFindings } from './lib/marks';
   import { maskText, restoreText, splitForPreview } from './lib/replace';
 
   const kinds: Kind[] = ['PERSON', 'EMAIL', 'PHONE', 'IBAN', 'OTHER'];
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
-  let exclusions = $state<Finding[]>([]);
+  let ignoredPlaces = $state<Finding[]>([]);
   let ignoredTerms = $state<string[]>([]);
   let selectedKind = $state<Kind>('PERSON');
   let selectedRange = $state({ from: 0, to: 0 });
+  let quickAction = $state<{x: number; y: number} | null>(null);
   let reply = $state('');
   let notice = $state('');
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
   let manualCounter = 0;
   let exclusionCounter = 0;
 
-  let findings = $derived(mergeManual(detectPII(source), manual));
-  let active = $derived(findings.filter(hit =>
-    !ignoredTerms.some(term => sameTerm(term, hit.text))
-    && !exclusions.some(ex => spansOverlap(ex, hit))
-  ));
+  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms));
+  let findings = $derived(reviewed.findings);
+  let active = $derived(reviewed.active);
+  let groups = $derived(reviewed.groups);
   let editorMarks = $derived(findings.map(hit => ({
-    id: hit.id,
-    start: hit.start,
-    end: hit.end,
+    id: hit.id, start: hit.start, end: hit.end,
     ignored: !active.some(item => item.id === hit.id),
     manual: hit.origin === 'manual'
   })));
@@ -42,17 +41,23 @@
 
   function onSourceChange(next: string, changes: ChangeDesc): void {
     manual = remapFindings(manual, changes, next, 'manual');
-    exclusions = remapFindings(exclusions, changes, next, 'exact');
+    ignoredPlaces = remapFindings(ignoredPlaces, changes, next, 'exact');
     source = next;
     reply = '';
     menu = null;
+    quickAction = null;
     notice = '';
   }
 
-  function onSelect(from: number, to: number): void {
+  function onSelect(from: number, to: number, position?: {x: number; y: number}): void {
     selectedRange = { from, to };
+    quickAction = to > from && position ? {
+      x: Math.max(12, Math.min(position.x, window.innerWidth - 240)),
+      y: Math.max(12, Math.min(position.y + 7, window.innerHeight - 66))
+    } : null;
   }
 
+  /** A single click converts the actual current editor selection into a learned rule. */
   function setManualMark(start: number, end: number, kind: Kind): void {
     while (start < end && /\s/.test(source[start])) start++;
     while (end > start && /\s/.test(source[end - 1])) end--;
@@ -64,40 +69,45 @@
     const added: Finding = {
       id: 'manual-' + manualCounter,
       origin: 'manual',
-      kind,
-      text: source.slice(start, end),
-      start,
-      end
+      kind, text: source.slice(start, end), start, end
     };
     manual = [...manual.filter(hit => !spansOverlap(hit, added)), added];
-    exclusions = exclusions.filter(hit => !spansOverlap(hit, added));
+    ignoredPlaces = ignoredPlaces.filter(hit => !spansOverlap(hit, added));
+    ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, added.text));
     menu = null;
-    notice = 'Markierung übernommen und direkt im Text hervorgehoben.';
+    quickAction = null;
+    selectedRange = {from: 0, to: 0};
+    notice = 'Auswahl anonymisiert. Der Begriff wird im ganzen Text wiedererkannt.';
   }
 
   function addManual(): void {
     setManualMark(selectedRange.from, selectedRange.to, selectedKind);
   }
 
-  function suppress(hit: Finding): void {
-    if (!exclusions.some(entry => spansOverlap(entry, hit))) {
+  function suppressOne(hit: Finding): void {
+    if (!ignoredPlaces.some(entry => spansOverlap(entry, hit))) {
       exclusionCounter++;
-      exclusions = [...exclusions, {
-        ...hit, id: 'excluded-' + exclusionCounter, origin: 'manual'
-      }];
+      ignoredPlaces = [...ignoredPlaces, {...hit, id: 'ignored-' + exclusionCounter}];
     }
     menu = null;
   }
 
-  function unsuppress(hit: Finding): void {
-    exclusions = exclusions.filter(entry => !spansOverlap(entry, hit));
+  function restoreOne(hit: Finding): void {
+    ignoredPlaces = ignoredPlaces.filter(entry => !spansOverlap(entry, hit));
     ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, hit.text));
     menu = null;
   }
 
-  function toggle(hit: Finding, enabled: boolean): void {
-    if (enabled) unsuppress(hit);
-    else suppress(hit);
+  /** The list operates on distinct entities, not synthetic exclusion entries. */
+  function toggleGroup(group: TermGroup, enabled: boolean): void {
+    if (enabled) {
+      ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, group.text));
+      const matches = findings.filter(hit => hit.kind === group.kind && sameTerm(hit.text, group.text));
+      ignoredPlaces = ignoredPlaces.filter(entry => !matches.some(hit => spansOverlap(entry, hit)));
+    } else if (!ignoredTerms.some(term => sameTerm(term, group.text))) {
+      ignoredTerms = [...ignoredTerms, group.text];
+    }
+    menu = null;
   }
 
   function ignoreEverywhere(hit: Finding): void {
@@ -111,16 +121,14 @@
     setManualMark(hit.start, hit.end, kind);
   }
 
-  function removeMark(hit: Finding): void {
-    if (hit.origin === 'manual') {
-      manual = manual.filter(entry => entry.id !== hit.id);
-    }
-    // Also prevent an underlying automatic detector from immediately
-    // re-highlighting the same text after a manually removed marker.
-    suppress(hit);
+  function removeManualRule(hit: Finding): void {
+    manual = manual.filter(anchor => anchor.id !== hit.id);
+    menu = null;
+    notice = 'Manuelle Erkennungsregel entfernt.';
   }
 
   function onHit(id: string, rect: DOMRect): void {
+    quickAction = null;
     menu = {
       id,
       x: Math.max(12, Math.min(rect.left, window.innerWidth - 305)),
@@ -137,9 +145,10 @@
   function resetAll(): void {
     source = '';
     manual = [];
-    exclusions = [];
+    ignoredPlaces = [];
     ignoredTerms = [];
-    selectedRange = { from: 0, to: 0 };
+    selectedRange = {from: 0, to: 0};
+    quickAction = null;
     reply = '';
     notice = '';
     menu = null;
@@ -173,7 +182,7 @@
   <title>Anonymat 2.0 · Lokale Pseudonymisierung</title>
 </svelte:head>
 
-<svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; }} />
+<svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; quickAction = null; }} />
 
 <div class="app-shell">
   <header class="topbar">
@@ -218,7 +227,7 @@
         <div class="panel-heading">
           <div>
             <h3 id="source-title">Originaltext</h3>
-            <p>Farbige Treffer anklicken, oder Text markieren und ergänzen</p>
+            <p>Farbige Treffer anklicken oder Text auswählen und sofort anonymisieren</p>
           </div>
           <span class="quiet-count">{source.length.toLocaleString('de-DE')} Zeichen</span>
         </div>
@@ -228,7 +237,7 @@
             {#if selectedRange.to > selectedRange.from}
               {selectedRange.to - selectedRange.from} Zeichen ausgewählt
             {:else}
-              Text markieren und als Platzhalter übernehmen:
+              Text auswählen, dann mit einem Klick anonymisieren:
             {/if}
           </div>
           <div class="selection-actions">
@@ -237,7 +246,7 @@
                 <option value={kind}>{KIND_LABELS[kind]}</option>
               {/each}
             </select>
-            <button type="button" class="small-primary" onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Markieren</button>
+            <button type="button" class="small-primary" onpointerdown={(event) => event.preventDefault()} onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Auswahl anonymisieren</button>
           </div>
         </div>
         <div class="mark-legend" aria-label="Farblegende">
@@ -256,34 +265,27 @@
           <span class="count-badge">{findings.length}</span>
         </div>
         <div class="findings-body">
-          {#if findings.length === 0}
+          {#if groups.length === 0}
             <div class="empty-state">
               <div class="empty-symbol" aria-hidden="true">⌕</div>
               <strong>Noch keine Treffer</strong>
-              <p>Füge links einen Text ein oder markiere eine sensible Stelle selbst.</p>
+              <p>Text einfügen oder links einen Bereich auswählen und anonymisieren.</p>
             </div>
           {:else}
-            <div class="list-caption">{active.length} von {findings.length} Treffern aktiv</div>
+            <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
             <div class="findings-list">
-              {#each findings as finding (finding.id)}
-                <label class="finding-row" class:muted-finding={!isActive(finding)}>
-                  <input type="checkbox" checked={isActive(finding)}
-                    onchange={event => toggle(finding, event.currentTarget.checked)} />
+              {#each groups as group (group.key)}
+                <label class="finding-row" class:muted-finding={group.activeCount === 0}>
+                  <input type="checkbox" checked={group.activeCount > 0}
+                    aria-label={group.text + ' im ganzen Text anonymisieren'}
+                    onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
-                    <span class="finding-value">{finding.text}</span>
-                    <span class="finding-meta">{KIND_LABELS[finding.kind]} · {finding.origin === 'manual' ? 'Manuell' : 'Automatisch'}</span>
+                    <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
+                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell gelernt' : 'Automatisch erkannt'}
+                      {#if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                    </span>
                   </span>
                 </label>
-              {/each}
-            </div>
-          {/if}
-          {#if ignoredTerms.length}
-            <div class="excluded-terms">
-              <h4>Dauerhaft ignorierte Begriffe</h4>
-              {#each ignoredTerms as term (term)}
-                <button type="button" class="ignored-term" title="Wieder zulassen" onclick={() => { ignoredTerms = ignoredTerms.filter(t => !sameTerm(t, term)); }}>
-                  {term} <span aria-hidden="true">×</span>
-                </button>
               {/each}
             </div>
           {/if}
@@ -357,6 +359,13 @@
 
   <footer class="site-footer"><span>Anonymat 2.0 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
 
+  {#if quickAction && selectedRange.to > selectedRange.from && !menu}
+    <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
+      onpointerdown={(event) => event.preventDefault()} role="group" aria-label="Textauswahl anonymisieren">
+      <button type="button" onclick={addManual}>+ Auswahl anonymisieren</button>
+    </div>
+  {/if}
+
   {#if menu && selectedHit}
     <div class="hit-popover" role="dialog" aria-label="Markierung bearbeiten" style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
       <div class="hit-popover-heading">
@@ -372,10 +381,13 @@
       </select>
       <div class="hit-actions">
         {#if !isActive(selectedHit)}
-          <button type="button" onclick={() => unsuppress(selectedHit!)}>✓ Wieder anonymisieren</button>
+          <button type="button" onclick={() => restoreOne(selectedHit!)}>✓ Wieder anonymisieren</button>
         {:else}
-          <button type="button" onclick={() => removeMark(selectedHit!)}>✕ {selectedHit.origin === 'manual' ? 'Platzhalter entfernen' : 'Diese Stelle ignorieren'}</button>
-          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Gleichen Begriff überall ignorieren</button>
+          <button type="button" onclick={() => suppressOne(selectedHit!)}>✕ Nur diese Stelle ignorieren</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Begriff im ganzen Text ignorieren</button>
+        {/if}
+        {#if manual.some(anchor => anchor.id === selectedHit?.id)}
+          <button type="button" onclick={() => removeManualRule(selectedHit!)}>− Manuelle Erkennungsregel entfernen</button>
         {/if}
       </div>
     </div>
