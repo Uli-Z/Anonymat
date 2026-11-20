@@ -1,65 +1,148 @@
 <script lang="ts">
+  import type { ChangeDesc } from '@codemirror/state';
+  import MarkedEditor from './components/MarkedEditor.svelte';
   import { detectPII, mergeManual, KIND_LABELS, type Finding, type Kind } from './lib/detect';
+  import { remapFindings, sameTerm, spansOverlap } from './lib/marks';
   import { maskText, restoreText, splitForPreview } from './lib/replace';
 
   const kinds: Kind[] = ['PERSON', 'EMAIL', 'PHONE', 'IBAN', 'OTHER'];
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
-  let decisions = $state<Record<string, boolean>>({});
+  let exclusions = $state<Finding[]>([]);
+  let ignoredTerms = $state<string[]>([]);
   let selectedKind = $state<Kind>('PERSON');
+  let selectedRange = $state({ from: 0, to: 0 });
   let reply = $state('');
   let notice = $state('');
-  let editor: HTMLTextAreaElement;
+  let menu = $state<{ id: string; x: number; y: number } | null>(null);
   let manualCounter = 0;
+  let exclusionCounter = 0;
 
   let findings = $derived(mergeManual(detectPII(source), manual));
-  let approved = $derived(findings.filter(item => decisions[item.id] !== false));
-  let prepared = $derived(maskText(source, approved));
+  let active = $derived(findings.filter(hit =>
+    !ignoredTerms.some(term => sameTerm(term, hit.text))
+    && !exclusions.some(ex => spansOverlap(ex, hit))
+  ));
+  let editorMarks = $derived(findings.map(hit => ({
+    id: hit.id,
+    start: hit.start,
+    end: hit.end,
+    ignored: !active.some(item => item.id === hit.id),
+    manual: hit.origin === 'manual'
+  })));
+  let prepared = $derived(maskText(source, active));
   let preview = $derived(splitForPreview(prepared.text));
   let restored = $derived(restoreText(reply, prepared.mapping));
+  let selectedHit = $derived(menu ? findings.find(hit => hit.id === menu.id) : undefined);
 
-  function onSourceChange(event: Event): void {
-    source = (event.currentTarget as HTMLTextAreaElement).value;
-    // Text offsets change on editing. Never apply a stale manual selection.
-    manual = [];
-    decisions = {};
+  function isActive(hit: Finding): boolean {
+    return active.some(item => item.id === hit.id);
+  }
+
+  function onSourceChange(next: string, changes: ChangeDesc): void {
+    manual = remapFindings(manual, changes, next, 'manual');
+    exclusions = remapFindings(exclusions, changes, next, 'exact');
+    source = next;
     reply = '';
+    menu = null;
     notice = '';
   }
 
-  function addManual(): void {
-    const start = editor.selectionStart;
-    const end = editor.selectionEnd;
-    if (start === end) {
-      notice = 'Markiere zunächst einen Textbereich im Original.';
-      editor.focus();
-      return;
-    }
-    const value = source.slice(start, end);
-    manualCounter += 1;
-    manual = [...manual, {
-      id: 'manual-' + manualCounter,
-      origin: 'manual',
-      kind: selectedKind,
-      text: value,
-      start,
-      end
-    }];
-    notice = 'Manuelle Markierung übernommen.';
+  function onSelect(from: number, to: number): void {
+    selectedRange = { from, to };
   }
 
-  function toggle(id: string, allowed: boolean): void {
-    decisions = { ...decisions, [id]: allowed };
+  function setManualMark(start: number, end: number, kind: Kind): void {
+    while (start < end && /\s/.test(source[start])) start++;
+    while (end > start && /\s/.test(source[end - 1])) end--;
+    if (start === end) {
+      notice = 'Bitte zuerst einen Textbereich markieren.';
+      return;
+    }
+    manualCounter++;
+    const added: Finding = {
+      id: 'manual-' + manualCounter,
+      origin: 'manual',
+      kind,
+      text: source.slice(start, end),
+      start,
+      end
+    };
+    manual = [...manual.filter(hit => !spansOverlap(hit, added)), added];
+    exclusions = exclusions.filter(hit => !spansOverlap(hit, added));
+    menu = null;
+    notice = 'Markierung übernommen und direkt im Text hervorgehoben.';
+  }
+
+  function addManual(): void {
+    setManualMark(selectedRange.from, selectedRange.to, selectedKind);
+  }
+
+  function suppress(hit: Finding): void {
+    if (!exclusions.some(entry => spansOverlap(entry, hit))) {
+      exclusionCounter++;
+      exclusions = [...exclusions, {
+        ...hit, id: 'excluded-' + exclusionCounter, origin: 'manual'
+      }];
+    }
+    menu = null;
+  }
+
+  function unsuppress(hit: Finding): void {
+    exclusions = exclusions.filter(entry => !spansOverlap(entry, hit));
+    ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, hit.text));
+    menu = null;
+  }
+
+  function toggle(hit: Finding, enabled: boolean): void {
+    if (enabled) unsuppress(hit);
+    else suppress(hit);
+  }
+
+  function ignoreEverywhere(hit: Finding): void {
+    if (!ignoredTerms.some(term => sameTerm(term, hit.text))) {
+      ignoredTerms = [...ignoredTerms, hit.text];
+    }
+    menu = null;
+  }
+
+  function changeKind(hit: Finding, kind: Kind): void {
+    setManualMark(hit.start, hit.end, kind);
+  }
+
+  function removeMark(hit: Finding): void {
+    if (hit.origin === 'manual') {
+      manual = manual.filter(entry => entry.id !== hit.id);
+    }
+    // Also prevent an underlying automatic detector from immediately
+    // re-highlighting the same text after a manually removed marker.
+    suppress(hit);
+  }
+
+  function onHit(id: string, rect: DOMRect): void {
+    menu = {
+      id,
+      x: Math.max(12, Math.min(rect.left, window.innerWidth - 305)),
+      y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 285))
+    };
+  }
+
+  function closeMenuOutside(event: MouseEvent): void {
+    if (!(event.target instanceof Element) || !event.target.closest('.hit-popover')) {
+      menu = null;
+    }
   }
 
   function resetAll(): void {
     source = '';
     manual = [];
-    decisions = {};
+    exclusions = [];
+    ignoredTerms = [];
+    selectedRange = { from: 0, to: 0 };
     reply = '';
     notice = '';
-    editor?.focus();
+    menu = null;
   }
 
   async function copy(value: string, label: string): Promise<void> {
@@ -81,7 +164,7 @@
       }
       notice = label + ' kopiert.';
     } catch {
-      notice = 'Automatisches Kopieren nicht verfügbar. Text bitte manuell auswählen.';
+      notice = 'Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.';
     }
   }
 </script>
@@ -89,6 +172,8 @@
 <svelte:head>
   <title>Anonymat 2.0 · Lokale Pseudonymisierung</title>
 </svelte:head>
+
+<svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; }} />
 
 <div class="app-shell">
   <header class="topbar">
@@ -115,7 +200,7 @@
       <div>
         <div class="eyebrow">ARBEITSPLATZ</div>
         <h1>Vertrauliche Texte sicher vorbereiten.</h1>
-        <p>Informationen erkennen, ergänzen und vor der Verarbeitung durch KI als Platzhalter maskieren.</p>
+        <p>Angaben werden direkt im Text hervorgehoben. Klicke auf eine Markierung, um sie zu bearbeiten.</p>
       </div>
       <button class="reset-button" type="button" onclick={resetAll} disabled={!source && !reply}>↺ <span>Neuer Text</span></button>
     </div>
@@ -133,29 +218,32 @@
         <div class="panel-heading">
           <div>
             <h3 id="source-title">Originaltext</h3>
-            <p>Text hier eingeben oder einfügen</p>
+            <p>Farbige Treffer anklicken, oder Text markieren und ergänzen</p>
           </div>
           <span class="quiet-count">{source.length.toLocaleString('de-DE')} Zeichen</span>
         </div>
-        <textarea
-          class="source-editor"
-          bind:this={editor}
-          value={source}
-          oninput={onSourceChange}
-          spellcheck="false"
-          placeholder="Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ..."
-          aria-label="Originaltext"
-        ></textarea>
+        <MarkedEditor value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} />
         <div class="selection-toolbar">
-          <div class="selection-help">Text markieren und als Platzhalter übernehmen:</div>
+          <div class="selection-help">
+            {#if selectedRange.to > selectedRange.from}
+              {selectedRange.to - selectedRange.from} Zeichen ausgewählt
+            {:else}
+              Text markieren und als Platzhalter übernehmen:
+            {/if}
+          </div>
           <div class="selection-actions">
             <select bind:value={selectedKind} aria-label="Kategorie für manuelle Markierung">
               {#each kinds as kind}
                 <option value={kind}>{KIND_LABELS[kind]}</option>
               {/each}
             </select>
-            <button type="button" class="small-primary" onclick={addManual} disabled={!source.trim()}>+ Markieren</button>
+            <button type="button" class="small-primary" onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Markieren</button>
           </div>
+        </div>
+        <div class="mark-legend" aria-label="Farblegende">
+          <span><i class="legend-auto"></i> Automatisch</span>
+          <span><i class="legend-manual"></i> Manuell</span>
+          <span><i class="legend-ignored"></i> Ignoriert</span>
         </div>
       </section>
 
@@ -163,7 +251,7 @@
         <div class="panel-heading">
           <div>
             <h3 id="findings-title">Erkannte Angaben</h3>
-            <p>Treffer prüfen und bei Bedarf abwählen</p>
+            <p>Auch direkt über den Text bearbeitbar</p>
           </div>
           <span class="count-badge">{findings.length}</span>
         </div>
@@ -175,20 +263,27 @@
               <p>Füge links einen Text ein oder markiere eine sensible Stelle selbst.</p>
             </div>
           {:else}
-            <div class="list-caption">{approved.length} von {findings.length} Treffern aktiviert</div>
+            <div class="list-caption">{active.length} von {findings.length} Treffern aktiv</div>
             <div class="findings-list">
               {#each findings as finding (finding.id)}
-                <label class="finding-row">
-                  <input
-                    type="checkbox"
-                    checked={decisions[finding.id] !== false}
-                    onchange={event => toggle(finding.id, event.currentTarget.checked)}
-                  />
+                <label class="finding-row" class:muted-finding={!isActive(finding)}>
+                  <input type="checkbox" checked={isActive(finding)}
+                    onchange={event => toggle(finding, event.currentTarget.checked)} />
                   <span class="finding-details">
                     <span class="finding-value">{finding.text}</span>
                     <span class="finding-meta">{KIND_LABELS[finding.kind]} · {finding.origin === 'manual' ? 'Manuell' : 'Automatisch'}</span>
                   </span>
                 </label>
+              {/each}
+            </div>
+          {/if}
+          {#if ignoredTerms.length}
+            <div class="excluded-terms">
+              <h4>Dauerhaft ignorierte Begriffe</h4>
+              {#each ignoredTerms as term (term)}
+                <button type="button" class="ignored-term" title="Wieder zulassen" onclick={() => { ignoredTerms = ignoredTerms.filter(t => !sameTerm(t, term)); }}>
+                  {term} <span aria-hidden="true">×</span>
+                </button>
               {/each}
             </div>
           {/if}
@@ -233,13 +328,9 @@
         <div class="panel-heading">
           <div><h3 id="reply-title">Antwort der KI</h3><p>Text mit Platzhaltern hier einfügen</p></div>
         </div>
-        <textarea
-          class="reply-editor"
-          bind:value={reply}
-          spellcheck="false"
+        <textarea class="reply-editor" bind:value={reply} spellcheck="false"
           placeholder="Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ..."
-          aria-label="KI-Antwort mit Platzhaltern"
-        ></textarea>
+          aria-label="KI-Antwort mit Platzhaltern"></textarea>
       </section>
       <section class="panel" aria-labelledby="restored-title">
         <div class="panel-heading">
@@ -259,9 +350,34 @@
 
     <div class="footer-note">
       <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Prototyp: zunächst einfache Muster und Namensanreden. Die Erkennung ist unvollständig, ersetzt keine manuelle Kontrolle und gewährleistet keine Anonymität. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung und Wortlisten folgen.</span>
+      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung und Wortlisten folgen.</span>
     </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
+
   <footer class="site-footer"><span>Anonymat 2.0 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+
+  {#if menu && selectedHit}
+    <div class="hit-popover" role="dialog" aria-label="Markierung bearbeiten" style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
+      <div class="hit-popover-heading">
+        <span class="hit-popover-title">{selectedHit.text}</span>
+        <button type="button" class="hit-close" aria-label="Schließen" onclick={() => menu = null}>×</button>
+      </div>
+      <label class="hit-type-label" for="hit-kind">Platzhalter-Typ</label>
+      <select id="hit-kind" class="hit-type-select" value={selectedHit.kind}
+        onchange={event => changeKind(selectedHit!, event.currentTarget.value as Kind)}>
+        {#each kinds as kind}
+          <option value={kind}>{KIND_LABELS[kind]}</option>
+        {/each}
+      </select>
+      <div class="hit-actions">
+        {#if !isActive(selectedHit)}
+          <button type="button" onclick={() => unsuppress(selectedHit!)}>✓ Wieder anonymisieren</button>
+        {:else}
+          <button type="button" onclick={() => removeMark(selectedHit!)}>✕ {selectedHit.origin === 'manual' ? 'Platzhalter entfernen' : 'Diese Stelle ignorieren'}</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Gleichen Begriff überall ignorieren</button>
+        {/if}
+      </div>
+    </div>
+  {/if}
 </div>
