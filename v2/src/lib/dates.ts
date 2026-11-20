@@ -128,14 +128,14 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
     if(!month)return null;
     language=month.language;format='day-first';dayDot=!!dot;
     monthDot=monthWord.endsWith('.');monthAbbreviated=month.short||monthDot;
-    padDay=day.length===2;iso=toIso(+year,month.month,+day);
+    padDay=day.startsWith('0');iso=toIso(+year,month.month,+day);
   }else{
     const p=/^([\p{L}]+\.?)\s+(\d{1,2})(?:st|nd|rd|th)?\s*,?\s+(\d{4})$/iu.exec(body);
     if(!p)return null;
     const [,monthWord,day,year]=p,month=chooseMonth(monthWord,'en',weekday,true);
     if(!month)return null;
     language='en';format='month-first';monthDot=monthWord.endsWith('.');
-    monthAbbreviated=month.short||monthDot;padDay=day.length===2;iso=toIso(+year,month.month,+day);
+    monthAbbreviated=month.short||monthDot;padDay=day.startsWith('0');iso=toIso(+year,month.month,+day);
   }
   if(!iso)return issue(hit,'Ungültiger Kalendertag');
   if(weekday){
