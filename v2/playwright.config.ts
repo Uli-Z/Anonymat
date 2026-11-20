@@ -6,6 +6,7 @@ export default defineConfig({
   timeout: 30000,
   use: {
     ...devices['Desktop Chrome'],
+    channel: 'chrome',
     headless: true
   }
 });
