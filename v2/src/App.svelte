@@ -7,6 +7,8 @@
   import { maskText, restoreText, splitForPreview } from './lib/replace';
   import { splitFullName } from './lib/overrides';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
+  import { randomDateOffset, restoreShiftedDates, type NumericDateOrder } from './lib/dates';
+  import type { MappingEntry } from './lib/replace';
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'OTHER'];
 
@@ -16,6 +18,12 @@
   let ignoredTerms = $state<string[]>([]);
   let selectedKind = $state<Kind>('PERSON');
   let replacementRules = $state<Record<string, ReplacementRule>>({});
+  let dateShiftEnabled = $state(false);
+  let dateOffset = $state(randomDateOffset());
+  let numericOrder = $state<NumericDateOrder>('auto');
+  let replyNumericOrder = $state<NumericDateOrder>('auto');
+  // Keep the inverse data from the last export even if the draft or offset changes.
+  let exportSnapshot = $state<{mapping:MappingEntry[]; shiftedDates:string[]; offset:number}|null>(null);
   let editingReplacement = $state<string | null>(null);
   let replacementDraft = $state('');
   let replacementError = $state('');
@@ -27,7 +35,7 @@
   let manualCounter = 0;
   let exclusionCounter = 0;
 
-  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms));
+  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms, numericOrder));
   let findings = $derived(reviewed.findings);
   let active = $derived(reviewed.active);
   let groups = $derived(reviewed.groups);
@@ -36,9 +44,16 @@
     ignored: !active.some(item => item.id === hit.id),
     manual: hit.origin === 'manual'
   })));
-  let prepared = $derived(maskText(source, active, replacementRules));
+  let prepared = $derived(maskText(source, active, replacementRules, {
+    dateShiftEnabled, offsetDays: dateOffset, numericOrder
+  }));
+  let hasDateOverride = $derived(Object.values(replacementRules).some(rule=>rule.mode==='shift-date'));
   let preview = $derived(splitForPreview(prepared.text));
-  let restored = $derived(restoreText(reply, prepared.mapping));
+  let inverseDates = $derived(restoreShiftedDates(
+    reply,exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso),
+    exportSnapshot?.offset ?? dateOffset,{numericOrder:replyNumericOrder}
+  ));
+  let restored = $derived(restoreText(inverseDates.text,exportSnapshot?.mapping ?? prepared.mapping));
   let selectedHit = $derived(findings.find(hit => hit.id === menu?.id));
 
   function isActive(hit: Finding): boolean {
@@ -148,16 +163,33 @@
 
   function replacementFor(group: TermGroup): string {
     if (group.activeCount === 0) return 'Nicht ersetzt';
+    const shifted = prepared.dates.find(entry=>group.kind==='DATE' && sameTerm(entry.original,group.text));
+    if(shifted)return shifted.shifted;
     return prepared.mapping.find(entry =>
       entry.kind === group.kind && sameTerm(entry.original, group.text)
     )?.token ?? '—';
+  }
+
+  function dateRuleMode(group:TermGroup):'default'|'token'|'shift-date'{
+    const mode=replacementRules[replacementKey(group.kind,group.text)]?.mode;
+    return mode==='shift-date'||mode==='token'?mode:'default';
+  }
+
+  function setDateRuleMode(group:TermGroup,mode:'default'|'token'|'shift-date'):void{
+    const key=replacementKey(group.kind,group.text);
+    const next={...replacementRules};
+    if(mode==='default')delete next[key];
+    else if(mode==='shift-date')next[key]={mode,kind:'DATE'};
+    else next[key]={mode,kind:group.kind};
+    replacementRules=next;
+    editingReplacement=null;
   }
 
   function editReplacement(group: TermGroup): void {
     const key = replacementKey(group.kind, group.text);
     editingReplacement = key;
     const rule = replacementRules[key];
-    replacementDraft = rule?.mode === 'custom-token' ? rule.token : replacementFor(group);
+    replacementDraft = rule?.mode === 'custom-token' ? rule.token : (group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text)) ? '' : replacementFor(group));
     replacementError = '';
   }
 
@@ -210,6 +242,11 @@
     ignoredPlaces = [];
     ignoredTerms = [];
     replacementRules = {};
+    dateShiftEnabled = false;
+    dateOffset = randomDateOffset();
+    numericOrder = 'auto';
+    replyNumericOrder = 'auto';
+    exportSnapshot = null;
     editingReplacement = null;
     replacementError = '';
     selectedRange = {from: 0, to: 0};
@@ -217,6 +254,16 @@
     reply = '';
     notice = '';
     menu = null;
+  }
+
+  async function copyMasked():Promise<void>{
+    const snapshot={
+      mapping:prepared.mapping.map(item=>({...item})),
+      shiftedDates:prepared.dates.map(item=>item.shiftedIso),
+      offset:dateOffset
+    };
+    await copy(prepared.text,'Pseudonymisierter Text');
+    exportSnapshot=snapshot;
   }
 
   async function copy(value: string, label: string): Promise<void> {
@@ -286,6 +333,34 @@
         <p>Automatische Treffer sind Vorschläge. Lies den gesamten Text vor dem Kopieren aufmerksam durch.</p>
       </div>
     </div>
+
+    <section class="panel" aria-labelledby="date-options-title" style="padding: 18px 22px; margin-bottom: 18px;">
+      <h3 id="date-options-title" style="margin:0 0 10px">Datumsangaben</h3>
+      <label style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" bind:checked={dateShiftEnabled}/>
+        Erkannte Kalenderdaten statt Platzhaltern gemeinsam verschieben
+      </label>
+      <p style="margin:8px 0 10px">Nur vollständige Daten mit Jahr. Alle verschobenen Daten verwenden denselben Tagesoffset; die Abstände bleiben erhalten.</p>
+      {#if dateShiftEnabled || hasDateOverride}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <label for="date-offset">Verschiebung in Tagen</label>
+          <input id="date-offset" type="number" min="-3650" max="3650" step="1" bind:value={dateOffset} style="max-width:100px"/>
+          <button type="button" class="secondary-button" onclick={() => dateOffset=randomDateOffset()}>Neu zufällig wählen</button>
+          {#if !Number.isSafeInteger(dateOffset) || dateOffset===0 || Math.abs(dateOffset)>3650}
+            <span class="inline-warning">Bitte einen ganzzahligen Wert von −3650 bis +3650 außer 0 wählen.</span>
+          {/if}
+        </div>
+      {/if}
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <label for="source-date-order">Mehrdeutige Zahlenformate im Original</label>
+        <select id="source-date-order" bind:value={numericOrder}>
+          <option value="auto">Auslassen und warnen</option>
+          <option value="DMY">Tag/Monat/Jahr</option>
+          <option value="MDY">Monat/Tag/Jahr (US)</option>
+        </select>
+      </div>
+      <p style="margin:10px 0 0">Datumsverschiebung ist Pseudonymisierung, keine vollständige Anonymisierung. Ungültige und nicht eindeutige Daten müssen geprüft werden.</p>
+    </section>
 
     <div class="workspace-grid">
       <section class="panel editor-panel" aria-labelledby="source-title">
@@ -361,9 +436,23 @@
                         <div class="replacement-inline">
                           <span class="replacement-arrow" aria-hidden="true">→</span>
                           <code>{replacementFor(group)}</code>
-                          <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
+                          {#if !(group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text)))}
+                            <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
+                          {/if}
                         </div>
                       {/if}
+                    {/if}
+                    {#if group.kind==='DATE' && group.activeCount>0}
+                      <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
+                        Ersetzen als
+                        <select aria-label={'Ersetzungsmethode für '+group.text}
+                          value={dateRuleMode(group)}
+                          onchange={event => setDateRuleMode(group,event.currentTarget.value as 'default'|'token'|'shift-date')}>
+                          <option value="default">Standard ({dateShiftEnabled?'Verschiebung':'Token'})</option>
+                          <option value="shift-date">Datum verschieben</option>
+                          <option value="token">Platzhalter</option>
+                        </select>
+                      </label>
                     {/if}
                   </span>
                 </div>
@@ -380,7 +469,7 @@
           <h3 id="result-title">Pseudonymisierter Text</h3>
           <p>Nur diesen überprüften Text an externe KI-Dienste weitergeben</p>
         </div>
-        <button class="primary-button" type="button" onclick={() => copy(prepared.text, 'Pseudonymisierter Text')} disabled={!source.trim()}>
+        <button class="primary-button" type="button" onclick={copyMasked} disabled={!source.trim()}>
           <span aria-hidden="true">⧉</span> Text kopieren
         </button>
       </div>
@@ -405,10 +494,21 @@
       <div class="step-number">2</div>
       <div>
         <h2>KI-Ergebnis zurückübersetzen</h2>
-        <p>Füge den bearbeiteten oder übersetzten Text ein. Die Platzhalter werden ausschließlich lokal wiederhergestellt.</p>
+        <p>Füge den bearbeiteten oder übersetzten Text ein. Platzhalter und bekannte verschobene Kalenderdaten werden lokal wiederhergestellt.</p>
       </div>
     </div>
 
+    {#if (exportSnapshot?.shiftedDates.length ?? prepared.dates.length)>0}
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <label for="reply-date-order">Zahlenformate im übersetzten KI-Text</label>
+        <select id="reply-date-order" bind:value={replyNumericOrder}>
+          <option value="auto">Mehrdeutige Daten nicht verändern</option>
+          <option value="DMY">Tag/Monat/Jahr</option>
+          <option value="MDY">Monat/Tag/Jahr (US)</option>
+        </select>
+        {#if exportSnapshot}<span>Wiederherstellung verwendet den zuletzt zum Kopieren vorbereiteten Stand.</span>{/if}
+      </div>
+    {/if}
     <div class="restore-grid">
       <section class="panel" aria-labelledby="reply-title">
         <div class="panel-heading">
@@ -424,6 +524,9 @@
           <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
         </div>
         <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
+        {#if reply.trim() && inverseDates.warnings.length}
+          <div class="inline-warning">{inverseDates.warnings.join(' ')}</div>
+        {/if}
         {#if reply.trim() && (restored.missing.length || restored.unknown.length)}
           <div class="inline-warning">
             {#if restored.missing.length}Nicht wiedergefunden: {restored.missing.join(', ')}. {/if}
@@ -436,7 +539,7 @@
 
     <div class="footer-note">
       <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung und Wortlisten folgen.</span>
+      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung ist optional verfügbar; Wortlisten und Uhrzeitenverschiebung folgen.</span>
     </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
