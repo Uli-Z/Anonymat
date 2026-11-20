@@ -85,3 +85,18 @@ Please open an issue before making significant changes.
 
 ## License  
 GPL V.3.0
+
+
+---
+
+## Anonymat 2.0 (Alpha preview)
+
+The next generation lives separately in [v2/](v2/README.md) and is built with **Svelte 5 + TypeScript**. The existing 0.9.3 application above remains available and unchanged.
+
+- **[Open the V2 prototype on GitHub Pages](https://uli-z.github.io/Anonymat/v2/)**
+- [V2 source code](v2/)
+- [Development plan](PLAN_V2.md)
+
+The current preview supports basic local detection (email, IBAN, selected phone and name patterns), manual text selection, placeholder replacement, copying, and local restoration of tokens in externally edited text. Word dictionaries and multilingual date shifting are planned, not yet available.
+
+**Important:** This is an early prototype with incomplete detection. Review every text yourself before sharing it with any external tool.
