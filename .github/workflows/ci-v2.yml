@@ -31,6 +31,10 @@ jobs:
         run: npm test
       - name: Produce and inspect standalone HTML
         run: npm run build
+      - name: Install Chromium for UI tests
+        run: npx playwright install --with-deps chromium
+      - name: Browser interaction smoke tests
+        run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         with:
           name: anonymat-v2-single-html
