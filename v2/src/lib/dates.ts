@@ -13,13 +13,13 @@ export interface DateScan{matches:DateMatch[];issues:DateIssue[]}
 export interface DateReplacement{original:string;shifted:string;shiftedIso:string}
 export interface DateRestoreResult{text:string;warnings:string[];changed:number}
 const LANGUAGES:DateLanguage[]=['de','en','fr','es'];
-const MONTHS:Record<DateLanguage,readonly string[]>={
+export const MONTHS:Record<DateLanguage,readonly string[]>={
   de:['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],
   en:['January','February','March','April','May','June','July','August','September','October','November','December'],
   fr:['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],
   es:['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
 };
-const SHORT_MONTHS:Record<DateLanguage,readonly string[]>={
+export const SHORT_MONTHS:Record<DateLanguage,readonly string[]>={
   de:['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
   en:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
   fr:['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'],
