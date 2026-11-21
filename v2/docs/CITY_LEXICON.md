@@ -23,3 +23,5 @@ To reduce false positives, nonmajor dictionary names are detected only with
 geographic context, such as "aus Bremen", "in Paris" or "PLZ 28203 Bremen".
 Every proposed match can be overridden or excluded in the editor. Detection
 is not a guarantee of de-identification.
+
+Der Generator erstellt daneben `europe-prominent-cities.json` anhand der GeoNames-Einwohnerzahl (mindestens 50.000). Das separate Skript `generate-ambiguity-lexicon.py` erzeugt anhand von POS-Tags ein Korpus-basierte Schnittmenge gewöhnlicher Wörter mit Ortsnamen. Es werden **keine** ausschließlich geografischen Wörter behauptet; siehe [Methodik](COMMON_WORDS.md).
