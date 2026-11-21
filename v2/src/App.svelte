@@ -9,6 +9,7 @@
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
+  import { parsePartialDate, partialOriginalIso, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'OTHER'];
 
@@ -22,8 +23,9 @@
   let dateOffset = $state(randomDateOffset());
   let numericOrder = $state<NumericDateOrder>('auto');
   let replyNumericOrder = $state<NumericDateOrder>('auto');
+  let partialReferenceYear = $state<number | null>(null);
   // Keep the inverse data from the last export even if the draft or offset changes.
-  let exportSnapshot = $state<{mapping:MappingEntry[]; shiftedDates:string[]; offset:number}|null>(null);
+  let exportSnapshot = $state<{mapping:MappingEntry[]; shiftedDates:string[]; partialDates:ShiftedPartial[]; offset:number}|null>(null);
   let editingReplacement = $state<string | null>(null);
   let replacementDraft = $state('');
   let replacementError = $state('');
@@ -45,12 +47,16 @@
     manual: hit.origin === 'manual'
   })));
   let prepared = $derived(maskText(source, active, replacementRules, {
-    dateShiftEnabled, offsetDays: dateOffset, numericOrder
+    dateShiftEnabled, offsetDays: dateOffset, numericOrder, partialReferenceYear
   }));
   let hasDateOverride = $derived(Object.values(replacementRules).some(rule=>rule.mode==='shift-date'));
   let preview = $derived(splitForPreview(prepared.text));
+  let inversePartial = $derived(restoreShiftedPartialDates(
+    reply, exportSnapshot?.partialDates ?? prepared.partialDates,
+    {numericOrder:replyNumericOrder}
+  ));
   let inverseDates = $derived(restoreShiftedDates(
-    reply,exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso),
+    inversePartial.text,exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso),
     exportSnapshot?.offset ?? dateOffset,{numericOrder:replyNumericOrder}
   ));
   let restored = $derived(restoreText(inverseDates.text,exportSnapshot?.mapping ?? prepared.mapping));
@@ -165,6 +171,8 @@
     if (group.activeCount === 0) return 'Nicht ersetzt';
     const shifted = prepared.dates.find(entry=>group.kind==='DATE' && sameTerm(entry.original,group.text));
     if(shifted)return shifted.shifted;
+    const partial = prepared.partialDates.find(entry=>group.kind==='DATE' && sameTerm(entry.original,group.text));
+    if(partial)return partial.shifted;
     return prepared.mapping.find(entry =>
       entry.kind === group.kind && sameTerm(entry.original, group.text)
     )?.token ?? '—';
@@ -198,10 +206,15 @@
     const token = replacementDraft.trim();
     // Editing a shifted date updates the ONE global offset. Never introduce
     // an inconsistent per-occurrence replacement that breaks chronology.
-    if(group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text))){
-      const original=parseDate(group.text,{numericOrder});
-      const target=parseDate(token,{numericOrder});
-      const offset=original && target?calendarDayDifference(original.iso,target.iso):null;
+    if(group.kind==='DATE' && (prepared.dates.some(item=>sameTerm(item.original,group.text)) ||
+       prepared.partialDates.some(item=>sameTerm(item.original,group.text)))){
+      const fullOriginal=parseDate(group.text,{numericOrder});
+      const fullTarget=parseDate(token,{numericOrder});
+      const partialOriginal=parsePartialDate(group.text,{numericOrder});
+      const partialTarget=parsePartialDate(token,{numericOrder});
+      const origIso=fullOriginal?.iso ?? (partialOriginal && partialOriginalIso(partialOriginal,partialReferenceYear));
+      const targetIso=fullTarget?.iso ?? (partialTarget && partialOriginalIso(partialTarget,partialReferenceYear));
+      const offset=origIso && targetIso?calendarDayDifference(origIso,targetIso):null;
       if(offset===null || !Number.isSafeInteger(offset) || offset===0 || Math.abs(offset)>3650){
         replacementError='Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).';
         return;
@@ -262,6 +275,7 @@
     dateOffset = randomDateOffset();
     numericOrder = 'auto';
     replyNumericOrder = 'auto';
+    partialReferenceYear = null;
     exportSnapshot = null;
     editingReplacement = null;
     replacementError = '';
@@ -276,6 +290,7 @@
     const snapshot={
       mapping:prepared.mapping.map(item=>({...item})),
       shiftedDates:prepared.dates.map(item=>item.shiftedIso),
+      partialDates:prepared.partialDates.map(item=>({...item})),
       offset:dateOffset
     };
     await copy(prepared.text,'Pseudonymisierter Text');
@@ -356,7 +371,19 @@
         <input type="checkbox" bind:checked={dateShiftEnabled}/>
         Erkannte Kalenderdaten statt Platzhaltern gemeinsam verschieben
       </label>
-      <p style="margin:8px 0 10px">Nur vollständige Daten mit Jahr. Alle verschobenen Daten verwenden denselben Tagesoffset; die Abstände bleiben erhalten.</p>
+      <p style="margin:8px 0 10px">Vollständige Kalenderdaten werden mit einem gemeinsamen Tagesoffset verschoben. Unvollständige Angaben werden erkannt und standardmäßig als Token geschützt.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0">
+        <label for="partial-reference-year">Bezugsjahr für Daten ohne Jahr (optional)</label>
+        <input id="partial-reference-year" type="number" min="1000" max="9999" step="1"
+          value={partialReferenceYear ?? ''}
+          oninput={event => {
+            const raw=event.currentTarget.value.trim();
+            partialReferenceYear=raw?Number(raw):null;
+          }}
+          placeholder="z. B. 2026" style="max-width:112px"/>
+        <span>Nur mit festgelegtem Bezugsjahr lassen sich z. B. „10. März“ oder „10.03.“ verschieben.</span>
+      </div>
+      <p style="margin:0 0 10px">„März 2026“, „03/2026“ und „im März“ bleiben Platzhalter: Ohne Kalendertag ist eine exakte Tagesverschiebung nicht definierbar.</p>
       {#if dateShiftEnabled || hasDateOverride}
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
           <label for="date-offset">Verschiebung in Tagen</label>
@@ -515,7 +542,7 @@
       </div>
     </div>
 
-    {#if (exportSnapshot?.shiftedDates.length ?? prepared.dates.length)>0}
+    {#if (exportSnapshot?.shiftedDates.length ?? prepared.dates.length)>0 || (exportSnapshot?.partialDates.length ?? prepared.partialDates.length)>0}
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
         <label for="reply-date-order">Zahlenformate im übersetzten KI-Text</label>
         <select id="reply-date-order" bind:value={replyNumericOrder}>
@@ -541,8 +568,8 @@
           <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
         </div>
         <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
-        {#if reply.trim() && inverseDates.warnings.length}
-          <div class="inline-warning">{inverseDates.warnings.join(' ')}</div>
+        {#if reply.trim() && (inverseDates.warnings.length || inversePartial.warnings.length)}
+          <div class="inline-warning">{[...inversePartial.warnings,...inverseDates.warnings].join(' ')}</div>
         {/if}
         {#if reply.trim() && (restored.missing.length || restored.unknown.length)}
           <div class="inline-warning">
@@ -556,7 +583,7 @@
 
     <div class="footer-note">
       <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung ist optional verfügbar; Wortlisten und Uhrzeitenverschiebung folgen.</span>
+      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung ist optional; unvollständige Kalenderdaten werden geschützt, ohne ein fehlendes Datum zu erfinden. Wortlisten und Uhrzeitenverschiebung folgen.</span>
     </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
