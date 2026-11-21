@@ -1,7 +1,9 @@
 import { findTerms } from './term-index';
+import givenNames from '../data/given-names.json';
+import familyNames from '../data/family-names.json';
 
 export interface NameHit {start:number;text:string}
-const firstNames = new Set(('Anna Ali Alexander Alexandra Amelie Amir Anja Anton Antonio Ayşe Benjamin Bernd Birgit '+
+const firstNames = new Set([...givenNames, ...('Anna Ali Alexander Alexandra Amelie Amir Anja Anton Antonio Ayşe Benjamin Bernd Birgit '+
 'Carla Charlotte Clara Christian Christina Christoph Daniel Daniela David Derya Dilara Elena Elias Elisabeth '+
 'Emil Emilia Emma Erik Eva Fatima Felix Finn Florian Franz Friedrich Friedrich-Gustav Hannah Hans Hasan '+
 'Helena Ibrahim Ida Ilse Ingrid Isabel Isabella Jakob Jan Jana Jasmin Jens Johann Johannes Jonas '+
@@ -10,11 +12,14 @@ const firstNames = new Set(('Anna Ali Alexander Alexandra Amelie Amir Anja Anton
 'Mohammad Moritz Murat Mustafa Nadine Natalia Nele Nils Nina Noah Oliver Olivia Omar Paul Paula '+
 'Peter Petra Philipp Pia Rafael Rebecca Robert Rosa Sabine Sarah Sebastian Selin Selma Simon Sofia '+
 'Sophie Stefan Stefanie Susanne Thomas Tim Tobias Uwe Viktor Vincent Walter Yasmin Yılmaz Yusuf '+
-'Zeynep Zoe').split(/\s+/u));
-const surnames = new Set(('Bauer Becker Berger Bergmann Braun Fischer Fuchs Hoffmann Hofmann Kaiser Keller '+
+'Zeynep Zoe').split(/\s+/u)]);
+const surnames = new Set([...familyNames, ...('Bauer Becker Berger Bergmann Braun Fischer Fuchs Hoffmann Hofmann Kaiser Keller '+
 'Klein Koch Krüger Lange Lehmann Maier Mayer Meier Meyer Möller Müller Neumann Peters Richter Roth '+
 'Schäfer Schmid Schmidt Schneider Schulz Schulte Schwarz Schuster Schröder Schreiber Wagner Weber '+
-'Werner Wolf Zimmermann Mustermann Yılmaz Özdemir Kaya Demir Yildiz Hoffmanns Bismarck').split(/\s+/u));
+'Werner Wolf Zimmermann Mustermann Yılmaz Özdemir Kaya Demir Yildiz Hoffmanns Bismarck').split(/\s+/u)]);
+
+export const bundledGivenNameCount=givenNames.length;
+export const bundledFamilyNameCount=familyNames.length;
 
 const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([A-ZÄÖÜ][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?)/gu;
 const labeledName = /\b(?:Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
