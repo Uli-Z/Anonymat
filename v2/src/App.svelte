@@ -539,10 +539,8 @@
           <button type="button" class="secondary-button" onclick={retryAnalysis}>Erneut analysieren</button>
         {/if}
       </div>
-      {#if isAnalyzing}
-        <progress value={analysisProgress} max="100" aria-label="Analysefortschritt" style="width:100%;margin-top:10px;height:12px"></progress>
-        <p style="margin:4px 0 0;font-size:12px">Der Balken zeigt Verarbeitungsschritte, keine genaue Restzeit. Die Seite bleibt während der Suche bedienbar.</p>
-      {/if}
+      <progress value={analysisProgress} max="100" aria-label="Analysefortschritt" style={'width:100%;margin-top:10px;height:12px;visibility:'+(isAnalyzing?'visible':'hidden')}></progress>
+      <p style="margin:4px 0 0;font-size:12px;min-height:16px;visibility:{isAnalyzing?'visible':'hidden'}">Der Balken zeigt Verarbeitungsschritte, keine genaue Restzeit. Die Seite bleibt während der Suche bedienbar.</p>
       <p style="margin:5px 0 0;font-size:12px">
         Lexika: {lexiconCounts?lexiconCounts.first.toLocaleString('de-DE'):'…'} Vornamen ·
         {lexiconCounts?lexiconCounts.last.toLocaleString('de-DE'):'…'} Nachnamen ·
