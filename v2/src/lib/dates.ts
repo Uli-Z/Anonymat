@@ -25,13 +25,13 @@ export const SHORT_MONTHS:Record<DateLanguage,readonly string[]>={
   fr:['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'],
   es:['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 };
-const WEEKDAYS:Record<DateLanguage,readonly string[]>={
+export const WEEKDAYS:Record<DateLanguage,readonly string[]>={
   de:['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
   en:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
   fr:['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],
   es:['domingo','lunes','martes','miércoles','jueves','viernes','sábado']
 };
-const SHORT_WEEKDAYS:Record<DateLanguage,readonly string[]>={
+export const SHORT_WEEKDAYS:Record<DateLanguage,readonly string[]>={
   de:['So','Mo','Di','Mi','Do','Fr','Sa'],
   en:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
   fr:['dim','lun','mar','mer','jeu','ven','sam'],
