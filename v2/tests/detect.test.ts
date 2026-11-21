@@ -16,7 +16,7 @@ describe('simple PII suggestions', () => {
     expect(hits.some(hit => hit.text === 'Anna Müller' && hit.kind === 'PERSON')).toBe(true);
   });
   it('does not mask medical values as telephone numbers', () => {
-    expect(detectPII('Hb 8,2 g/dl, Blutdruck 110/65 mmHg, 2026-11-20')).toEqual([]);
+    expect(detectPII('Hb 8,2 g/dl, Blutdruck 110/65 mmHg, 2026-11-20').map(hit=>hit.kind)).toEqual(['DATE']);
   });
   it('prefers a manual mark over an overlapping automatic mark', () => {
     const text = 'Frau Anna Müller.';

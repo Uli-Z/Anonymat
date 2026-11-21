@@ -1,12 +1,11 @@
 import type { Kind } from './detect';
 
 /**
- * Contract for a future rule-based replacement engine. Only 'token' and
- * 'custom-token' are currently executed; future modes must be activated
+ * Contract for a future rule-based replacement engine. Token, custom-token and shift-date are executed; future modes must be activated
  * with explicit implementation and round-trip tests.
  */
-export type ReplacementMode = 'token' | 'custom-token';
-export type PlannedMode = 'shift-date' | 'shift-time' | 'synthetic-name' | 'synthetic-email';
+export type ReplacementMode = 'token' | 'custom-token' | 'shift-date';
+export type PlannedMode = 'shift-time' | 'synthetic-name' | 'synthetic-email';
 
 export interface TokenRule {
   mode: 'token';
@@ -17,7 +16,8 @@ export interface CustomTokenRule {
   kind: Kind;
   token: string;
 }
-export type ReplacementRule = TokenRule | CustomTokenRule;
+export interface ShiftDateRule { mode:'shift-date'; kind:'DATE' }
+export type ReplacementRule = TokenRule | CustomTokenRule | ShiftDateRule;
 
 /** Keys are normalized only for finding a rule; restoring still uses exact originals. */
 export function replacementKey(kind: Kind, original: string): string {

@@ -3,7 +3,6 @@ import { detectPII } from '../src/lib/detect';
 import { maskText, restoreText } from '../src/lib/replace';
 import { replacementKey } from '../src/lib/replacement-strategies';
 import fixtures from './fixtures/translation/roundtrip.json';
-import dates from './fixtures/translation/future-date-cases.json';
 
 describe('deterministic offline translation roundtrips (synthetic AI output)',()=>{
   for(const fixture of fixtures){
@@ -50,10 +49,4 @@ describe('deterministic offline translation roundtrips (synthetic AI output)',()
     expect(restored.unknown).toEqual([]);
     expect(restored.missing).toEqual([]);
   });
-});
-
-describe('multilingual date offset acceptance contract (not implemented yet)',()=>{
-  for(const fixture of dates){
-    it.todo(fixture.id+' – parse/shift/format/reverse in de/en/fr/es');
-  }
 });

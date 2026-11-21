@@ -4,7 +4,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 ## Funktionen im Alpha-Prototyp
 
-- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
+- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, URLs, IBAN/BIC, Telefonnummern, IP-Adressen, kontextgebundene Akten-/Patientennummern, Kfz-Kennzeichen, Straßen, Hausnummern, PLZ und Städtenamen. Namen werden auch nach Anreden, bei Namensfeldern und mit deutschen Genitivformen (z. B. „des Herrn Müller“, „Müllers“) erkannt. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
 - Beliebige Textauswahl mit **einem Klick** auf die eingeblendete Aktion „Auswahl anonymisieren“ markieren; die gewählte Stelle lehrt Anonymat den gleichen Begriff für weitere Vorkommen.
 - Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
 - Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.
@@ -15,7 +15,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 **Alpha-Hinweis:** Die Erkennung ist unvollständig. Vor der Weitergabe vertraulicher Daten ist eine gründliche menschliche Prüfung erforderlich.
 
-Die geplanten Wortlisten, weitere Muster und sprachübergreifende Datumsverschiebung stehen in [PLAN_V2.md](../PLAN_V2.md) und folgen in späteren Schritten.
+Datumsverschiebung ist optional: Ein gemeinsamer zufälliger Tagesoffset verschiebt vollständige Kalenderdaten, erhält Intervalle und kann in Deutsch, Englisch, Französisch oder Spanisch rückgängig gemacht werden. **Unvollständige Kalenderdaten** wie `10. März`, `March 10`, `März 2026`, `03/2026` oder `im März` werden als Vorschläge erkannt und standardmäßig mit stabilen Platzhaltern geschützt. Tag+Monat ohne Jahr kann optional mit **explizit angegebenem Bezugsjahr** und demselben Tagesoffset verschoben und sprachübergreifend zurückübersetzt werden; die im Export verwendeten Werte werden als Sitzungsmetadaten gezählt. Ohne Bezugsjahr wird **kein Kalenderjahr geraten**. Monat+Jahr, reine Monats-, Tages- und Jahresangaben lassen sich ohne erfundenen Kalendertag nicht exakt um einen Tagesoffset verschieben und bleiben deshalb Tokens. Steht bei einem jahrfreien Datum ein Wochentag, erfolgt ebenfalls ein Token-Fallback, statt einen möglicherweise widersprüchlichen Wochentag stehenzulassen. Einfache numerische Tages-/Monatswerte ohne Kontext werden wegen möglicher Dezimal-/Messwerte nicht automatisch klassifiziert. Mehrdeutige Tages-/Monatsreihenfolgen benötigen eine explizite Einstellung. Ein offline eingebettetes europäisches Ortslexikon mit einem POS-basierten Abgleich gegen gewöhnliche deutsche Wörter ergänzt die Regeln; für die GitHub-Pages-Version wird es beim Build aus GeoNames (CC BY 4.0) erstellt. Die mitgelieferte Entwicklungsversion enthält eine kleinere Startliste. Siehe [Ortslexikon und Grenzen](docs/CITY_LEXICON.md).
 
 ## Entwicklung
 
@@ -28,7 +28,7 @@ Voraussetzung: Node.js 22.12+.
 
 npm run build erzeugt dist/index.html, eine **einzelne vollständig eingebettete HTML-Datei**, die per Doppelklick geöffnet werden kann. Die Build-Prüfung lehnt fehlende oder nach außen verlinkte Skript-/Stylesheet-Dateien ab.
 
-Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root und das V2-Bundle unter **/v2/**.
+Vor einem vollständigen Offline-Build kann das GeoNames-Lexikon generiert werden: `python3 scripts/generate-city-lexicon.py`. Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root und das V2-Bundle unter **/v2/**.
 
 ## Datenschutz
 
@@ -43,7 +43,7 @@ Die neue **Prioritätsfolge** lautet: automatische Detektoren → dokumentweit g
 
 Die Kategorie kann im Kontextmenü manuell auf **Vorname**, **Nachname**, **Datum** oder **Uhrzeit** geändert werden. Bei genau zweigliedrigen vollständigen Namen steht die Aktion **„In Vorname und Nachname aufteilen“** zur Verfügung; mehrdeutige Namen werden nicht automatisch zerlegt.
 
-Die Ersetzungsliste zeigt den konkret eingesetzten Token und ermöglicht seine Bearbeitung. Benutzerdefinierte Tokens müssen eindeutig und in eckige Klammern gesetzt sein, z. B. \`[PATIENT_A]\`. Freitext wird bewusst nicht akzeptiert, da er sich nach einer KI-Übersetzung derzeit nicht zuverlässig rekonstruieren ließe. Ein künftiger Generator synthetischer Namen/E-Mail-Adressen oder die Datums-/Uhrzeitverschiebung ist **noch nicht implementiert**.
+Die Ersetzungsliste zeigt den konkret eingesetzten Token und ermöglicht seine Bearbeitung. Benutzerdefinierte Tokens müssen eindeutig und in eckige Klammern gesetzt sein, z. B. \`[PATIENT_A]\`. Freitext wird bewusst nicht akzeptiert, da er sich nach einer KI-Übersetzung derzeit nicht zuverlässig rekonstruieren ließe. Die Datumsverschiebung für vollständige Datumsangaben und für Tag+Monat mit explizitem Bezugsjahr ist umgesetzt; andere unvollständige Datumsangaben werden als Token geschützt. Uhrzeitverschiebung und synthetische Namen/E-Mail-Adressen sind **noch nicht implementiert**.
 
 Für viele gelernte Wörter verwendet die Erkennung einen **Aho-Corasick-Mehrfachsuchindex** statt eines regulären Ausdrucks pro Begriff. Manuelle Treffer bleiben im Editor über ihre Textposition verankert.
 
@@ -53,4 +53,14 @@ Ausführung:
     npm run test:translation
     npm run test:e2e
 
-Unter \`tests/fixtures/translation/\` liegen **synthetische** deutsch-englische, -französische und -spanische Texte mit stabilen Platzhaltern. Diese prüfen die **Rückübersetzung** nach simulierten KI-Antworten, **nicht** die Übersetzungsqualität eines realen Modells. Die Datumsbeispiele in \`future-date-cases.json\` sind als **noch offene Tests** markiert. Details: [Testkonzept](docs/TESTING.md) und [Architektur](docs/ARCHITECTURE.md).
+Unter \`tests/fixtures/translation/\` liegen **synthetische** deutsch-englische, -französische und -spanische Texte mit stabilen Platzhaltern. Diese prüfen die **Rückübersetzung** nach simulierten KI-Antworten, **nicht** die Übersetzungsqualität eines realen Modells. Die Datumsbeispiele in \`future-date-cases.json\` werden jetzt durch \`dates.test.ts\` ausgeführt. Details: [Testkonzept](docs/TESTING.md) und [Architektur](docs/ARCHITECTURE.md).
+
+Ortsnamen-Mehrdeutigkeiten werden aus **Universal Dependencies German-GSD (CC BY-SA 4.0)** mit `NOUN`/`VERB`/`ADJ` usw. gegenüber `PROPN` automatisch abgeleitet – nicht aus einer handgepflegten Liste. Fehlende Evidenz ist kein Beweis für einen eindeutig geografischen Begriff; daher werden kleinere Einwort-Orte ohne Ortskontext weiterhin nicht automatisch markiert. [Methodik und Lizenz](docs/COMMON_WORDS.md).
+
+## Leistungsfähige Lexika und asynchrone Analyse (Alpha 6)
+
+Die Builds von CI und GitHub Pages ergänzen die lokal gespeicherten Lexika mit Vornamen und Nachnamen aus Onomaverse (CC BY 4.0) sowie deutschen Straßen aus OpenPLZ/OpenStreetMap (ODbL 1.0). In einer CI-Messung vom 21.11.2026 waren **120.407 Ortsnamen, 292.142 Straßennamen, 18.150 Vornamen und 19.767 Nachnamen** vorhanden. Die automatische Erkennung verwendet Hashtabellen statt einzelner regulärer Ausdrücke je Lexikoneintrag; Namen und Straßen werden aus Datenschutz- und Präzisionsgründen kontextabhängig erkannt.
+
+Die zeitintensive Analyse läuft in einem **inline Web Worker** (keine externen Skripte). Der Editor wartet nach dem Tippen 150 ms, verarbeitet veraltete Resultate nicht, erlaubt Abbrechen/Neustarten und zeigt einen schrittbasierten Ladebalken. Solange eine aktuelle Analyse fehlt, ist die Textausgabe sicherheitshalber gesperrt. Auch eine manuelle Korrektur startet eine neue Hintergrundanalyse.
+
+Benchmark in GitHub CI (vorläufig, nur warme Indizes): 10 KB ~21 ms, 100 KB ~208 ms, 1 MB ~2.155 ms. Kalte Worker-Startzeit und DOM-Rendering sind nicht enthalten. [Herkunft, Lizenzen, Benchmark und Grenzen](docs/PERFORMANCE_AND_LEXICA.md).

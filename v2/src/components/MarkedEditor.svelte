@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { EditorState, StateEffect, StateField, type ChangeDesc } from '@codemirror/state';
-  import { EditorView, Decoration, type DecorationSet, keymap, placeholder } from '@codemirror/view';
+  import { EditorState, StateEffect, type ChangeDesc } from '@codemirror/state';
+  import { EditorView, Decoration, ViewPlugin, type ViewUpdate, type DecorationSet, keymap, placeholder } from '@codemirror/view';
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 
   export type EditorMark = {
@@ -26,33 +26,57 @@
 
   const changeMarks = StateEffect.define<EditorMark[]>();
 
-  function toDecorations(marks: EditorMark[], length: number): DecorationSet {
-    const ranges = marks
-      .filter(item => item.start >= 0 && item.end <= length && item.start < item.end)
-      .map(item => Decoration.mark({
-        class: [
-          'cm-anonymat-hit',
-          item.ignored ? 'cm-anonymat-ignored' : item.manual ? 'cm-anonymat-manual' : 'cm-anonymat-auto'
-        ].join(' '),
-        attributes: {
-          'data-hit-id': item.id,
-          title: item.ignored ? 'Ignorierter Treffer · klicken zum Wiederherstellen' : 'Personenbezogene Angabe · klicken zum Bearbeiten'
-        }
-      }).range(item.start, item.end));
-    return Decoration.set(ranges, true);
+  // Only decorate the *visible viewport*. Rendering tens of thousands of
+  // CodeMirror highlights at once can block the UI even if detection is in
+  // a worker. Other hits stay available via scrolling and the findings list.
+  function visibleDecorations(marks:readonly EditorMark[],view:EditorView):DecorationSet{
+    const ranges:ReturnType<ReturnType<typeof Decoration.mark>['range']>[]=[];
+    for(const visible of view.visibleRanges){
+      let lo=0,hi=marks.length;
+      // Findings are sorted by start and nonoverlapping.
+      while(lo<hi){
+        const mid=(lo+hi)>>1;
+        if(marks[mid].end<=visible.from)lo=mid+1;
+        else hi=mid;
+      }
+      for(let i=lo;i<marks.length;i++){
+        const mark=marks[i];
+        if(mark.start>=visible.to)break;
+        const from=Math.max(mark.start,visible.from);
+        const to=Math.min(mark.end,visible.to);
+        if(to<=from || to>view.state.doc.length)continue;
+        ranges.push(Decoration.mark({
+          class:[
+            'cm-anonymat-hit',
+            mark.ignored?'cm-anonymat-ignored':mark.manual?'cm-anonymat-manual':'cm-anonymat-auto'
+          ].join(' '),
+          attributes:{
+            'data-hit-id':mark.id,
+            title:mark.ignored?'Ignorierter Treffer · klicken zum Wiederherstellen':'Personenbezogene Angabe · klicken zum Bearbeiten'
+          }
+        }).range(from,to));
+      }
+    }
+    return Decoration.set(ranges,true);
   }
 
-  const highlights = StateField.define<DecorationSet>({
-    create: () => Decoration.none,
-    update(current, transaction) {
-      let next = current.map(transaction.changes);
-      for (const effect of transaction.effects) {
-        if (effect.is(changeMarks)) next = toDecorations(effect.value, transaction.state.doc.length);
+  const highlights=ViewPlugin.fromClass(class {
+    marks:EditorMark[]=[];
+    decorations:DecorationSet=Decoration.none;
+    constructor(view:EditorView){this.decorations=visibleDecorations(this.marks,view);}
+    update(update:ViewUpdate){
+      let changed=update.docChanged || update.viewportChanged;
+      for(const tx of update.transactions){
+        for(const effect of tx.effects){
+          if(effect.is(changeMarks)){
+            this.marks=[...effect.value].sort((a,b)=>a.start-b.start);
+            changed=true;
+          }
+        }
       }
-      return next;
-    },
-    provide: field => EditorView.decorations.from(field)
-  });
+      if(changed)this.decorations=visibleDecorations(this.marks,update.view);
+    }
+  },{decorations:plugin=>plugin.decorations});
 
   onMount(() => {
     view = new EditorView({

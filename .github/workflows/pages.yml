@@ -29,6 +29,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Generate full European city gazetteer (build-time only)
+        working-directory: v2
+        run: python3 scripts/generate-city-lexicon.py
+      - name: Derive ordinary-word/city homonyms (build time)
+        working-directory: v2
+        run: python3 scripts/generate-ambiguity-lexicon.py
+      - name: Build first-name, surname and street lexica (offline runtime)
+        working-directory: v2
+        run: python3 scripts/generate-person-street-lexica.py
       - name: Verify and build version 2
         working-directory: v2
         run: |
