@@ -8,10 +8,10 @@ test('analysis can be aborted and restarted without releasing stale output',asyn
   test.setTimeout(45000);
   await page.goto(html);
   const text=('Frau Anna Müller wohnt in Bremen, Mohnblumenweg 12. '+
-    'Die Waren wurden geliefert, Hb 8,1 g/dl.\n').repeat(9000);
+    'Die Waren wurden geliefert, Hb 8,1 g/dl.\n').repeat(120);
   await page.locator('.cm-content').fill(text);
-  // Click immediately: on fast CI machines a 400 KB scan may finish before
-  // the next separate assertion. We intentionally use a larger document.
+  // Cancel during the 150 ms debounce before a scan starts: deterministic
+  // across slow and fast CI browsers, without a huge CodeMirror paste.
   await page.getByRole('button',{name:'Abbrechen'}).click({timeout:10000});
   await expect(page.getByText(/Analyse abgebrochen/)).toBeVisible();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeDisabled();
