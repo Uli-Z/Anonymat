@@ -24,8 +24,8 @@ describe('POS-derived ordinary-word versus place-name collisions',()=>{
     expect(detectPII('Die Waren wurden geliefert.')).toEqual([]);
   });
   it('does not infer that missing ordinary corpus evidence proves unique city status',()=>{
-    expect(scanCities('Aachen wird untersucht.')).toEqual([]);
-    expect(scanCities('Patient zog nach Aachen.').map(h=>h.text)).toEqual(['Aachen']);
+    expect(scanCities('Wismar wird untersucht.')).toEqual([]);
+    expect(scanCities('Patient zog nach Wismar.').map(h=>h.text)).toEqual(['Wismar']);
   });
   it('preserves offsets on contextual and context-free matches',()=>{
     const source='🐈 In Essen, später Berlin.';
