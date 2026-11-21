@@ -1,3 +1,4 @@
+import { scanPartialDates } from './partial-dates';
 import { scanDates, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 /**
@@ -68,6 +69,7 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto'):Find
     if(ibanValid(match[0]))add('IBAN',match.index,match[0]);
   }
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
+  for(const hit of scanPartialDates(text,{numericOrder}))add('DATE',hit.start,hit.text);
   // Salutation-derived names. Keep full names together and learn the surname.
   for(const match of text.matchAll(/\b(?:Herrn?|Frau)\s+(?:(?:Dr|Prof)\.\s+)?([A-ZÄÖÜ][\p{L}\p{M}'-]+(?:\s+[A-ZÄÖÜ][\p{L}\p{M}'-]+)?)/gu)){
     const name=match[1];
