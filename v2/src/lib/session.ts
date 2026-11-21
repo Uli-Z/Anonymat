@@ -1,5 +1,5 @@
 import type { NumericDateOrder } from './dates';
-import { scanDocument, sameTerm, overlaps, type Finding, type Kind } from './detect';
+import { scanDocument, overlaps, type Finding, type Kind } from './detect';
 
 export interface TermGroup {
   key: string;
@@ -27,8 +27,9 @@ export function reviewDocument(
   enableCities = true
 ): ReviewedDocument {
   const findings = scanDocument(source, manualAnchors, numericOrder, enableCities);
+  const excluded=new Set(ignoredTerms.map(term=>term.normalize('NFC').toLocaleLowerCase('de')));
   const active = findings.filter(hit =>
-    !ignoredTerms.some(term => sameTerm(term, hit.text))
+    !excluded.has(hit.text.normalize('NFC').toLocaleLowerCase('de'))
     && !ignoredPlaces.some(place => overlaps(place, hit))
   );
   const activeIds = new Set(active.map(hit=>hit.id));
