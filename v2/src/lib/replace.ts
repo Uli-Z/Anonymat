@@ -58,6 +58,8 @@ export function maskText(
   const counts: Partial<Record<Kind,number>> = {};
   const existing = new Map<string,string>();
   const used = new Map<string,string>();
+  // Prevent O(document size × number of unique replacements) rescans.
+  const preexistingTokens=new Set(source.match(TOKEN_PATTERN) ?? []);
   const mapping: MappingEntry[] = [];
   const dates: DateReplacement[] = [];
   const partialDates: ShiftedPartial[] = [];
@@ -124,14 +126,14 @@ export function maskText(
     if(!token){
       if(spec?.mode==='custom-token') {
         const error=validateCustomToken(spec.token);
-        if(error || source.includes(spec.token) || used.has(spec.token)) {
+        if(error || preexistingTokens.has(spec.token) || used.has(spec.token)) {
           warnings.push('Ersatzwert für '+match.text+' ist nicht eindeutig oder ungültig.');
         } else token=spec.token;
       }
       if(!token){
         let next=(counts[match.kind]??0)+1;
         token='['+match.kind+'_'+String(next).padStart(3,'0')+']';
-        while(source.includes(token) || used.has(token) || reserved.has(token)){
+        while(preexistingTokens.has(token) || used.has(token) || reserved.has(token)){
           next++;
           token='['+match.kind+'_'+String(next).padStart(3,'0')+']';
         }
