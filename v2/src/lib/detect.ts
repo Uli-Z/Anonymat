@@ -4,6 +4,7 @@ import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
 import { scanPersonNames } from './person-names';
 import { scanCities } from './geography';
+import { scanStreetLexicon } from './street-lexicon';
 /**
  * Rule-based PII candidates. A contextual name also becomes a temporary
  * document-wide detection term (with Unicode-aware word boundaries).
@@ -36,13 +37,31 @@ export function wholeTermMatches(text: string, term: string): Array<{start:numbe
 function candidate(kind:Kind,start:number,value:string,origin:Finding['origin'],prefix='auto'):Finding {
   return {id:prefix+'-'+kind+'-'+start+'-'+value.length,kind,text:value,start,end:start+value.length,origin};
 }
+/**
+ * Priority is manual > longer > earlier. Occupied UTF-16 positions let us
+ * discard overlaps in O(total candidates + covered characters) rather than
+ * comparing every candidate against every previously accepted hit.
+ */
 export function removeOverlaps(findings:Finding[]):Finding[] {
+  if(!findings.length)return [];
   const priority=[...findings].sort((a,b)=>
     Number(b.origin==='manual')-Number(a.origin==='manual')
     ||(b.end-b.start)-(a.end-a.start)||a.start-b.start
   );
+  let maxEnd=0;
+  for(const finding of priority)if(finding.end>maxEnd)maxEnd=finding.end;
+  const occupied=new Uint8Array(maxEnd);
   const kept:Finding[]=[];
-  for(const hit of priority)if(!kept.some(other=>overlaps(hit,other)))kept.push(hit);
+  for(const hit of priority){
+    if(hit.start<0 || hit.end>maxEnd || hit.start>=hit.end)continue;
+    let collision=false;
+    for(let i=hit.start;i<hit.end;i++){
+      if(occupied[i]){collision=true;break;}
+    }
+    if(collision)continue;
+    occupied.fill(1,hit.start,hit.end);
+    kept.push(hit);
+  }
   return kept.sort((a,b)=>a.start-b.start);
 }
 export function mergeManual(auto:Finding[],manual:Finding[]):Finding[]{
@@ -54,6 +73,7 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
     if(value.trim())candidates.push(candidate(kind,start,value,'automatic'));
   };
   for(const hit of scanStructuredPII(text))add(hit.kind,hit.start,hit.text);
+  for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   for(const hit of scanPartialDates(text,{numericOrder}))add('DATE',hit.start,hit.text);
   for(const hit of scanPersonNames(text))add('PERSON',hit.start,hit.text);
