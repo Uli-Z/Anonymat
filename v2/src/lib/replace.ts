@@ -1,4 +1,4 @@
-import { parseDate, scanDates, shiftIsoDay, formatLike, type NumericDateOrder, type DateReplacement } from './dates';
+import { parseDate, scanDates, shiftIsoDay, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
 import { scanPartialDates, parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
 import {
@@ -30,6 +30,18 @@ export interface DateMaskOptions {
   partialReferenceYear?: number | null;
 }
 const TOKEN_PATTERN = /\[[A-Z][A-Z0-9_]{2,63}\]/g;
+
+const weekdayNames=new Set(Object.keys(WEEKDAYS).flatMap(language=>
+  [...WEEKDAYS[language as keyof typeof WEEKDAYS],...SHORT_WEEKDAYS[language as keyof typeof SHORT_WEEKDAYS]]
+    .map(value=>value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase())
+));
+/** Without a year there is no reliable weekday to validate or recalculate. */
+function hasAdjacentWeekday(source:string,start:number,end:number):boolean{
+  const previous=source.slice(Math.max(0,start-22),start).match(/([\p{L}]+)\.?\s*,?\s*$/u);
+  const following=source.slice(end,end+22).match(/^\s*,?\s*([\p{L}]+)\.?/u);
+  return [previous?.[1],following?.[1]].some(raw=>raw &&
+    weekdayNames.has(raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()));
+}
 
 /**
  * Replacement stage. The default is a typed, reversible token.
@@ -87,7 +99,9 @@ export function maskText(
           ?? parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder})
         :null;
       const originalIso=partial?partialOriginalIso(partial,dateOptions.partialReferenceYear):null;
-      const shiftedIso=originalIso && validOffset?shiftIsoDay(originalIso,offset as number):null;
+      const weekdayNear=!!partial && hasAdjacentWeekday(source,match.start,match.end);
+      const shiftedIso=originalIso && validOffset && !weekdayNear
+        ?shiftIsoDay(originalIso,offset as number):null;
       if(shiftedIso && originalIso && partial){
         const shifted=formatPartialLike(shiftedIso,partial);
         output+=source.slice(pos,match.start)+shifted;
@@ -95,7 +109,9 @@ export function maskText(
         pos=match.end;
         continue;
       }
-      if(partial && ['month-year','month-only','year-only','day-only'].includes(partial.precision)){
+      if(weekdayNear){
+        warnings.push('Unvollständiges Datum "'+match.text+'" mit Wochentag wird nicht verschoben; bitte als Token prüfen.');
+      }else if(partial && ['month-year','month-only','year-only','day-only'].includes(partial.precision)){
         warnings.push('"' + match.text + '" enthält keinen bestimmten Kalendertag und wird als Token ersetzt.');
       }else if(partial?.precision==='day-month' && !dateOptions.partialReferenceYear){
         warnings.push('"' + match.text + '" hat kein Jahr: Bitte Bezugsjahr festlegen, sonst wird ein Token verwendet.');
