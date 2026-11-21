@@ -23,9 +23,10 @@ export function reviewDocument(
   manualAnchors: readonly Finding[],
   ignoredPlaces: readonly Finding[],
   ignoredTerms: readonly string[],
-  numericOrder: NumericDateOrder = 'auto'
+  numericOrder: NumericDateOrder = 'auto',
+  enableCities = true
 ): ReviewedDocument {
-  const findings = scanDocument(source, manualAnchors, numericOrder);
+  const findings = scanDocument(source, manualAnchors, numericOrder, enableCities);
   const active = findings.filter(hit =>
     !ignoredTerms.some(term => sameTerm(term, hit.text))
     && !ignoredPlaces.some(place => overlaps(place, hit))
