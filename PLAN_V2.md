@@ -190,3 +190,15 @@ Auf einem neuen Entwicklungsbranch zuerst **Phase 1** umsetzen: Svelte-Projekt m
 - **Grenze:** Die Tests überprüfen deterministisch den Umgang mit Übersetzungen und Platzhaltern, nicht die Qualität realer KI-Übersetzungen. Die Datumsverschiebung und synthetische Personennamen/E-Mail-Adressen sind weiterhin offen. Datumstests stehen als TODO, nicht als bestandene Fälle.
 
 **Nächste Schritte:** Im Anschluss die Datums-/Uhrzeitengine mit de/en/fr/es sicher implementieren und auf den bereits definierten Datumsfixtures prüfen; erst danach synthetische Namen/E-Mail-Adressen als gesonderte Ersetzungsmethoden bewerten. Vor einer produktiven Nutzung weiter vollständige menschliche Sichtprüfung verlangen.
+
+
+## 11. Erweiterung: unvollständige Kalenderdaten (21.11.2026)
+
+**Implementiert auf `feature/date-shifting-v2`, Bestandteil von PR #4:**
+
+- `partial-dates.ts` erkennt kontextgebunden unvollständige Kalenderangaben in Deutsch, Englisch, Französisch und Spanisch: Tag + Monat ohne Jahr (`10. März`, `March 10`, `10 mars`, `10 de marzo`), Monat + Jahr (`März 2026`, `03/2026`), Monat allein (`im März`), Tag allein (`am 10.`) sowie Jahr allein (`im Jahr 2026`).
+- **Sicherer Standard:** alle unvollständigen Treffer werden als bestehende, reversibel rückübersetzbare Datumstokens ersetzt. Keine stillschweigende Schätzung des aktuellen Jahres, eines Tages im Monat oder einer Zahlenformat-Reihenfolge.
+- **Optional:** Tag + Monat ohne Jahr kann nur mit **explizit gewähltem Bezugsjahr** unter Verwendung des gleichen Tagesoffsets wie vollständige Kalenderdaten verschoben werden. Die formatierte Ersetzung lässt das Jahr weiterhin aus. Bei Rückübersetzung in de/en/fr/es wird die tatsächlich exportierte Kalenderzuordnung mit Häufigkeitszähler geprüft; neu eingefügte, fehlende oder zusätzliche Angaben lösen Warnungen aus.
+- **Bewusste Grenze:** Monat + Jahr und andere gröbere Präzisionen dürfen nicht um einen Tagesoffset verschoben werden, ohne einen konkreten, unbekannten Kalendertag zu erfinden. Sie behalten daher ihren Token als Schutz- und Rückübersetzungsmechanismus. Bloße Zahlen und klinische Messwerte werden nicht pauschal als Daten markiert.
+- **Risiko:** Entfernt die KI das Format (z. B. aus „9.04.“ wird nur „Anfang April“) oder ist ein unbekanntes Datum zufällig gleich einem exportierten Tag/Monat, ist eine sichere automatische Zuordnung nicht garantiert. In solchen Fällen sind Rückübersetzungswarnungen und manuelle Sichtprüfung notwendig.
+- **Qualität:** `v2/tests/partial-dates.test.ts` ergänzt die bestehenden Voll-Datum-Tests um die hier genannten Fälle; die Offline-V2-Checks bleiben der Freigabegate.
