@@ -133,6 +133,16 @@ describe('partial date recognition and safety',()=>{
     expect(masked.text).toBe('30. Januar und 1. Februar');
     expect(restoreShiftedPartialDates(masked.text,masked.partialDates).text).toBe(source);
   });
+  it('does not shift yearless day/month next to a weekday it cannot verify',()=>{
+    const source='Dienstag, 10. März; 10 mars, mardi.';
+    const result=maskText(source,detectPII(source),{}, {
+      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+    });
+    expect(result.partialDates).toEqual([]);
+    expect(result.mapping).toHaveLength(2);
+    expect(result.warnings.some(w=>w.includes('Wochentag'))).toBe(true);
+    expect(restoreText(result.text,result.mapping).text).toBe(source);
+  });
   it('does not infer a month-year day or shift such periods even with a reference year',()=>{
     const source='März 2026, 03/2026, im März';
     const masked=maskText(source,detectPII(source),{}, {
