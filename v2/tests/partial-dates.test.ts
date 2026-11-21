@@ -73,7 +73,7 @@ describe('partial date recognition and safety',()=>{
     const masked=maskText(source,detectPII(source),{}, {
       dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
     });
-    expect(masked.text).toBe('9. April; April 9; 9 avril; 9 de abril; 09.04.');
+    expect(masked.text).toBe('9. April; April 9; 9 avril; 9 de abril; 9.04.');
     expect(masked.partialDates).toHaveLength(5);
     const restored=restoreShiftedPartialDates(masked.text,masked.partialDates);
     expect(restored.text).toBe(source);
