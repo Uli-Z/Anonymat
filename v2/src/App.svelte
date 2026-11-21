@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ChangeDesc } from '@codemirror/state';
   import MarkedEditor from './components/MarkedEditor.svelte';
-  import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect';
+  import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect-types';
   import type { ReviewedDocument, TermGroup } from './lib/session';
   import type { AnalysisMessage, AnalysisRequest } from './lib/analysis-protocol';
   import ScanWorker from './workers/analysis.worker?worker&inline';
