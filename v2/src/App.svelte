@@ -3,7 +3,7 @@
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect';
   import { reviewDocument, type TermGroup } from './lib/session';
-  import { bundledCityCount } from './lib/geography';
+  import { bundledCityCount, commonCityCollisionCount } from './lib/geography';
   import { remapFindings } from './lib/marks';
   import { maskText, restoreText, splitForPreview } from './lib/replace';
   import { splitFullName } from './lib/overrides';
@@ -414,8 +414,8 @@
         <input type="checkbox" bind:checked={cityLexiconEnabled}/>
         Europäische Städte und Orte mit lokalem Lexikon abgleichen
       </label>
-      <p style="margin:8px 0 0">{bundledCityCount.toLocaleString("de-DE")} bekannte Ortsnamen offline verfügbar. Bei mehrdeutigen Namen sind Ortskontext oder manuelle Bestätigung wichtig. Erkennungen lassen sich einzeln oder global ignorieren.</p>
-      <p style="margin:6px 0 0">Datengrundlage für erweiterte Builds: GeoNames · CC BY 4.0 (geonames.org). Keine Online-Abfrage beim Bearbeiten.</p>
+      <p style="margin:8px 0 0">{bundledCityCount.toLocaleString("de-DE")} bekannte Ortsnamen offline verfügbar. Bei {commonCityCollisionCount.toLocaleString('de-DE')} Ortsnamen ist auch eine gewöhnliche deutsche Wortverwendung aus einem Wortartenkorpus belegt; für diese ist Ortskontext erforderlich. Erkennungen lassen sich einzeln oder global ignorieren.</p>
+      <p style="margin:6px 0 0">Datengrundlage: GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0). Beide Listen sind im HTML eingebettet; keine Online-Abfrage beim Bearbeiten.</p>
     </section>
 
     <div class="workspace-grid">
