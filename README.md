@@ -97,6 +97,6 @@ The next generation lives separately in [v2/](v2/README.md) and is built with **
 - [V2 source code](v2/)
 - [Development plan](PLAN_V2.md)
 
-The current preview supports basic local detection (email, IBAN, selected phone and name patterns), manual text selection, placeholder replacement, copying, and local restoration of tokens in externally edited text. Word dictionaries and multilingual date shifting are planned, not yet available.
+The **2.0 Alpha 6** preview includes context-based automatic detection of names (including German inflections), addresses, emails, phone numbers, identifiers and dates; editable manual overrides; reversible pseudonymization and optional date shifting. It uses offline reference lexica for about **120,000 European locations**, **292,000 German streets**, **18,000 given names** and **19,000 surnames**. The large dictionaries are embedded at build time; no source text is sent to an online lookup service. The analysis runs in a responsive, cancellable Web Worker with progress feedback. Performance tests and source licenses are documented in [V2 performance and lexica](v2/docs/PERFORMANCE_AND_LEXICA.md).
 
 **Important:** This is an early prototype with incomplete detection. Review every text yourself before sharing it with any external tool.
