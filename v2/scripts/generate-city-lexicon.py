@@ -17,6 +17,8 @@ from pathlib import Path
 
 SOURCE = "https://download.geonames.org/export/dump/cities500.zip"
 OUTPUT = Path(__file__).resolve().parents[1] / "src/data/europe-cities.json"
+PROMINENT_OUTPUT = Path(__file__).resolve().parents[1] / "src/data/europe-prominent-cities.json"
+MIN_PROMINENT_POPULATION = 50_000
 # Inclusive geographic/political definition (with transcontinental caveats).
 EUROPE = set("""
 AD AL AM AT AX AZ BA BE BG BY CH CY CZ DE DK EE ES FI FO FR GB GE GG GI
@@ -25,8 +27,9 @@ SE SI SJ SK SM TR UA VA XK
 """.split())
 
 
-def build(zip_file: Path) -> list[str]:
+def build(zip_file: Path) -> tuple[list[str], list[str]]:
     names: set[str] = set()
+    prominent: set[str] = set()
     with zipfile.ZipFile(zip_file) as archive:
         with archive.open("cities500.txt") as data:
             rows = csv.reader(io.TextIOWrapper(data, encoding="utf-8"), delimiter="\t")
@@ -41,27 +44,32 @@ def build(zip_file: Path) -> list[str]:
                     name = name.strip()
                     if 3 <= len(name) <= 85 and not any(c.isdigit() for c in name):
                         names.add(name)
-    return sorted(names, key=str.casefold)
+                        if row[14].isdigit() and int(row[14]) >= MIN_PROMINENT_POPULATION:
+                            prominent.add(name)
+    return sorted(names, key=str.casefold), sorted(prominent, key=str.casefold)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--zip", type=Path, help="Use a previously downloaded GeoNames ZIP")
     parser.add_argument("--output", type=Path, default=OUTPUT)
+    parser.add_argument("--prominent-output", type=Path, default=PROMINENT_OUTPUT)
     args = parser.parse_args()
     if args.zip is None:
         with tempfile.TemporaryDirectory() as tmp:
             source = Path(tmp) / "cities500.zip"
             print(f"Fetching {SOURCE}")
             urllib.request.urlretrieve(SOURCE, source)
-            names = build(source)
+            names, prominent = build(source)
     else:
-        names = build(args.zip)
+        names, prominent = build(args.zip)
     if len(names) < 1000:
         raise RuntimeError("Unexpectedly small city dictionary; output not overwritten")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(names, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    args.prominent_output.write_text(json.dumps(prominent, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Included {len(names)} distinct European city/settlement names ({args.output.stat().st_size} bytes)")
+    print(f"Included {len(prominent)} variants of cities with at least {MIN_PROMINENT_POPULATION} inhabitants")
 
 
 if __name__ == "__main__":
