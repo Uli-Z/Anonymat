@@ -24,6 +24,9 @@ jobs:
       - name: Generate complete European settlement lexicon
         working-directory: v2
         run: python3 scripts/generate-city-lexicon.py
+      - name: Derive ordinary-word/city homonyms from part-of-speech corpus
+        working-directory: v2
+        run: python3 scripts/generate-ambiguity-lexicon.py
       - name: Test V2 detectors and build offline bundle
         working-directory: v2
         run: |
