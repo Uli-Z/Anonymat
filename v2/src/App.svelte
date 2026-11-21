@@ -524,7 +524,7 @@
         Europäische Städte und Orte mit lokalem Lexikon abgleichen
       </label>
       <p style="margin:8px 0 0">{lexiconCounts?lexiconCounts.cities.toLocaleString('de-DE'):'…'} bekannte Ortsnamen offline verfügbar. Bei {lexiconCounts?lexiconCounts.cityHomonyms.toLocaleString('de-DE'):'…'} Ortsnamen ist auch eine gewöhnliche deutsche Wortverwendung aus einem Wortartenkorpus belegt; für diese ist Ortskontext erforderlich. Erkennungen lassen sich einzeln oder global ignorieren.</p>
-      <p style="margin:6px 0 0">Datengrundlage: GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0). Beide Listen sind im HTML eingebettet; keine Online-Abfrage beim Bearbeiten.</p>
+      <p style="margin:6px 0 0">Datengrundlage: GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Listen sind im HTML eingebettet; keine Online-Abfrage beim Bearbeiten.</p>
     </section>
 
     <section class="panel" style="padding:15px 22px;margin-bottom:18px" aria-label="Analysefortschritt">
@@ -736,7 +736,7 @@
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
 
-  <footer class="site-footer"><span>Anonymat 2.0 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+  <footer class="site-footer"><span>Anonymat 2.0 Alpha 6 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
