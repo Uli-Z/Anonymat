@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 const html=pathToFileURL(resolve('dist/index.html')).href;
 
 test('analysis can be aborted and restarted without releasing stale output',async({page})=>{
+  test.setTimeout(45000);
   await page.goto(html);
   const text=('Frau Anna Müller wohnt in Bremen, Mohnblumenweg 12. '+
     'Die Waren wurden geliefert, Hb 8,1 g/dl.\n').repeat(4000);
@@ -18,7 +19,7 @@ test('analysis can be aborted and restarted without releasing stale output',asyn
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled({timeout:25000});
   await expect(page.locator('.placeholder-token').first()).toBeVisible();
   await expect(page.getByText(/Letzter vollständiger Scan/)).toBeVisible();
-},45000);
+});
 
 test('quick edits never expose an earlier pseudonymization preview',async({page})=>{
   await page.goto(html);
@@ -30,4 +31,4 @@ test('quick edits never expose an earlier pseudonymization preview',async({page}
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
   await expect(page.locator('.preview')).not.toContainText('Müller');
   await expect(page.locator('.preview')).not.toContainText('Bremen');
-},30000);
+});
