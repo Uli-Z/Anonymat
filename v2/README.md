@@ -56,3 +56,11 @@ Ausführung:
 Unter \`tests/fixtures/translation/\` liegen **synthetische** deutsch-englische, -französische und -spanische Texte mit stabilen Platzhaltern. Diese prüfen die **Rückübersetzung** nach simulierten KI-Antworten, **nicht** die Übersetzungsqualität eines realen Modells. Die Datumsbeispiele in \`future-date-cases.json\` werden jetzt durch \`dates.test.ts\` ausgeführt. Details: [Testkonzept](docs/TESTING.md) und [Architektur](docs/ARCHITECTURE.md).
 
 Ortsnamen-Mehrdeutigkeiten werden aus **Universal Dependencies German-GSD (CC BY-SA 4.0)** mit `NOUN`/`VERB`/`ADJ` usw. gegenüber `PROPN` automatisch abgeleitet – nicht aus einer handgepflegten Liste. Fehlende Evidenz ist kein Beweis für einen eindeutig geografischen Begriff; daher werden kleinere Einwort-Orte ohne Ortskontext weiterhin nicht automatisch markiert. [Methodik und Lizenz](docs/COMMON_WORDS.md).
+
+## Leistungsfähige Lexika und asynchrone Analyse (Alpha 6)
+
+Die Builds von CI und GitHub Pages ergänzen die lokal gespeicherten Lexika mit Vornamen und Nachnamen aus Onomaverse (CC BY 4.0) sowie deutschen Straßen aus OpenPLZ/OpenStreetMap (ODbL 1.0). In einer CI-Messung vom 21.11.2026 waren **120.407 Ortsnamen, 292.142 Straßennamen, 18.150 Vornamen und 19.767 Nachnamen** vorhanden. Die automatische Erkennung verwendet Hashtabellen statt einzelner regulärer Ausdrücke je Lexikoneintrag; Namen und Straßen werden aus Datenschutz- und Präzisionsgründen kontextabhängig erkannt.
+
+Die zeitintensive Analyse läuft in einem **inline Web Worker** (keine externen Skripte). Der Editor wartet nach dem Tippen 150 ms, verarbeitet veraltete Resultate nicht, erlaubt Abbrechen/Neustarten und zeigt einen schrittbasierten Ladebalken. Solange eine aktuelle Analyse fehlt, ist die Textausgabe sicherheitshalber gesperrt. Auch eine manuelle Korrektur startet eine neue Hintergrundanalyse.
+
+Benchmark in GitHub CI (vorläufig, nur warme Indizes): 10 KB ~21 ms, 100 KB ~208 ms, 1 MB ~2.155 ms. Kalte Worker-Startzeit und DOM-Rendering sind nicht enthalten. [Herkunft, Lizenzen, Benchmark und Grenzen](docs/PERFORMANCE_AND_LEXICA.md).
