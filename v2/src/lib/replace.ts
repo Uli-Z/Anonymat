@@ -1,5 +1,6 @@
 import { parseDate, scanDates, shiftIsoDay, formatLike, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
+import { parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
 import {
   replacementKey, validateCustomToken,
   type ReplacementRule
@@ -14,6 +15,7 @@ export interface MaskedResult {
   text: string;
   mapping: MappingEntry[];
   dates: DateReplacement[];
+  partialDates: ShiftedPartial[];
   warnings: string[];
 }
 export interface RestoredResult {
@@ -25,6 +27,7 @@ export interface DateMaskOptions {
   dateShiftEnabled?: boolean;
   offsetDays?: number;
   numericOrder?: NumericDateOrder;
+  partialReferenceYear?: number | null;
 }
 const TOKEN_PATTERN = /\[[A-Z][A-Z0-9_]{2,63}\]/g;
 
@@ -45,6 +48,7 @@ export function maskText(
   const used = new Map<string,string>();
   const mapping: MappingEntry[] = [];
   const dates: DateReplacement[] = [];
+  const partialDates: ShiftedPartial[] = [];
   const warnings: string[] = [];
   for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
     warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
@@ -66,8 +70,8 @@ export function maskText(
     if(shiftThisDate){
       const parsed=parseDate(match.text,{numericOrder:dateOptions.numericOrder});
       const offset=dateOptions.offsetDays;
-      const changed=parsed && Number.isSafeInteger(offset) && offset!==0 && Math.abs(offset as number)<=3650
-        ?shiftIsoDay(parsed.iso,offset as number):null;
+      const validOffset=Number.isSafeInteger(offset) && offset!==0 && Math.abs(offset as number)<=3650;
+      const changed=parsed && validOffset ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);
         output+=source.slice(pos,match.start)+shifted;
@@ -75,7 +79,23 @@ export function maskText(
         pos=match.end;
         continue;
       }
-      warnings.push('Datum "'+match.text+'" konnte nicht sicher verschoben werden; stattdessen als Token ersetzt.');
+      const partial=!parsed?parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder}):null;
+      const originalIso=partial?partialOriginalIso(partial,dateOptions.partialReferenceYear):null;
+      const shiftedIso=originalIso && validOffset?shiftIsoDay(originalIso,offset as number):null;
+      if(shiftedIso && originalIso && partial){
+        const shifted=formatPartialLike(shiftedIso,partial);
+        output+=source.slice(pos,match.start)+shifted;
+        partialDates.push({original:match.text,shifted,originalIso,shiftedIso});
+        pos=match.end;
+        continue;
+      }
+      if(partial?.precision==='month-year'||partial?.precision==='month-only'){
+        warnings.push('"' + match.text + '" enthält keinen bestimmten Kalendertag und wird als Token ersetzt.');
+      }else if(partial?.precision==='day-month' && !dateOptions.partialReferenceYear){
+        warnings.push('"' + match.text + '" hat kein Jahr: Bitte Bezugsjahr festlegen, sonst wird ein Token verwendet.');
+      }else{
+        warnings.push('Datum "'+match.text+'" konnte nicht sicher verschoben werden; stattdessen als Token ersetzt.');
+      }
     }
     const key=match.kind+':'+match.text; // exact spelling for a lossless restore
     let token=existing.get(key);
@@ -102,7 +122,7 @@ export function maskText(
     output += source.slice(pos,match.start)+token;
     pos=match.end;
   }
-  return {text:output+source.slice(pos),mapping,dates,warnings};
+  return {text:output+source.slice(pos),mapping,dates,partialDates,warnings};
 }
 
 export function restoreText(input:string,mapping:readonly MappingEntry[]):RestoredResult{
