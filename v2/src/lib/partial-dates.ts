@@ -160,8 +160,8 @@ export function parsePartialDate(text:string,options:PartialDateOptions={}):Part
 }
 /** Allows day/month shifting only when the user has supplied the missing year. */
 export function partialOriginalIso(match:PartialMatch,referenceYear:number|null|undefined):string|null{
-  if(match.precision!=='day-month'||!Number.isInteger(referenceYear)||referenceYear===null||
-    referenceYear===undefined||referenceYear<1000||referenceYear>9999)return null;
+  if(match.precision!=='day-month'||referenceYear===null||referenceYear===undefined||
+    !Number.isInteger(referenceYear)||referenceYear<1000||referenceYear>9999)return null;
   const iso=String(referenceYear).padStart(4,'0')+'-'+String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
   return shiftIsoDay(iso,0);
 }
