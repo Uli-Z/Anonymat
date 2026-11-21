@@ -4,7 +4,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 ## Funktionen im Alpha-Prototyp
 
-- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, IBAN, bestimmte Telefonnummern und Namen nach Anreden. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
+- Lokaler Texteditor mit Live-Vorschlägen für E-Mail, URLs, IBAN/BIC, Telefonnummern, IP-Adressen, kontextgebundene Akten-/Patientennummern, Kfz-Kennzeichen, Straßen, Hausnummern, PLZ und Städtenamen. Namen werden auch nach Anreden, bei Namensfeldern und mit deutschen Genitivformen (z. B. „des Herrn Müller“, „Müllers“) erkannt. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
 - Beliebige Textauswahl mit **einem Klick** auf die eingeblendete Aktion „Auswahl anonymisieren“ markieren; die gewählte Stelle lehrt Anonymat den gleichen Begriff für weitere Vorkommen.
 - Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
 - Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.
@@ -15,7 +15,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 
 **Alpha-Hinweis:** Die Erkennung ist unvollständig. Vor der Weitergabe vertraulicher Daten ist eine gründliche menschliche Prüfung erforderlich.
 
-Datumsverschiebung ist optional: Ein gemeinsamer zufälliger Tagesoffset verschiebt vollständige Kalenderdaten, erhält Intervalle und kann in Deutsch, Englisch, Französisch oder Spanisch rückgängig gemacht werden. **Unvollständige Kalenderdaten** wie `10. März`, `March 10`, `März 2026`, `03/2026` oder `im März` werden als Vorschläge erkannt und standardmäßig mit stabilen Platzhaltern geschützt. Tag+Monat ohne Jahr kann optional mit **explizit angegebenem Bezugsjahr** und demselben Tagesoffset verschoben und sprachübergreifend zurückübersetzt werden; die im Export verwendeten Werte werden als Sitzungsmetadaten gezählt. Ohne Bezugsjahr wird **kein Kalenderjahr geraten**. Monat+Jahr, reine Monats-, Tages- und Jahresangaben lassen sich ohne erfundenen Kalendertag nicht exakt um einen Tagesoffset verschieben und bleiben deshalb Tokens. Steht bei einem jahrfreien Datum ein Wochentag, erfolgt ebenfalls ein Token-Fallback, statt einen möglicherweise widersprüchlichen Wochentag stehenzulassen. Einfache numerische Tages-/Monatswerte ohne Kontext werden wegen möglicher Dezimal-/Messwerte nicht automatisch klassifiziert. Mehrdeutige Tages-/Monatsreihenfolgen benötigen eine explizite Einstellung. Wortlisten und weitere Muster bleiben geplant.
+Datumsverschiebung ist optional: Ein gemeinsamer zufälliger Tagesoffset verschiebt vollständige Kalenderdaten, erhält Intervalle und kann in Deutsch, Englisch, Französisch oder Spanisch rückgängig gemacht werden. **Unvollständige Kalenderdaten** wie `10. März`, `March 10`, `März 2026`, `03/2026` oder `im März` werden als Vorschläge erkannt und standardmäßig mit stabilen Platzhaltern geschützt. Tag+Monat ohne Jahr kann optional mit **explizit angegebenem Bezugsjahr** und demselben Tagesoffset verschoben und sprachübergreifend zurückübersetzt werden; die im Export verwendeten Werte werden als Sitzungsmetadaten gezählt. Ohne Bezugsjahr wird **kein Kalenderjahr geraten**. Monat+Jahr, reine Monats-, Tages- und Jahresangaben lassen sich ohne erfundenen Kalendertag nicht exakt um einen Tagesoffset verschieben und bleiben deshalb Tokens. Steht bei einem jahrfreien Datum ein Wochentag, erfolgt ebenfalls ein Token-Fallback, statt einen möglicherweise widersprüchlichen Wochentag stehenzulassen. Einfache numerische Tages-/Monatswerte ohne Kontext werden wegen möglicher Dezimal-/Messwerte nicht automatisch klassifiziert. Mehrdeutige Tages-/Monatsreihenfolgen benötigen eine explizite Einstellung. Ein offline eingebettetes europäisches Ortslexikon ergänzt die Regeln; für die GitHub-Pages-Version wird es beim Build aus GeoNames (CC BY 4.0) erstellt. Die mitgelieferte Entwicklungsversion enthält eine kleinere Startliste. Siehe [Ortslexikon und Grenzen](docs/CITY_LEXICON.md).
 
 ## Entwicklung
 
@@ -28,7 +28,7 @@ Voraussetzung: Node.js 22.12+.
 
 npm run build erzeugt dist/index.html, eine **einzelne vollständig eingebettete HTML-Datei**, die per Doppelklick geöffnet werden kann. Die Build-Prüfung lehnt fehlende oder nach außen verlinkte Skript-/Stylesheet-Dateien ab.
 
-Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root und das V2-Bundle unter **/v2/**.
+Vor einem vollständigen Offline-Build kann das GeoNames-Lexikon generiert werden: `python3 scripts/generate-city-lexicon.py`. Bei Push auf main veröffentlicht GitHub Actions die bisherige Version im Root und das V2-Bundle unter **/v2/**.
 
 ## Datenschutz
 
