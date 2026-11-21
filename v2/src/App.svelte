@@ -3,6 +3,7 @@
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect';
   import { reviewDocument, type TermGroup } from './lib/session';
+  import { bundledCityCount } from './lib/geography';
   import { remapFindings } from './lib/marks';
   import { maskText, restoreText, splitForPreview } from './lib/replace';
   import { splitFullName } from './lib/overrides';
@@ -11,7 +12,7 @@
   import type { MappingEntry } from './lib/replace';
   import { parsePartialDate, partialOriginalIso, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
 
-  const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'OTHER'];
+  const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'OTHER'];
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
@@ -20,6 +21,7 @@
   let selectedKind = $state<Kind>('PERSON');
   let replacementRules = $state<Record<string, ReplacementRule>>({});
   let dateShiftEnabled = $state(false);
+  let cityLexiconEnabled = $state(true);
   let dateOffset = $state(randomDateOffset());
   let numericOrder = $state<NumericDateOrder>('auto');
   let replyNumericOrder = $state<NumericDateOrder>('auto');
@@ -37,7 +39,7 @@
   let manualCounter = 0;
   let exclusionCounter = 0;
 
-  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms, numericOrder));
+  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms, numericOrder, cityLexiconEnabled));
   let findings = $derived(reviewed.findings);
   let active = $derived(reviewed.active);
   let groups = $derived(reviewed.groups);
@@ -272,6 +274,7 @@
     ignoredTerms = [];
     replacementRules = {};
     dateShiftEnabled = false;
+    cityLexiconEnabled = true;
     dateOffset = randomDateOffset();
     numericOrder = 'auto';
     replyNumericOrder = 'auto';
@@ -403,6 +406,16 @@
         </select>
       </div>
       <p style="margin:10px 0 0">Datumsverschiebung ist Pseudonymisierung, keine vollständige Anonymisierung. Ungültige und nicht eindeutige Daten müssen geprüft werden.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="lexicon-title" style="padding:18px 22px;margin-bottom:18px">
+      <h3 id="lexicon-title" style="margin:0 0 10px">Automatische Ortserkennung</h3>
+      <label style="display:flex;gap:10px;align-items:center">
+        <input type="checkbox" bind:checked={cityLexiconEnabled}/>
+        Europäische Städte und Orte mit lokalem Lexikon abgleichen
+      </label>
+      <p style="margin:8px 0 0">{bundledCityCount.toLocaleString("de-DE")} bekannte Ortsnamen offline verfügbar. Bei mehrdeutigen Namen sind Ortskontext oder manuelle Bestätigung wichtig. Erkennungen lassen sich einzeln oder global ignorieren.</p>
+      <p style="margin:6px 0 0">Datengrundlage für erweiterte Builds: GeoNames · CC BY 4.0 (geonames.org). Keine Online-Abfrage beim Bearbeiten.</p>
     </section>
 
     <div class="workspace-grid">
@@ -583,7 +596,7 @@
 
     <div class="footer-note">
       <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Prototyp: bislang einfache Muster und Namensanreden. Die Erkennung ist unvollständig und ersetzt keine manuelle Kontrolle. Es werden keine Texte gespeichert oder versendet. Datumsverschiebung ist optional; unvollständige Kalenderdaten werden geschützt, ohne ein fehlendes Datum zu erfinden. Wortlisten und Uhrzeitenverschiebung folgen.</span>
+      <span>Prototyp: erweiterte Muster, Namen mit Flexionsformen, Adressen, Kennnummern und Ortslexikon. Fehlalarme und übersehene Angaben bleiben möglich – bitte den gesamten Text prüfen. Texte werden nicht gespeichert oder versendet. Datumsverschiebung ist optional.</span>
     </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
