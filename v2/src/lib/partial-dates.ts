@@ -9,8 +9,8 @@ import {
   type DateLanguage, type NumericDateOrder
 } from './dates';
 
-export type PartialPrecision='day-month'|'month-year'|'month-only'|'ambiguous';
-export type PartialStyle='numeric'|'day-first'|'month-first'|'month-year'|'year-month'|'month-only';
+export type PartialPrecision='day-month'|'month-year'|'month-only'|'day-only'|'year-only'|'ambiguous';
+export type PartialStyle='numeric'|'day-first'|'month-first'|'month-year'|'year-month'|'month-only'|'day-only'|'year-only';
 export interface PartialMatch{
   start:number;end:number;text:string;precision:PartialPrecision;
   language:DateLanguage;style:PartialStyle;month:number;day?:number;year?:number;
@@ -45,7 +45,9 @@ const scanners=[
   {kind:'month-day',re:new RegExp(left+'(?<body>[\\p{L}]{3,}\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?)'+right,'giu')},
   {kind:'month-year',re:new RegExp(left+'(?<body>[\\p{L}]{3,}\\.?\\s+(?:de\\s+)?\\d{4})'+right,'giu')},
   {kind:'numeric-month-year',re:new RegExp(left+'(?<body>\\d{1,2}[./]\\d{4}|\\d{4}[-/]\\d{1,2})'+right,'gu')},
-  {kind:'context-month',re:new RegExp(left+'(?:im|in|en|durante)\\s+(?<body>[\\p{L}]{3,}\\.?)'+right,'giu')}
+  {kind:'context-month',re:new RegExp(left+'(?:im|in|en|durante)\\s+(?<body>[\\p{L}]{3,}\\.?)'+right,'giu')},
+  {kind:'context-day',re:new RegExp(left+'(?:am|on\\s+the|le|el)\\s+(?<body>\\d{1,2}(?:st|nd|rd|th)?\\.?)'+right,'giu')},
+  {kind:'context-year',re:new RegExp(left+'(?:im\\s+Jahr|in|en|durante\\s+el\\s+año)\\s+(?<body>\\d{4})'+right,'giu')}
 ] as const;
 function monthInfo(raw:string,hint?:DateLanguage):MonthInfo|null{
   const found=aliases.get(clean(raw))??[];
@@ -104,6 +106,18 @@ function getParsed(
     if(!month||+p[3]<1000)return null;
     return {...base,precision:'month-year',style:'month-year',month:month.month,year:+p[3],
       language:month.language,short:month.short,monthDot:p[1].endsWith('.')};
+  }
+  if(kind==='context-year'){
+    const year=+full;
+    if(year<1000||year>9999)return null;
+    return {...base,precision:'year-only',style:'year-only',year,month:0};
+  }
+  if(kind==='context-day'){
+    const p=/^(\d{1,2})(?:st|nd|rd|th)?\.?$/iu.exec(full);
+    if(!p)return null;
+    const day=+p[1];
+    if(day<1||day>31)return null;
+    return {...base,precision:'day-only',style:'day-only',day,month:0};
   }
   if(kind==='context-month'){
     const month=monthInfo(full);
@@ -199,7 +213,7 @@ export function restoreShiftedPartialDates(
   let text='',pos=0,changed=0;
   const warnings:string[]=[];
   for(const match of scanPartialDates(source,options)){
-    if(match.precision==='month-year'||match.precision==='month-only')continue;
+    if(match.precision!=='day-month' && match.precision!=='ambiguous')continue;
     text+=source.slice(pos,match.start);
     const k=String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
     const saved=match.precision==='day-month'?remaining.get(k)?.shift():undefined;
