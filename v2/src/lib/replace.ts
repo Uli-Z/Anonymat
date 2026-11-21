@@ -1,6 +1,6 @@
 import { parseDate, scanDates, shiftIsoDay, formatLike, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
-import { parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
+import { scanPartialDates, parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
 import {
   replacementKey, validateCustomToken,
   type ReplacementRule
@@ -49,6 +49,9 @@ export function maskText(
   const mapping: MappingEntry[] = [];
   const dates: DateReplacement[] = [];
   const partialDates: ShiftedPartial[] = [];
+  // Resolve contextual partials by original offsets (e.g. "im März" marks just "März").
+  const partialBySpan=new Map(scanPartialDates(source,{numericOrder:dateOptions.numericOrder})
+    .map(hit=>[hit.start+':'+hit.end,hit] as const));
   const warnings: string[] = [];
   for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
     warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
@@ -79,7 +82,10 @@ export function maskText(
         pos=match.end;
         continue;
       }
-      const partial=!parsed?parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder}):null;
+      const partial=!parsed
+        ? partialBySpan.get(match.start+':'+match.end)
+          ?? parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder})
+        :null;
       const originalIso=partial?partialOriginalIso(partial,dateOptions.partialReferenceYear):null;
       const shiftedIso=originalIso && validOffset?shiftIsoDay(originalIso,offset as number):null;
       if(shiftedIso && originalIso && partial){
@@ -89,7 +95,7 @@ export function maskText(
         pos=match.end;
         continue;
       }
-      if(partial?.precision==='month-year'||partial?.precision==='month-only'){
+      if(partial && ['month-year','month-only','year-only','day-only'].includes(partial.precision)){
         warnings.push('"' + match.text + '" enthält keinen bestimmten Kalendertag und wird als Token ersetzt.');
       }else if(partial?.precision==='day-month' && !dateOptions.partialReferenceYear){
         warnings.push('"' + match.text + '" hat kein Jahr: Bitte Bezugsjahr festlegen, sonst wird ein Token verwendet.');
