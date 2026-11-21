@@ -2,10 +2,11 @@
   import type { ChangeDesc } from '@codemirror/state';
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect';
-  import { reviewDocument, type TermGroup } from './lib/session';
-  import { bundledCityCount, commonCityCollisionCount } from './lib/geography';
+  import type { ReviewedDocument, TermGroup } from './lib/session';
+  import type { AnalysisMessage, AnalysisRequest } from './lib/analysis-protocol';
+  import ScanWorker from './workers/analysis.worker?worker&inline';
   import { remapFindings } from './lib/marks';
-  import { maskText, restoreText, splitForPreview } from './lib/replace';
+  import { restoreText, splitForPreview, type MaskedResult } from './lib/replace';
   import { splitFullName } from './lib/overrides';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
@@ -22,6 +23,16 @@
   let replacementRules = $state<Record<string, ReplacementRule>>({});
   let dateShiftEnabled = $state(false);
   let cityLexiconEnabled = $state(true);
+  let analysisVersion = $state(0);
+  let isAnalyzing = $state(false);
+  let analysisProgress = $state(0);
+  let analysisStatus = $state('');
+  let analysisError = $state('');
+  let lastScanMs = $state<number|null>(null);
+  let lexiconCounts = $state<{cities:number;cityHomonyms:number;first:number;last:number;streets:number}|null>(null);
+  let scanner:Worker|null = null;
+  let workerBusy = false;
+  let latestJob = 0;
   let dateOffset = $state(randomDateOffset());
   let numericOrder = $state<NumericDateOrder>('auto');
   let replyNumericOrder = $state<NumericDateOrder>('auto');
@@ -39,18 +50,114 @@
   let manualCounter = 0;
   let exclusionCounter = 0;
 
-  let reviewed = $derived(reviewDocument(source, manual, ignoredPlaces, ignoredTerms, numericOrder, cityLexiconEnabled));
-  let findings = $derived(reviewed.findings);
-  let active = $derived(reviewed.active);
-  let groups = $derived(reviewed.groups);
+  let reviewed = $state<ReviewedDocument>({findings:[],active:[],groups:[]});
+  let prepared = $state<MaskedResult>({text:'',mapping:[],dates:[],partialDates:[],warnings:[]});
+  let findings = $derived(isAnalyzing?[]:reviewed.findings);
+  let active = $derived(isAnalyzing?[]:reviewed.active);
+  let groups = $derived(isAnalyzing?[]:reviewed.groups);
+  let activeIds = $derived(new Set(active.map(hit=>hit.id)));
   let editorMarks = $derived(findings.map(hit => ({
-    id: hit.id, start: hit.start, end: hit.end,
-    ignored: !active.some(item => item.id === hit.id),
-    manual: hit.origin === 'manual'
+    id:hit.id,start:hit.start,end:hit.end,
+    ignored:!activeIds.has(hit.id),manual:hit.origin==='manual'
   })));
-  let prepared = $derived(maskText(source, active, replacementRules, {
-    dateShiftEnabled, offsetDays: dateOffset, numericOrder, partialReferenceYear
-  }));
+
+  function ensureScanner():void{
+    if(scanner)return;
+    scanner=new ScanWorker();
+    scanner.onmessage=(event:MessageEvent<AnalysisMessage>)=>{
+      const data=event.data;
+      if(data.type==='ready'){
+        lexiconCounts=data.counts;
+        return;
+      }
+      if(data.id!==latestJob)return; // Never display outdated results.
+      if(data.type==='stage'){
+        analysisProgress=data.completed;
+        analysisStatus=data.stage==='detect'?'Personen, Orte und Kennnummern erkennen':'Treffer prüfen und Platzhalter vorbereiten';
+      }else if(data.type==='result'){
+        reviewed=data.reviewed;
+        prepared=data.prepared;
+        lastScanMs=data.elapsedMs;
+        isAnalyzing=false;
+        analysisError='';
+        analysisProgress=100;
+        analysisStatus='Analyse abgeschlossen';
+        workerBusy=false;
+      }else if(data.type==='error'){
+        analysisError='Die Analyse ist fehlgeschlagen: '+data.message;
+        analysisStatus='Analyse fehlgeschlagen';
+        isAnalyzing=false;
+        workerBusy=false;
+      }
+    };
+    scanner.onerror=()=>{
+      analysisError='Die Hintergrundanalyse ist fehlgeschlagen. Bitte erneut starten.';
+      analysisStatus='Analyse fehlgeschlagen';
+      isAnalyzing=false;
+      workerBusy=false;
+      scanner?.terminate();
+      scanner=null;
+    };
+  }
+
+  // Debounced worker jobs: a new edit invalidates the previous result immediately.
+  // Terminate a worker with a long stale job instead of queueing unbounded scans.
+  $effect(()=>{
+    const request:AnalysisRequest={
+      type:'analyze',id:++latestJob,text:source,
+      manual:$state.snapshot(manual),ignoredPlaces:$state.snapshot(ignoredPlaces),
+      ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,cityLexiconEnabled,
+      rules:$state.snapshot(replacementRules),
+      dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder,partialReferenceYear}
+    };
+    void analysisVersion;
+    if(!source.trim()){
+      reviewed={findings:[],active:[],groups:[]};
+      prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[]};
+      isAnalyzing=false;
+      analysisProgress=0;
+      analysisStatus='';
+      analysisError='';
+      lastScanMs=null;
+      return;
+    }
+    isAnalyzing=true;
+    analysisProgress=5;
+    analysisError='';
+    analysisStatus='Analyse wird vorbereitet';
+    const timer=window.setTimeout(()=>{
+      if(workerBusy){
+        scanner?.terminate();
+        scanner=null;
+        workerBusy=false;
+      }
+      try{
+        ensureScanner();
+        workerBusy=true;
+        scanner!.postMessage(request);
+      }catch{
+        analysisError='Hintergrundanalyse nicht verfügbar. Es wurde kein Text freigegeben.';
+        analysisStatus='Analyse fehlgeschlagen';
+        isAnalyzing=false;
+        workerBusy=false;
+      }
+    },150);
+    return ()=>window.clearTimeout(timer);
+  });
+
+  function cancelAnalysis():void{
+    latestJob++;
+    scanner?.terminate();
+    scanner=null;
+    workerBusy=false;
+    isAnalyzing=false;
+    analysisProgress=0;
+    analysisStatus='Abgebrochen';
+    analysisError='Analyse abgebrochen. Zum Schutz deiner Daten ist die Ausgabe gesperrt, bis neu analysiert wurde.';
+  }
+  function retryAnalysis():void{
+    analysisVersion++;
+  }
   let hasDateOverride = $derived(Object.values(replacementRules).some(rule=>rule.mode==='shift-date'));
   let preview = $derived(splitForPreview(prepared.text));
   let inversePartial = $derived(restoreShiftedPartialDates(
@@ -275,6 +382,7 @@
     replacementRules = {};
     dateShiftEnabled = false;
     cityLexiconEnabled = true;
+    analysisError = '';
     dateOffset = randomDateOffset();
     numericOrder = 'auto';
     replyNumericOrder = 'auto';
@@ -290,6 +398,7 @@
   }
 
   async function copyMasked():Promise<void>{
+    if(isAnalyzing || analysisError || !source.trim())return;
     const snapshot={
       mapping:prepared.mapping.map(item=>({...item})),
       shiftedDates:prepared.dates.map(item=>item.shiftedIso),
@@ -414,8 +523,32 @@
         <input type="checkbox" bind:checked={cityLexiconEnabled}/>
         Europäische Städte und Orte mit lokalem Lexikon abgleichen
       </label>
-      <p style="margin:8px 0 0">{bundledCityCount.toLocaleString("de-DE")} bekannte Ortsnamen offline verfügbar. Bei {commonCityCollisionCount.toLocaleString('de-DE')} Ortsnamen ist auch eine gewöhnliche deutsche Wortverwendung aus einem Wortartenkorpus belegt; für diese ist Ortskontext erforderlich. Erkennungen lassen sich einzeln oder global ignorieren.</p>
+      <p style="margin:8px 0 0">{lexiconCounts?lexiconCounts.cities.toLocaleString('de-DE'):'…'} bekannte Ortsnamen offline verfügbar. Bei {lexiconCounts?lexiconCounts.cityHomonyms.toLocaleString('de-DE'):'…'} Ortsnamen ist auch eine gewöhnliche deutsche Wortverwendung aus einem Wortartenkorpus belegt; für diese ist Ortskontext erforderlich. Erkennungen lassen sich einzeln oder global ignorieren.</p>
       <p style="margin:6px 0 0">Datengrundlage: GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0). Beide Listen sind im HTML eingebettet; keine Online-Abfrage beim Bearbeiten.</p>
+    </section>
+
+    <section class="panel" style="padding:15px 22px;margin-bottom:18px" aria-label="Analysefortschritt">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <strong>{isAnalyzing?'Analysiere Text…':analysisError?'Analyse unterbrochen':'Analyse'}</strong>
+          <p style="margin:3px 0 0">{isAnalyzing?analysisStatus:analysisError||((lastScanMs===null)?'Die Analyse startet nach Texteingabe.':'Letzter vollständiger Scan: '+lastScanMs.toFixed(0)+' ms')}</p>
+        </div>
+        {#if isAnalyzing}
+          <button type="button" class="secondary-button" onclick={cancelAnalysis}>Abbrechen</button>
+        {:else if analysisError}
+          <button type="button" class="secondary-button" onclick={retryAnalysis}>Erneut analysieren</button>
+        {/if}
+      </div>
+      {#if isAnalyzing}
+        <progress value={analysisProgress} max="100" aria-label="Analysefortschritt" style="width:100%;margin-top:10px;height:12px"></progress>
+        <p style="margin:4px 0 0;font-size:12px">Der Balken zeigt Verarbeitungsschritte, keine genaue Restzeit. Die Seite bleibt während der Suche bedienbar.</p>
+      {/if}
+      <p style="margin:5px 0 0;font-size:12px">
+        Lexika: {lexiconCounts?lexiconCounts.first.toLocaleString('de-DE'):'…'} Vornamen ·
+        {lexiconCounts?lexiconCounts.last.toLocaleString('de-DE'):'…'} Nachnamen ·
+        {lexiconCounts?lexiconCounts.streets.toLocaleString('de-DE'):'…'} Straßen ·
+        {lexiconCounts?lexiconCounts.cities.toLocaleString('de-DE'):'…'} Ortsnamen
+      </p>
     </section>
 
     <div class="workspace-grid">
@@ -526,12 +659,16 @@
           <h3 id="result-title">Pseudonymisierter Text</h3>
           <p>Nur diesen überprüften Text an externe KI-Dienste weitergeben</p>
         </div>
-        <button class="primary-button" type="button" onclick={copyMasked} disabled={!source.trim()}>
+        <button class="primary-button" type="button" onclick={copyMasked} disabled={!source.trim() || isAnalyzing || !!analysisError}>
           <span aria-hidden="true">⧉</span> Text kopieren
         </button>
       </div>
       <div class="preview" aria-live="polite">
-        {#if source.trim()}
+        {#if isAnalyzing}
+          <span class="preview-empty">Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.</span>
+        {:else if analysisError}
+          <span class="preview-empty">Analyse nicht abgeschlossen. Bitte erneut analysieren.</span>
+        {:else if source.trim()}
           {#each preview as part}
             {#if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
           {/each}
@@ -542,7 +679,7 @@
       {#if prepared.warnings.length}
         <div class="inline-warning">{prepared.warnings.join(' ')}</div>
       {/if}
-      {#if source.trim() && prepared.mapping.length === 0}
+      {#if source.trim() && !isAnalyzing && !analysisError && prepared.mapping.length === 0}
         <div class="inline-warning">Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.</div>
       {/if}
     </section>
