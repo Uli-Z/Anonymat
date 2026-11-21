@@ -45,3 +45,7 @@ Besonders für datums- und uhrzeitbasierte Ersetzung müssen Parser/Formatter un
 - Bei großen Dokumenten kann das vollständige Neuscannen nach jedem Tastendruck die UI blockieren. Für längere Texte künftig Debounce/Worker *ohne Datenversand* erwägen und mit Lasttests prüfen.
 - Vollständige medizinische oder allgemeine PII-Erkennung wird nicht garantiert.
 - Keine serverseitigen Dienste, kein CDN, keine persistente Ablage von Originalen oder Zuordnungen.
+
+## POS-basierter gewöhnlicher Wortgebrauch
+
+`generate-ambiguity-lexicon.py` filtert die auf Wortarten annotierten Textdaten von Universal Dependencies German-GSD auf gewöhnliche Wortformen (ohne `PROPN`) und bildet eine Schnittmenge mit GeoNames-Ortsnamen. Nur diese Schnittmenge wird im HTML als kleine `Set`-Struktur vorgehalten. Ein im gewöhnlichen Korpus nicht belegter Begriff gilt **nicht** automatisch als eindeutiger Ortsname. Für Einwort-Ortsnamen ohne Kontext wird ein weiterer, aus GeoNames-Bevölkerungszahlen erstellter Schwellenwert genutzt. [Detailmethodik](COMMON_WORDS.md).
