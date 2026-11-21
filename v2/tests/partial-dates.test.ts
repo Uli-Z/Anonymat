@@ -33,6 +33,21 @@ describe('partial date recognition and safety',()=>{
       expect(found[0].precision).toBe('month-only');
     }
   });
+  it('protects a day-only or year-only date only with explicit text context',()=>{
+    const source='Am 10. erfolgt die Kontrolle. Im Jahr 2026 fand das statt.';
+    const partial=scanPartialDates(source);
+    expect(partial.map(hit=>[hit.precision,hit.text])).toEqual([
+      ['day-only','10.'],['year-only','2026']
+    ]);
+    const masked=maskText(source,detectPII(source),{}, {
+      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+    });
+    expect(masked.mapping).toHaveLength(2);
+    expect(masked.dates).toEqual([]);
+    expect(masked.partialDates).toEqual([]);
+    expect(restoreText(masked.text,masked.mapping).text).toBe(source);
+    expect(scanPartialDates('10. und 2026')).toEqual([]);
+  });
   it('never detects bare decimal values, ratios, years or laboratory measurements',()=>{
     for(const source of ['Hb 10.03 mg/dl','BD 120/80','10.03','10/03','2026','pH 7.45']){
       expect(scanPartialDates(source)).toEqual([]);
