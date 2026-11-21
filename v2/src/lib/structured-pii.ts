@@ -41,6 +41,8 @@ export function scanStructuredPII(text:string):StructuredHit[]{
   for(const match of text.matchAll(URL))push('URL',match.index,match[0].replace(/[.,;:!?]+$/u,''));
   for(const match of text.matchAll(PHONE)){
     const digits=match[0].replace(/\D/g,'');
+    // 04/05/2026 is an ambiguous date, never a telephone number.
+    if(/^\d{1,2}[./-]\d{1,2}[./-]\d{4}$/.test(match[0]))continue;
     if(digits.length>=8 && digits.length<=15 && !/^\d{4}[-/]\d{2}[-/]\d{2}/.test(match[0]))
       push('PHONE',match.index,match[0].trimEnd());
   }
@@ -63,7 +65,12 @@ export function scanStructuredPII(text:string):StructuredHit[]{
   }
   for(const match of text.matchAll(STREET)){
     if(!/^\p{Lu}/u.test(match[0]))continue;
-    push(/\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?$/u.test(match[0])?'ADDRESS':'STREET',match.index,match[0]);
+    // 'An der Berliner Straße' refers to 'Berliner Straße', not a street
+    // named 'An der Berliner Straße'. The latter would need an explicit number.
+    const grammatical=/^(?:(?:An|Am|In|Auf|Bei|Unter|Vor|Hinter)\s+(?:der|dem|den)\s+|(?:Der|Die|Das)\s+)/u.exec(match[0]);
+    const offset=grammatical?.[0].length??0;
+    const value=match[0].slice(offset);
+    push(/\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?$/u.test(value)?'ADDRESS':'STREET',match.index+offset,value);
   }
   for(const match of text.matchAll(NAMED_STREET))push('ADDRESS',match.index,match[0]);
   for(const match of text.matchAll(POSTCODE)){
