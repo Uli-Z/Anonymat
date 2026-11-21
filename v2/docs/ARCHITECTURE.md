@@ -2,7 +2,7 @@
 
 ## Kette der Regeln
 
-1. **Basisdetektoren (\`detect.ts\`)** erkennen kontextuelle Namen, Telefonnummern, gültige IBAN und E-Mail. Das Ergebnis sind Vorschläge mit UTF-16-Start/End-Offsets. Keine Ausgabe im Text wird hier verändert.
+1. **Basisdetektoren (\`detect.ts\`)** erkennen kontextuelle Namen (auch deutsche Genitivformen), Telefonnummern, gültige IBAN, E-Mail sowie in `structured-pii.ts` Adressen, PLZ, URL, IP, BIC, Nummern mit Kontext und Kfz-Kennzeichen. `geography.ts` ergänzt ein ortsbezogenes, offline eingebettetes Lexikon mit Kontextprüfungen. Das Ergebnis sind Vorschläge mit UTF-16-Start/End-Offsets. Keine Ausgabe im Text wird hier verändert.
 2. **Erlernte Dokumentbegriffe (\`term-index.ts\`)** erkennen vollständige Wörter mit Aho-Corasick als einmaligen Mehrfachscan. Aus „Frau Müller“ wird „Müller“ unabhängig von der Fundstelle erkannt, ebenso explizit markierte Texte. Alle Daten bleiben lokal.
 3. **Benutzerregeln (\`overrides.ts\` und \`scanDocument\`)** gewinnen vor automatisch erkannten, überlappenden Kandidaten. Beispiel: „Anna Müller“ wird als Vorname „Anna“ und Nachname „Müller“ klassifiziert. Eine manuelle Auswahl erstellt Anker plus eine dokumentlokale Suchregel.
 4. **Review (\`session.ts\`)** wendet lokale und globale Ignorierregeln an und gruppiert Fundstellen für die UI. Ignorierregeln erzeugen *keine* zusätzlichen Treffer.
@@ -26,6 +26,10 @@ Ersatzwerte (Token oder eigener Token)
 \`\`\`
 
 Bei überlappenden Fundstellen gewinnt zuerst die manuelle Festlegung, dann der längere Treffer. Für mehrdeutige Fälle muss weiterhin manuell geprüft werden.
+
+## Ortslexikon und Ambiguitäten
+
+Das Ortslexikon wird in einem lokalen `Set` einmalig aufgebaut und anhand maximal sechs aufeinanderfolgender Wörter abgeglichen. Geographischer Kontext reduziert Fehlalarme durch ambige Namen wie „Essen“, „Waren“, „Lage“. Kein personenbezogener Text verlässt den Browser. GeoNames ist nicht vollständig; der Release-Build lädt die aktuelle Städte-/Siedlungsliste **nur beim Build** herunter. Siehe [CITY_LEXICON.md](CITY_LEXICON.md). 
 
 ## Erweiterungspunkte (noch NICHT verfügbar)
 
