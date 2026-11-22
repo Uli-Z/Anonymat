@@ -21,6 +21,20 @@ describe('expanded automatic PII detection',()=>{
     expect(has('Guten Tag Frau Anna Müller.','PERSON','Anna Müller')).toBe(true);
     expect(has('An Patient Max Mustermann.','PERSON','Max Mustermann')).toBe(true);
   });
+  it('recognizes OA and OÄ physician titles with optional dots or missing spaces',()=>{
+    const examples:[string,string][]=[
+      ['OA Müller','Müller'],
+      ['OÄ Anna Müller','Anna Müller'],
+      ['OA. Dr. med. Schmidt','Schmidt'],
+      ['OÄ. Dr. Anna Müller','Anna Müller'],
+      ['OA.Müller','Müller'],
+      ['OÄMüller','Müller']
+    ];
+    for(const [source,name] of examples)
+      expect(has(source,'PERSON',name),source).toBe(true);
+    const context='OA und OÄ besprechen den Fall.';
+    expect(detectPII(context).some(hit=>hit.kind==='PERSON')).toBe(false);
+  });
   it('preserves manual name subtypes across learned occurrences',()=>{
     const source='Frau Anna Müller; später Müllers Brief.';
     const anchor={id:'m',kind:'LAST_NAME' as const,origin:'manual' as const,text:'Müller',start:10,end:16};
