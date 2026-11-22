@@ -132,6 +132,8 @@ describe('realistic anonymization corpus (synthetic audit)', () => {
       for (const word of f.forbidden) {
         const regions = occurrences(f.text,word);
         for (const r of regions) {
+          // A word inside an expected address is not a forbidden ordinary-language use.
+          if (gold.some(s => s.mode === 'active' && s.start <= r.start && s.end >= r.end))continue;
           if (active.some(h => covered(h,r))) {
             summary.forbiddenMasks++;
             report.forbiddenMask.push(word);
