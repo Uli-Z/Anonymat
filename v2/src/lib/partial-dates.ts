@@ -1,8 +1,9 @@
 /**
- * Partial calendar expressions: detecting them is independent of permission
- * to shift them. A day/month needs an EXPLICIT reference year. Month/year
- * and month-only cannot preserve a shared *day* offset without inventing a day:
- * they are intentionally tokenised, never silently assigned an arbitrary day.
+ * Partial calendar expressions: dates containing a day and month can be
+ * shifted against a fixed, internal leap year (2000). The original year is
+ * intentionally not guessed, displayed or added to the exported text.
+ * Other incomplete expressions cannot carry a meaningful day-based offset
+ * and stay protected by tokens.
  */
 import {
   MONTHS, SHORT_MONTHS, scanDates, shiftIsoDay,
@@ -172,8 +173,11 @@ export function scanPartialDates(source:string,options:PartialDateOptions={}):Pa
 export function parsePartialDate(text:string,options:PartialDateOptions={}):PartialMatch|null{
   return scanPartialDates(text,options).find(hit=>hit.start===0 && hit.end===text.length)??null;
 }
-/** Allows day/month shifting only when the user has supplied the missing year. */
-export function partialOriginalIso(match:PartialMatch,referenceYear:number|null|undefined):string|null{
+/** A leap-year anchor supports 29 February and permits an exact reversible shift. */
+export const INTERNAL_PARTIAL_REFERENCE_YEAR=2000;
+export function partialOriginalIso(
+  match:PartialMatch,referenceYear:number|null|undefined=INTERNAL_PARTIAL_REFERENCE_YEAR
+):string|null{
   if(match.precision!=='day-month'||referenceYear===null||referenceYear===undefined||
     !Number.isInteger(referenceYear)||referenceYear<1000||referenceYear>9999)return null;
   const iso=String(referenceYear).padStart(4,'0')+'-'+String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
