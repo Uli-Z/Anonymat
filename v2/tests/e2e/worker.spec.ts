@@ -16,7 +16,8 @@ test('analysis can be aborted and restarted without releasing stale output',asyn
   await expect(page.getByText(/Analyse abgebrochen/)).toBeVisible();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeDisabled();
   await page.getByRole('button',{name:'Erneut analysieren'}).click();
-  await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled({timeout:25000});
+  await page.getByRole('button',{name:/Ergebnis prüfen/}).click({timeout:25000});
+  await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
   await expect(page.locator('.placeholder-token').first()).toBeVisible();
   // Technical scan details now live behind Settings, not above the editor.
   await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
@@ -28,9 +29,11 @@ test('quick edits never expose an earlier pseudonymization preview',async({page}
   await page.goto(html);
   const input=page.locator('.cm-content');
   await input.fill('Frau Anna Müller wohnt in Bremen.');
+  await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
   await input.fill('Frau Carla Becker wohnt in Berlin.');
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeDisabled();
+  await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
   await expect(page.locator('.preview')).not.toContainText('Müller');
   await expect(page.locator('.preview')).not.toContainText('Bremen');
