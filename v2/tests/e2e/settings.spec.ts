@@ -10,7 +10,7 @@ test.beforeEach(async ({page}) => {
 
 test('date shifting is enabled and random without displaying the offset', async ({page}) => {
   await expect(page.locator('#date-offset')).toHaveCount(0);
-  await expect(page.locator('#source-date-order')).toHaveCount(0);
+  await expect(page.locator('#source-date-order')).toBeHidden();
   await page.getByRole('button', {name:'Einstellungen öffnen'}).click();
   const settings = page.locator('dialog.settings-dialog');
   await expect(settings).toBeVisible();
