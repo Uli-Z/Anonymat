@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { detectPII } from '../src/lib/detect';
 import { reviewDocument } from '../src/lib/session';
 import { maskText, restoreText } from '../src/lib/replace';
+import { scanStreetLexicon } from '../src/lib/street-lexicon';
 
 function kinds(text: string) {
   return detectPII(text).map(h => ({ text: h.text, kind: h.kind }));
@@ -32,6 +33,15 @@ describe('regressions from the realistic scenario audit', () => {
     expect(hits).not.toContainEqual({text:'im Jahr 2027',kind:'ADDRESS'});
     expect(hits).toContainEqual({text:'April 2026',kind:'DATE'});
     expect(hits).toContainEqual({text:'2027',kind:'DATE'});
+  });
+  it('does not turn a room number into an OSM road even when that road exists', () => {
+    expect(scanStreetLexicon('Im Raum 11 steht das Material.', ['Im Raum'])).toEqual([]);
+    expect(scanStreetLexicon('Anschrift: Im Raum 11', ['Im Raum']).map(h=>h.text))
+      .toEqual(['Im Raum 11']);
+  });
+  it('does not confuse IBAN labels with person names in finance context', () => {
+    const hits=kinds('Bitte überweisen an IBAN DE89 3704 0044 0532 0130 00.');
+    expect(hits.some(hit=>hit.kind==='PERSON'&&hit.text==='IBAN')).toBe(false);
   });
   it('does not mark generic nouns such as Parkplatz', () => {
     expect(kinds('Der Parkplatz ist leer. Im Krankenhaus wird behandelt.')).toEqual([]);
