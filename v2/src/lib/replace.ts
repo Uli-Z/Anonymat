@@ -27,7 +27,6 @@ export interface DateMaskOptions {
   dateShiftEnabled?: boolean;
   offsetDays?: number;
   numericOrder?: NumericDateOrder;
-  partialReferenceYear?: number | null;
 }
 const TOKEN_PATTERN = /\[[A-Z][A-Z0-9_]{2,63}\]/g;
 
@@ -100,7 +99,7 @@ export function maskText(
         ? partialBySpan.get(match.start+':'+match.end)
           ?? parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder})
         :null;
-      const originalIso=partial?partialOriginalIso(partial,dateOptions.partialReferenceYear):null;
+      const originalIso=partial?partialOriginalIso(partial):null;
       const weekdayNear=!!partial && hasAdjacentWeekday(source,match.start,match.end);
       const shiftedIso=originalIso && validOffset && !weekdayNear
         ?shiftIsoDay(originalIso,offset as number):null;
@@ -115,8 +114,6 @@ export function maskText(
         warnings.push('Unvollständiges Datum "'+match.text+'" mit Wochentag wird nicht verschoben; bitte als Token prüfen.');
       }else if(partial && ['month-year','month-only','year-only','day-only'].includes(partial.precision)){
         warnings.push('"' + match.text + '" enthält keinen bestimmten Kalendertag und wird als Token ersetzt.');
-      }else if(partial?.precision==='day-month' && !dateOptions.partialReferenceYear){
-        warnings.push('"' + match.text + '" hat kein Jahr: Bitte Bezugsjahr festlegen, sonst wird ein Token verwendet.');
       }else{
         warnings.push('Datum "'+match.text+'" konnte nicht sicher verschoben werden; stattdessen als Token ersetzt.');
       }
