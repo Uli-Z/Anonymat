@@ -8,6 +8,9 @@ const word=/[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
 const HOUSE=/^\s+(\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?)(?![\d])/u;
 const months=new Set('januar februar märz maerz april mai juni juli august september oktober november dezember january february march may june july september october december janvier février fevrier mars avril juin juillet août aout septembre octobre novembre décembre decembre enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre'.split(' '));
 const locationHint=/(?:^|[^\p{L}])(?:straße|strasse|straßenname|adresse|anschrift|wohnhaft|wohnort|wohnt|wohne|in der|an der|auf der|am|im|beim|bei der|zur|zum)\s*[:=]?\s*$/iu;
+const explicitAddressHint=/(?:^|[^\p{L}])(?:straße|strasse|straßenname|adresse|anschrift|anschriftenfeld)\s*[:=]?\s*$/iu;
+const streetForm=/(?:straße|strasse|str\.?|weg|allee|gasse|platz|ring|damm|ufer|chaussee|stieg|pfad|promenade)$/iu;
+const genericInstitution=/(?:^|\s)(?:krankenhaus|klinik|klinikum|notaufnahme|station|praxis|schule|kindergarten|rathaus)$/iu;
 
 /** Hash-based exact lookup: bounded to at most five tokens per potential street.
  * Unknown generic words are NEVER auto-classified solely for being in OSM.
@@ -35,8 +38,17 @@ export function scanStreetLexicon(text:string,names?:readonly string[]):StreetHi
       if(j===i && months.has(fold(street)))continue;
       const house=HOUSE.exec(text.slice(end,end+16));
       const hasNumber=!!house;
-      const contextual=locationHint.test(text.slice(Math.max(0,start-50),start));
+      const before=text.slice(Math.max(0,start-50),start);
+      const contextual=locationHint.test(before);
+      const explicit=explicitAddressHint.test(before);
       if(!hasNumber&&!contextual)continue;
+      // The street dictionary can contain common nouns (e.g. Krankenhaus).
+      // "im Krankenhaus" is not evidence for a road named Krankenhaus.
+      // Permit generic single-word names only with an explicit address label.
+      if(!streetForm.test(street) && j===i && !explicit)continue;
+      // A capitalized "Im Krankenhaus 5" is also a building reference, not
+      // necessarily a named road, even when OSM happens to contain that alias.
+      if(genericInstitution.test(street) && !explicit)continue;
       const finalEnd=end+(house?.[0].length??0);
       out.push({start,end:finalEnd,text:text.slice(start,finalEnd),hasNumber});
     }
