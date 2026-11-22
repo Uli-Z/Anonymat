@@ -34,7 +34,7 @@ const frequentLast = new Set(trustedFamily.map(fold));
 // name merely because a large multinational surname lexicon contains it.
 const nonPersonWords = new Set(('krankenhaus klinik klinikum arztpraxis praxis patient patientin '+
 'patienten station notaufnahme intensivstation op operation behandlung therapie '+
-'untersuchung befund diagnose medikament labor bericht brief adresse straße '+
+'untersuchung befund diagnose medikament labor bericht brief adresse iban bic swift plz '+
 'straße straßenname haus nummer zimmer pflege krankenpflege rettungsdienst').split(/\s+/u));
 
 export const bundledGivenNameCount=givenNames.length;
@@ -137,6 +137,9 @@ export function scanPersonNames(text:string):NameHit[]{
   }
   for(const match of text.matchAll(twoNames)){
     if(match.index===undefined)continue;
+    // A global dictionary can contain technical acronyms as apparent names.
+    // Never let e.g. "IBAN DE..." become a learned person's name.
+    if(nonPersonWords.has(fold(match[1])) || nonPersonWords.has(fold(match[2])))continue;
     if(firstNames.has(fold(match[1])) && surnames.has(fold(match[2])))
       add(match[0],match.index);
     else if(surnames.has(fold(match[2])) && looksLikeGivenNameTypo(match[1])){
