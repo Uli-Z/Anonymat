@@ -8,6 +8,7 @@ export interface TermGroup {
   count: number;
   activeCount: number;
   manual: boolean;
+  review: boolean;
 }
 export interface ReviewedDocument {
   findings: Finding[];
@@ -29,7 +30,8 @@ export function reviewDocument(
   const findings = scanDocument(source, manualAnchors, numericOrder, enableCities);
   const excluded=new Set(ignoredTerms.map(term=>term.normalize('NFC').toLocaleLowerCase('de')));
   const active = findings.filter(hit =>
-    !excluded.has(hit.text.normalize('NFC').toLocaleLowerCase('de'))
+    (hit.origin==='manual' || hit.confidence!=='review')
+    && !excluded.has(hit.text.normalize('NFC').toLocaleLowerCase('de'))
     && !ignoredPlaces.some(place => overlaps(place, hit))
   );
   const activeIds = new Set(active.map(hit=>hit.id));
@@ -38,12 +40,13 @@ export function reviewDocument(
     const key=hit.kind+':'+hit.text.normalize('NFC').toLocaleLowerCase('de');
     let group=map.get(key);
     if(!group){
-      group={key,text:hit.text,kind:hit.kind,count:0,activeCount:0,manual:false};
+      group={key,text:hit.text,kind:hit.kind,count:0,activeCount:0,manual:false,review:false};
       map.set(key,group);
     }
     group.count++;
     if(activeIds.has(hit.id))group.activeCount++;
     if(hit.origin==='manual')group.manual=true;
+    if(hit.confidence==='review')group.review=true;
   }
   return {findings,active,groups:[...map.values()]};
 }
