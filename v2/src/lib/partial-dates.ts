@@ -154,8 +154,15 @@ export function scanPartialDates(source:string,options:PartialDateOptions={}):Pa
   const protectedSpans=[...full.matches,...full.issues];
   const proposals:PartialMatch[]=[];
   for(const scanner of scanners)for(const hit of source.matchAll(scanner.re)){
-    const body=hit.groups?.body;
-    if(!body)continue;
+    const rawBody=hit.groups?.body;
+    if(!rawBody)continue;
+    let body=rawBody;
+    // A period after a spelled-out month ("10. Mai.") is sentence punctuation,
+    // not part of the date. Keep the period for genuine short forms ("10. Mrz.").
+    if(scanner.kind==='day-text' && body.endsWith('.')){
+      const word=/([\\p{L}]+)\\.$/u.exec(body)?.[1];
+      if(word && monthInfo(word)?.short===false)body=body.slice(0,-1);
+    }
     const start=(hit.index??0)+hit[0].indexOf(body);
     // Reject incomplete prefixes of full calendar dates, including bad dates.
     const end=start+body.length;
