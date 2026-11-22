@@ -21,7 +21,9 @@
   let ignoredTerms = $state<string[]>([]);
   let selectedKind = $state<Kind>('PERSON');
   let replacementRules = $state<Record<string, ReplacementRule>>({});
-  let dateShiftEnabled = $state(false);
+  let dateShiftEnabled = $state(true);
+  let dateOffsetMode = $state<'random'|'manual'>('random');
+  let settingsDialog: HTMLDialogElement | undefined;
   let cityLexiconEnabled = $state(true);
   let analysisVersion = $state(0);
   let isAnalyzing = $state(false);
@@ -380,7 +382,8 @@
     ignoredPlaces = [];
     ignoredTerms = [];
     replacementRules = {};
-    dateShiftEnabled = false;
+    dateShiftEnabled = true;
+    dateOffsetMode = 'random';
     cityLexiconEnabled = true;
     analysisError = '';
     dateOffset = randomDateOffset();
@@ -455,6 +458,10 @@
     </div>
     <div class="topbar-actions">
       <span class="offline-indicator"><span class="status-dot"></span> Offline · Verarbeitung im Browser</span>
+      <button class="settings-trigger" type="button" onclick={() => settingsDialog?.showModal()} aria-label="Einstellungen öffnen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+        <span>Einstellungen</span>
+      </button>
       <a class="github-link" href="https://github.com/Uli-Z/Anonymat" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
     </div>
   </header>
@@ -477,77 +484,24 @@
       </div>
     </div>
 
-    <section class="panel" aria-labelledby="date-options-title" style="padding: 18px 22px; margin-bottom: 18px;">
-      <h3 id="date-options-title" style="margin:0 0 10px">Datumsangaben</h3>
-      <label style="display:flex;align-items:center;gap:10px">
-        <input type="checkbox" bind:checked={dateShiftEnabled}/>
-        Erkannte Kalenderdaten statt Platzhaltern gemeinsam verschieben
-      </label>
-      <p style="margin:8px 0 10px">Vollständige Kalenderdaten werden mit einem gemeinsamen Tagesoffset verschoben. Unvollständige Angaben werden erkannt und standardmäßig als Token geschützt.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0">
-        <label for="partial-reference-year">Bezugsjahr für Daten ohne Jahr (optional)</label>
-        <input id="partial-reference-year" type="number" min="1000" max="9999" step="1"
-          value={partialReferenceYear ?? ''}
-          oninput={event => {
-            const raw=event.currentTarget.value.trim();
-            partialReferenceYear=raw?Number(raw):null;
-          }}
-          placeholder="z. B. 2026" style="max-width:112px"/>
-        <span>Nur mit festgelegtem Bezugsjahr lassen sich z. B. „10. März“ oder „10.03.“ verschieben.</span>
-      </div>
-      <p style="margin:0 0 10px">„März 2026“, „03/2026“ und „im März“ bleiben Platzhalter: Ohne Kalendertag ist eine exakte Tagesverschiebung nicht definierbar.</p>
-      {#if dateShiftEnabled || hasDateOverride}
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <label for="date-offset">Verschiebung in Tagen</label>
-          <input id="date-offset" type="number" min="-3650" max="3650" step="1" bind:value={dateOffset} style="max-width:100px"/>
-          <button type="button" class="secondary-button" onclick={() => dateOffset=randomDateOffset()}>Neu zufällig wählen</button>
-          {#if !Number.isSafeInteger(dateOffset) || dateOffset===0 || Math.abs(dateOffset)>3650}
-            <span class="inline-warning">Bitte einen ganzzahligen Wert von −3650 bis +3650 außer 0 wählen.</span>
+    {#if isAnalyzing || analysisError}
+      <section class="analysis-banner" aria-label="Analysefortschritt" role="status">
+        <div class="analysis-banner-content">
+          <div>
+            <strong>{analysisError ? 'Analyse unterbrochen' : 'Text wird geprüft…'}</strong>
+            <p>{analysisError || analysisStatus}</p>
+          </div>
+          {#if isAnalyzing}
+            <button type="button" class="secondary-button" onclick={cancelAnalysis}>Abbrechen</button>
+          {:else}
+            <button type="button" class="secondary-button" onclick={retryAnalysis}>Erneut analysieren</button>
           {/if}
         </div>
-      {/if}
-      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-        <label for="source-date-order">Mehrdeutige Zahlenformate im Original</label>
-        <select id="source-date-order" bind:value={numericOrder}>
-          <option value="auto">Auslassen und warnen</option>
-          <option value="DMY">Tag/Monat/Jahr</option>
-          <option value="MDY">Monat/Tag/Jahr (US)</option>
-        </select>
-      </div>
-      <p style="margin:10px 0 0">Datumsverschiebung ist Pseudonymisierung, keine vollständige Anonymisierung. Ungültige und nicht eindeutige Daten müssen geprüft werden.</p>
-    </section>
-
-    <section class="panel" aria-labelledby="lexicon-title" style="padding:18px 22px;margin-bottom:18px">
-      <h3 id="lexicon-title" style="margin:0 0 10px">Automatische Ortserkennung</h3>
-      <label style="display:flex;gap:10px;align-items:center">
-        <input type="checkbox" bind:checked={cityLexiconEnabled}/>
-        Europäische Städte und Orte mit lokalem Lexikon abgleichen
-      </label>
-      <p style="margin:8px 0 0">{lexiconCounts?lexiconCounts.cities.toLocaleString('de-DE'):'…'} bekannte Ortsnamen offline verfügbar. Bei {lexiconCounts?lexiconCounts.cityHomonyms.toLocaleString('de-DE'):'…'} Ortsnamen ist auch eine gewöhnliche deutsche Wortverwendung aus einem Wortartenkorpus belegt; für diese ist Ortskontext erforderlich. Erkennungen lassen sich einzeln oder global ignorieren.</p>
-      <p style="margin:6px 0 0">Datengrundlage: GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Listen sind im HTML eingebettet; keine Online-Abfrage beim Bearbeiten.</p>
-    </section>
-
-    <section class="panel" style="padding:15px 22px;margin-bottom:18px" aria-label="Analysefortschritt">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <div>
-          <strong>{isAnalyzing?'Analysiere Text…':analysisError?'Analyse unterbrochen':'Analyse'}</strong>
-          <p style="margin:3px 0 0">{isAnalyzing?analysisStatus:analysisError||((lastScanMs===null)?'Die Analyse startet nach Texteingabe.':'Letzter vollständiger Scan: '+lastScanMs.toFixed(0)+' ms')}</p>
-        </div>
         {#if isAnalyzing}
-          <button type="button" class="secondary-button" onclick={cancelAnalysis}>Abbrechen</button>
-        {:else if analysisError}
-          <button type="button" class="secondary-button" onclick={retryAnalysis}>Erneut analysieren</button>
+          <progress value={analysisProgress} max="100" aria-label="Analysefortschritt"></progress>
         {/if}
-      </div>
-      <progress value={analysisProgress} max="100" aria-label="Analysefortschritt" style={'width:100%;margin-top:10px;height:12px;visibility:'+(isAnalyzing?'visible':'hidden')}></progress>
-      <p style="margin:4px 0 0;font-size:12px;min-height:16px;visibility:{isAnalyzing?'visible':'hidden'}">Der Balken zeigt Verarbeitungsschritte, keine genaue Restzeit. Die Seite bleibt während der Suche bedienbar.</p>
-      <p style="margin:5px 0 0;font-size:12px">
-        Lexika: {lexiconCounts?lexiconCounts.first.toLocaleString('de-DE'):'…'} Vornamen ·
-        {lexiconCounts?lexiconCounts.last.toLocaleString('de-DE'):'…'} Nachnamen ·
-        {lexiconCounts?lexiconCounts.streets.toLocaleString('de-DE'):'…'} Straßen ·
-        {lexiconCounts?lexiconCounts.cities.toLocaleString('de-DE'):'…'} Ortsnamen
-      </p>
-    </section>
+      </section>
+    {/if}
 
     <div class="workspace-grid">
       <section class="panel editor-panel" aria-labelledby="source-title">
@@ -690,17 +644,6 @@
       </div>
     </div>
 
-    {#if (exportSnapshot?.shiftedDates.length ?? prepared.dates.length)>0 || (exportSnapshot?.partialDates.length ?? prepared.partialDates.length)>0}
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-        <label for="reply-date-order">Zahlenformate im übersetzten KI-Text</label>
-        <select id="reply-date-order" bind:value={replyNumericOrder}>
-          <option value="auto">Mehrdeutige Daten nicht verändern</option>
-          <option value="DMY">Tag/Monat/Jahr</option>
-          <option value="MDY">Monat/Tag/Jahr (US)</option>
-        </select>
-        {#if exportSnapshot}<span>Wiederherstellung verwendet den zuletzt zum Kopieren vorbereiteten Stand.</span>{/if}
-      </div>
-    {/if}
     <div class="restore-grid">
       <section class="panel" aria-labelledby="reply-title">
         <div class="panel-heading">
@@ -731,12 +674,117 @@
 
     <div class="footer-note">
       <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Prototyp: erweiterte Muster, Namen mit Flexionsformen, Adressen, Kennnummern und Ortslexikon. Fehlalarme und übersehene Angaben bleiben möglich – bitte den gesamten Text prüfen. Texte werden nicht gespeichert oder versendet. Datumsverschiebung ist optional.</span>
+      <span>Automatische Erkennungen sind Vorschläge und müssen geprüft werden. Die Verarbeitung erfolgt lokal; Texte werden nicht gespeichert oder versendet.</span>
     </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
 
   <footer class="site-footer"><span>Anonymat 2.0 Alpha 6 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+
+  <dialog class="settings-dialog" bind:this={settingsDialog} aria-labelledby="settings-title">
+    <div class="settings-header">
+      <div>
+        <h2 id="settings-title">Einstellungen</h2>
+        <p>Erkennung, Datumsangaben und Rückübersetzung</p>
+      </div>
+      <form method="dialog">
+        <button type="submit" class="settings-close" aria-label="Einstellungen schließen">×</button>
+      </form>
+    </div>
+    <div class="settings-body">
+      <section class="settings-section" aria-labelledby="settings-dates">
+        <h3 id="settings-dates">Datumsangaben</h3>
+        <label class="settings-toggle">
+          <input type="checkbox" bind:checked={dateShiftEnabled}/>
+          <span><strong>Kalenderdaten verschieben</strong><small>Standardmäßig aktiv. Vollständige Datumsangaben erhalten denselben Tagesversatz, sodass Zeitabstände erhalten bleiben.</small></span>
+        </label>
+        {#if dateShiftEnabled || hasDateOverride}
+          <div class="settings-field">
+            <label for="date-shift-mode">Verschiebung</label>
+            <select id="date-shift-mode" value={dateOffsetMode}
+              onchange={event => {
+                dateOffsetMode = event.currentTarget.value as 'random'|'manual';
+                if (dateOffsetMode === 'random') dateOffset = randomDateOffset();
+              }}>
+              <option value="random">Zufällig (empfohlen)</option>
+              <option value="manual">Manuell festlegen</option>
+            </select>
+            {#if dateOffsetMode === 'manual'}
+              <div class="settings-offset-row">
+                <label for="date-offset">Tage</label>
+                <input id="date-offset" type="number" min="-3650" max="3650" step="1" bind:value={dateOffset}/>
+              </div>
+              {#if !Number.isSafeInteger(dateOffset) || dateOffset === 0 || Math.abs(dateOffset) > 3650}
+                <p class="settings-error">Eine ganze Zahl von −3650 bis +3650, ausgenommen 0, eingeben.</p>
+              {/if}
+            {:else}
+              <div class="settings-random-row">
+                <p>Der genaue Wert bleibt verborgen. Für einen neuen Text wird er automatisch neu gewählt.</p>
+                <button type="button" class="secondary-button" onclick={() => dateOffset = randomDateOffset()}>Neuen Zufallswert wählen</button>
+              </div>
+            {/if}
+          </div>
+        {/if}
+        <div class="settings-field">
+          <label for="partial-reference-year">Bezugsjahr für Datumsangaben ohne Jahr <span class="settings-optional">(optional)</span></label>
+          <input id="partial-reference-year" type="number" min="1000" max="9999" step="1"
+            value={partialReferenceYear ?? ''}
+            oninput={event => {
+              const raw = event.currentTarget.value.trim();
+              partialReferenceYear = raw ? Number(raw) : null;
+            }}
+            placeholder="z. B. 2026"/>
+          <p>Nur mit festem Bezugsjahr sind Angaben wie „10. März“ verschiebbar. Monats- und Jahresangaben ohne Tag bleiben Platzhalter.</p>
+        </div>
+        <div class="settings-field">
+          <label for="source-date-order">Mehrdeutige Zahlenformate im Original</label>
+          <select id="source-date-order" bind:value={numericOrder}>
+            <option value="auto">Nicht verändern und warnen</option>
+            <option value="DMY">Tag/Monat/Jahr</option>
+            <option value="MDY">Monat/Tag/Jahr (US)</option>
+          </select>
+        </div>
+        <p class="settings-note">Verschobene Daten sind pseudonymisiert, nicht vollständig anonymisiert. Bitte auf indirekte Identifizierbarkeit prüfen.</p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-detection">
+        <h3 id="settings-detection">Automatische Erkennung</h3>
+        <label class="settings-toggle">
+          <input type="checkbox" bind:checked={cityLexiconEnabled}/>
+          <span><strong>Europäische Ortsnamen erkennen</strong><small>Lokale Wörterbücher und Kontextregeln helfen bei der Ortserkennung.</small></span>
+        </label>
+        <details class="settings-details">
+          <summary>Lexika und Quellen</summary>
+          <p>{#if lexiconCounts}
+            {lexiconCounts.first.toLocaleString('de-DE')} Vornamen ·
+            {lexiconCounts.last.toLocaleString('de-DE')} Nachnamen ·
+            {lexiconCounts.streets.toLocaleString('de-DE')} Straßen ·
+            {lexiconCounts.cities.toLocaleString('de-DE')} Orte (davon {lexiconCounts.cityHomonyms.toLocaleString('de-DE')} mehrdeutige Namen).
+          {:else}
+            Die Größenangaben der Lexika erscheinen nach der ersten Analyse.
+          {/if}</p>
+          <p>GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Daten sind offline eingebettet.</p>
+        </details>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-reply">
+        <h3 id="settings-reply">Rückübersetzung</h3>
+        <div class="settings-field">
+          <label for="reply-date-order">Mehrdeutige Zahlenformate in KI-Antworten</label>
+          <select id="reply-date-order" bind:value={replyNumericOrder}>
+            <option value="auto">Nicht verändern und warnen</option>
+            <option value="DMY">Tag/Monat/Jahr</option>
+            <option value="MDY">Monat/Tag/Jahr (US)</option>
+          </select>
+          <p>Bei übersetzten Datumsangaben kann eine andere Tag-Monat-Reihenfolge nötig sein.</p>
+        </div>
+      </section>
+    </div>
+    <div class="settings-footer">
+      <span>Änderungen werden direkt lokal übernommen.</span>
+      <form method="dialog"><button type="submit" class="primary-button">Schließen</button></form>
+    </div>
+  </dialog>
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
