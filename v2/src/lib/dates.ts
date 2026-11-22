@@ -55,7 +55,11 @@ const weekdayWords=[...new Set(LANGUAGES.flatMap(lang=>[...WEEKDAYS[lang],...SHO
   .sort((a,b)=>b.length-a.length);
 const weekdayPattern=weekdayWords.map(word=>word.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')).join('|');
 const prefix='(?:(?<weekday>'+weekdayPattern+')\\.?\\s*,?\\s+)?';
-const left='(?<![\\p{L}\\p{N}])',right='(?![\\p{L}\\p{N}])';
+// Allow a missing space after a complete calendar date (10.03.2026wurde).
+// Do not treat one- or two-letter ID suffixes as a word glued to a date.
+// A missing space after frequent date cues is also accepted (am10.03.2026).
+const left='(?:(?<![\\p{L}\\p{N}])|(?<=\\b(?:am|vom|bis|seit|geb\\.?)))';
+const right='(?:(?![\\p{L}\\p{N}])|(?=[\\p{L}]{3,}(?![\\p{L}\\p{N}])))';
 const SCANNERS=[
   {style:'numeric',re:new RegExp(left+prefix+'(?<body>(?:\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}))'+right,'giu')},
   {style:'day-first',re:new RegExp(left+prefix+'(?<body>\\d{1,2}\\.?\\s+(?:de\\s+)?[\\p{L}]+\\.?\\s+(?:de\\s+)?\\d{4})'+right,'giu')},
