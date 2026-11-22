@@ -88,18 +88,17 @@ test('ignoring one occurrence never creates a phantom entry, but global ignore h
   await expect(page.locator('.placeholder-token')).toHaveCount(3);
 });
 
-test('selecting an unknown word offers one-click masking and learns repeated words', async ({ page }) => {
+test('selecting an unknown word learns repeated words throughout the document', async ({ page }) => {
   const editor = page.locator('.cm-content');
   await editor.fill('Bitte FREIGABE und später FREIGABE.');
-  // Keyboard selection is deterministic across fonts and viewport sizes;
-  // pixel-based dragging can accidentally include a neighboring character.
+  // Wait for the initial scan and select the second occurrence from the end.
+  // The persistent selection toolbar works equally with keyboard and pointer.
+  await expect(page.getByRole('button', {name:'Text kopieren'})).toBeEnabled();
   await editor.click();
-  await page.keyboard.press('ControlOrMeta+Home');
-  for (let i = 0; i < 'Bitte '.length; i++) await page.keyboard.press('ArrowRight');
-  for (let i = 0; i < 'FREIGABE'.length; i++) await page.keyboard.press('Shift+ArrowRight');
-
-  await expect(page.locator('.selection-popover')).toBeVisible();
-  await page.locator('.selection-popover').getByRole('button', {name: /Auswahl anonymisieren/}).click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('ArrowLeft'); // period
+  for (let i = 0; i < 'FREIGABE'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await page.locator('.selection-toolbar').getByRole('button', {name:/Auswahl anonymisieren/}).click();
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(2);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
