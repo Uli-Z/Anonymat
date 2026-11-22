@@ -18,6 +18,9 @@ test('analysis can be aborted and restarted without releasing stale output',asyn
   await page.getByRole('button',{name:'Erneut analysieren'}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled({timeout:25000});
   await expect(page.locator('.placeholder-token').first()).toBeVisible();
+  // Technical scan details now live behind Settings, not above the editor.
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  await page.getByText('Lexika und Quellen').click();
   await expect(page.getByText(/Letzter vollständiger Scan/)).toBeVisible();
 });
 
