@@ -7,6 +7,8 @@ export interface Finding {
   start: number;
   end: number;
   origin: 'automatic' | 'manual';
+  /** An uncertain lexicon-only candidate is shown but not replaced until confirmed. */
+  confidence?: 'certain' | 'probable' | 'review';
 }
 export const KIND_LABELS: Record<Kind, string> = {
   PERSON:'Name', FIRST_NAME:'Vorname', LAST_NAME:'Nachname', EMAIL:'E-Mail', PHONE:'Telefon', IBAN:'IBAN', DATE:'Datum', TIME:'Uhrzeit',

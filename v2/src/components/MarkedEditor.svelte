@@ -9,6 +9,7 @@
     start: number;
     end: number;
     ignored: boolean;
+    review: boolean;
     manual: boolean;
   };
 
@@ -48,11 +49,11 @@
         ranges.push(Decoration.mark({
           class:[
             'cm-anonymat-hit',
-            mark.ignored?'cm-anonymat-ignored':mark.manual?'cm-anonymat-manual':'cm-anonymat-auto'
+            mark.ignored?'cm-anonymat-ignored':mark.review?'cm-anonymat-review':mark.manual?'cm-anonymat-manual':'cm-anonymat-auto'
           ].join(' '),
           attributes:{
             'data-hit-id':mark.id,
-            title:mark.ignored?'Ignorierter Treffer · klicken zum Wiederherstellen':'Personenbezogene Angabe · klicken zum Bearbeiten'
+            title:mark.ignored?'Ignorierter Treffer · klicken zum Wiederherstellen':mark.review?'Möglicher Name · zur Bestätigung klicken':'Personenbezogene Angabe · klicken zum Bearbeiten'
           }
         }).range(from,to));
       }

@@ -59,10 +59,16 @@
   let active = $derived(isAnalyzing?[]:reviewed.active);
   let groups = $derived(isAnalyzing?[]:reviewed.groups);
   let activeIds = $derived(new Set(active.map(hit=>hit.id)));
-  let editorMarks = $derived(findings.map(hit => ({
-    id:hit.id,start:hit.start,end:hit.end,
-    ignored:!activeIds.has(hit.id),manual:hit.origin==='manual'
-  })));
+  let editorMarks = $derived(findings.map(hit => {
+    const pendingReview=hit.confidence==='review' && !activeIds.has(hit.id)
+      && !ignoredTerms.some(term=>sameTerm(term,hit.text))
+      && !ignoredPlaces.some(place=>spansOverlap(place,hit));
+    return {id:hit.id,start:hit.start,end:hit.end,
+      ignored:!activeIds.has(hit.id) && !pendingReview,
+      review:pendingReview,manual:hit.origin==='manual'};
+  }));
+  let pendingNameGroups = $derived(groups.filter(group=>group.review && group.activeCount===0
+    && !ignoredTerms.some(term=>sameTerm(term,group.text))));
 
   function ensureScanner():void{
     if(scanner)return;
@@ -241,6 +247,10 @@
   }
 
   function restoreOne(hit: Finding): void {
+    if(hit.confidence==='review' && hit.origin==='automatic'){
+      setManualMark(hit.start,hit.end,hit.kind);
+      return;
+    }
     ignoredPlaces = ignoredPlaces.filter(entry => !spansOverlap(entry, hit));
     ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, hit.text));
     menu = null;
@@ -249,6 +259,14 @@
   /** The list operates on distinct entities, not synthetic exclusion entries. */
   function toggleGroup(group: TermGroup, enabled: boolean): void {
     if (enabled) {
+      if(group.review && group.activeCount===0){
+        const suggestion=findings.find(hit=>hit.kind===group.kind
+          && sameTerm(hit.text,group.text) && hit.confidence==='review');
+        if(suggestion){
+          setManualMark(suggestion.start,suggestion.end,suggestion.kind);
+          return;
+        }
+      }
       ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, group.text));
       const matches = findings.filter(hit => hit.kind === group.kind && sameTerm(hit.text, group.text));
       ignoredPlaces = ignoredPlaces.filter(entry => !matches.some(hit => spansOverlap(entry, hit)));
@@ -546,12 +564,13 @@
         </div>
         <div class="mark-legend" aria-label="Farblegende">
           <span><i class="legend-auto"></i> Automatisch</span>
+          <span><i class="legend-review"></i> Prüfvorschlag</span>
           <span><i class="legend-manual"></i> Manuell</span>
           <span><i class="legend-ignored"></i> Ignoriert</span>
         </div>
         <div class="editor-actions">
           <button type="button" class="secondary-button" onclick={() => { quickAction=null; menu=null; findingsDialog?.showModal(); }}>
-            Ersetzungen anzeigen <span class="count-inline">{groups.length}</span>
+            Ersetzungen anzeigen <span class="count-inline">{groups.length}</span>{#if pendingNameGroups.length}<span class="count-inline">· {pendingNameGroups.length} prüfen</span>{/if}
           </button>
           <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
             Ergebnis prüfen <span aria-hidden="true">↓</span>
@@ -596,6 +615,9 @@
           <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
         {/if}
       </div>
+      {#if resultVisible && pendingNameGroups.length}
+        <div class="inline-warning">{pendingNameGroups.length} mögliche Namen sind noch nicht ersetzt. Die blau markierten Prüfvorschläge im Originaltext können per Klick oder über „Ersetzungen anzeigen“ bestätigt oder ignoriert werden.</div>
+      {/if}
       {#if resultVisible && prepared.warnings.length}
         <div class="inline-warning">{prepared.warnings.join(' ')}</div>
       {/if}
@@ -668,14 +690,14 @@
             <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
             <div class="findings-list">
               {#each groups as group (group.key)}
-                <div class="finding-row" class:muted-finding={group.activeCount === 0}>
+                <div class="finding-row" class:muted-finding={group.activeCount === 0 && !pendingNameGroups.some(entry=>entry.key===group.key)}>
                   <input type="checkbox" checked={group.activeCount > 0}
                     aria-label={group.text + ' im ganzen Text anonymisieren'}
                     onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
                     <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
                     <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell gelernt' : 'Automatisch erkannt'}
-                      {#if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                      {#if pendingNameGroups.some(entry=>entry.key===group.key)} · Prüfvorschlag (noch nicht ersetzt){:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
                     </span>
                     {#if group.activeCount > 0}
                       {#if editingReplacement === replacementKey(group.kind,group.text)}
@@ -833,7 +855,7 @@
       </select>
       <div class="hit-actions">
         {#if !isActive(selectedHit)}
-          <button type="button" onclick={() => restoreOne(selectedHit!)}>✓ Wieder anonymisieren</button>
+          <button type="button" onclick={() => restoreOne(selectedHit!)}>{selectedHit.confidence==='review'?'✓ Als Namen bestätigen':'✓ Wieder anonymisieren'}</button>
         {:else}
           <button type="button" onclick={() => suppressOne(selectedHit!)}>✕ Nur diese Stelle ignorieren</button>
           <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Begriff im ganzen Text ignorieren</button>

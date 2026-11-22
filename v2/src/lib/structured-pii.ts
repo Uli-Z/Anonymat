@@ -72,7 +72,15 @@ export function scanStructuredPII(text:string):StructuredHit[]{
     const value=match[0].slice(offset);
     push(/\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?$/u.test(value)?'ADDRESS':'STREET',match.index+offset,value);
   }
-  for(const match of text.matchAll(NAMED_STREET))push('ADDRESS',match.index,match[0]);
+  for(const match of text.matchAll(NAMED_STREET)){
+    // General location phrases with a number are not necessarily addresses:
+    // "Im Krankenhaus 5" often refers to a ward/building, not a street.
+    const prior=text.slice(Math.max(0,match.index-50),match.index);
+    const explicitAddress=/(?:^|[^\p{L}])(?:adresse|anschrift|straße|strasse)\s*[:=]?\s*$/iu.test(prior);
+    const institution=/(?:^|\s)(?:krankenhaus|klinik|klinikum|station|praxis|notaufnahme|schule|kindergarten|rathaus)\s+\d/iu.test(match[0]);
+    if(institution && !explicitAddress)continue;
+    push('ADDRESS',match.index,match[0]);
+  }
   for(const match of text.matchAll(POSTCODE)){
     const before=text.slice(Math.max(0,match.index-25),match.index);
     const after=text.slice(match.index+match[0].length,match.index+match[0].length+36);
