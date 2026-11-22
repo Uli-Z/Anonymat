@@ -91,23 +91,12 @@ test('ignoring one occurrence never creates a phantom entry, but global ignore h
 test('selecting an unknown word offers one-click masking and learns repeated words', async ({ page }) => {
   const editor = page.locator('.cm-content');
   await editor.fill('Bitte FREIGABE und später FREIGABE.');
-  const line = page.locator('.cm-line').first();
-  const coords = await line.evaluate((node) => {
-    const text = node.firstChild as Text;
-    const start = text.textContent!.indexOf('FREIGABE');
-    const pos = (offset: number) => {
-      const range = document.createRange();
-      range.setStart(text, offset);
-      range.collapse(true);
-      const rect = range.getBoundingClientRect();
-      return { x: rect.left, y: rect.top + rect.height / 2 };
-    };
-    return {from: pos(start), to: pos(start + 'FREIGABE'.length)};
-  });
-  await page.mouse.move(coords.from.x, coords.from.y);
-  await page.mouse.down();
-  await page.mouse.move(coords.to.x, coords.to.y, {steps: 14});
-  await page.mouse.up();
+  // Keyboard selection is deterministic across fonts and viewport sizes;
+  // pixel-based dragging can accidentally include a neighboring character.
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+Home');
+  for (let i = 0; i < 'Bitte '.length; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < 'FREIGABE'.length; i++) await page.keyboard.press('Shift+ArrowRight');
 
   await expect(page.locator('.selection-popover')).toBeVisible();
   await page.locator('.selection-popover').getByRole('button', {name: /Auswahl anonymisieren/}).click();
