@@ -331,6 +331,7 @@
         return;
       }
       dateOffset=offset;
+      dateOffsetMode='manual';
       editingReplacement=null;
       replacementError='';
       notice='Tagesoffset für alle verschobenen Kalenderdaten angepasst.';
@@ -764,6 +765,7 @@
             Die Größenangaben der Lexika erscheinen nach der ersten Analyse.
           {/if}</p>
           <p>GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Daten sind offline eingebettet.</p>
+          {#if lastScanMs !== null}<p>Letzter vollständiger Scan: {lastScanMs.toFixed(0)} ms.</p>{/if}
         </details>
       </section>
 
