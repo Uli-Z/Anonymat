@@ -156,6 +156,15 @@ describe('realistic anonymization corpus (synthetic audit)', () => {
     // Machine-readable results appear in the CI unit-test log.
     console.info('ANONYMAT_REALISTIC_AUDIT_SUMMARY ' + JSON.stringify(summary));
     console.info('ANONYMAT_REALISTIC_AUDIT_FINDINGS ' + JSON.stringify(failures));
+    // Enforce the audited baseline in CI, not only in printed diagnostics.
+    const activeExpected=summary.expectedSpans-summary.reviewExpected;
+    expect(summary.unprotectedSensitiveSpans, 'Sensitive text must not leak').toBe(0);
+    expect(summary.protectedSpans).toBe(activeExpected);
+    expect(summary.exactCorrect, 'Every protected span must retain its category and offsets').toBe(activeExpected);
+    expect(summary.reviewOffered).toBe(summary.reviewExpected);
+    expect(summary.unexpectedAutomaticMasks, 'Do not anonymize ordinary words').toBe(0);
+    expect(summary.forbiddenMasks, 'Explicit non-PII phrases must remain intact').toBe(0);
+    expect(summary.unexpectedReviewSuggestions).toBe(0);
     expect(summary.failedRoundTrips, 'Every active token mapping must restore the source').toBe(0);
     expect(summary.replacementRoundTrips).toBe(fixtures.length);
   });
