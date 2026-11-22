@@ -254,3 +254,18 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   .findings-dialog .findings-list{padding:0 10px 10px}
   .preview-gate{min-height:150px}
 }
+
+/* Analysis runs outside document flow, so scans cannot push the editor around. */
+.analysis-banner{
+  position:fixed;
+  z-index:4000;
+  right:16px;
+  bottom:16px;
+  width:min(425px,calc(100vw - 32px));
+  margin:0;
+  box-shadow:0 8px 32px rgba(31,53,73,.14);
+  background:#f2f8fa;
+}
+@media(max-width:680px){
+  .analysis-banner{right:10px;bottom:10px;width:calc(100vw - 20px)}
+}
