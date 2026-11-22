@@ -72,7 +72,6 @@ test('a name learned from a salutation is masked at every later occurrence', asy
   await expect(page.locator('.cm-anonymat-auto')).toHaveCount(2);
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
-  await reveal(page);
   await expect(page.locator('.preview')).toContainText('Frau [PERSON_001] ist hier. [PERSON_001] ist auch da.');
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
   await expect(page.locator('.findings-list .count-inline')).toContainText('2');
@@ -116,7 +115,7 @@ test('selecting an unknown word learns repeated words throughout the document', 
   await editor.fill('Bitte FREIGABE und später FREIGABE.');
   // Wait for the initial scan and select the second occurrence from the end.
   // The persistent selection toolbar works equally with keyboard and pointer.
-  await expect(page.getByRole('button', {name:'Text kopieren'})).toBeEnabled();
+  await expect(page.getByRole('button', {name:/Ergebnis prüfen/})).toBeEnabled();
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.press('ArrowLeft'); // period
