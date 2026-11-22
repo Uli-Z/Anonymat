@@ -11,6 +11,7 @@ const locationHint=/(?:^|[^\p{L}])(?:straße|strasse|straßenname|adresse|anschr
 const explicitAddressHint=/(?:^|[^\p{L}])(?:straße|strasse|straßenname|adresse|anschrift|anschriftenfeld)\s*[:=]?\s*$/iu;
 const streetForm=/(?:straße|strasse|str\.?|weg|allee|gasse|platz|ring|damm|ufer|chaussee|stieg|pfad|promenade)$/iu;
 const genericInstitution=/(?:^|\s)(?:krankenhaus|klinik|klinikum|notaufnahme|station|praxis|schule|kindergarten|rathaus)$/iu;
+const genericNumberedLocation=/^(?:Im|Am|An|Auf|Bei|Unter|Vor|Hinter|Zum|Zur)\s+(?:Raum|Haus|Abschnitt|Kapitel|Zimmer|Station|Gebäude|Schritt)$/iu;
 
 /** Hash-based exact lookup: bounded to at most five tokens per potential street.
  * Unknown generic words are NEVER auto-classified solely for being in OSM.
@@ -49,6 +50,9 @@ export function scanStreetLexicon(text:string,names?:readonly string[]):StreetHi
       // A capitalized "Im Krankenhaus 5" is also a building reference, not
       // necessarily a named road, even when OSM happens to contain that alias.
       if(genericInstitution.test(street) && !explicit)continue;
+      // OpenStreetMap contains location phrases such as "Im Raum" as road names.
+      // In ordinary prose "Im Raum 11" is a room number, not a postal address.
+      if(genericNumberedLocation.test(street) && !explicit)continue;
       const finalEnd=end+(house?.[0].length??0);
       out.push({start,end:finalEnd,text:text.slice(start,finalEnd),hasNumber});
     }

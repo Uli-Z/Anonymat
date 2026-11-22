@@ -1,0 +1,564 @@
+{
+  "version": 1,
+  "note": "Independent fully synthetic challenge batch, originally exposing four missed names and one overlong date. All expected entities, reviews and negative contexts now form a blocking regression audit.",
+  "fixtures": [
+    {
+      "id": "challenge-medical-newlines",
+      "category": "medical",
+      "text": "Nachtdienstbericht\nPatientin: Julia Meyer\ngeb. 07.02.1977\nVisite am 18.11.2026 um 06:20 Uhr im Krankenhaus. Blutbild unauffällig.",
+      "expected": [
+        {
+          "text": "Julia Meyer",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "07.02.1977",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "18.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "06:20",
+          "kind": "TIME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Nachtdienstbericht",
+        "Krankenhaus",
+        "Blutbild"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-clinical-glued-date",
+      "category": "typo",
+      "text": "Entlassbrief: Herr Hans Bauer wurde am 14.02.2026wurde im Stationszimmer untersucht. Am 16.02.2026Entlassung geplant.",
+      "expected": [
+        {
+          "text": "Hans Bauer",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "14.02.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "16.02.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Entlassbrief",
+        "Stationszimmer"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-names-hyphen",
+      "category": "names",
+      "text": "Sprechstunde: Frau Lea-Marie Becker stellte sich persönlich vor. Der Hausarzt bat um eine Rückmeldung.",
+      "expected": [
+        {
+          "text": "Lea-Marie Becker",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Sprechstunde",
+        "Hausarzt"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-names-nonlexicon",
+      "category": "names",
+      "text": "Die Patientin heisst Mira Wobbel und bringt ihren Brief selbst zum Empfang. Die Daten gehören nur diesem erfundenen Fall.",
+      "expected": [
+        {
+          "text": "Mira Wobbel",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Empfang",
+        "Brief"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-names-diacritics",
+      "category": "names",
+      "text": "In der Akte steht Patientin Łucja Żuk. Der Eintrag wurde mit Sonderzeichen diktiert und später korrigiert.",
+      "expected": [
+        {
+          "text": "Łucja Żuk",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Akte",
+        "Sonderzeichen"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-lowercase-chat",
+      "category": "typo",
+      "text": "hey, hab mit peter gesprochen, der kommt morgen in die praxis. die nachricht soll privat bleiben.",
+      "expected": [
+        {
+          "text": "peter",
+          "kind": "FIRST_NAME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "praxis",
+        "nachricht"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-caption-name-typo",
+      "category": "typo",
+      "text": "Patientenname: Johana Weber. Die Schreibweise wurde beim Einlesen der Unterlagen aus dem Fax übernommen.",
+      "expected": [
+        {
+          "text": "Johana Weber",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Unterlagen",
+        "Fax"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-fused-salutation",
+      "category": "typo",
+      "text": "Telefonnotiz: HerrnSchmidt und FrauMüller wurde der Termin bestätigt. Die Praxis meldet sich später.",
+      "expected": [
+        {
+          "text": "Schmidt",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Telefonnotiz",
+        "Praxis"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-free-word-collisions",
+      "category": "false-positive",
+      "text": "Die Rose auf dem Fensterbrett ist verwelkt. Der Wolf ist im Tierpark. Die Waren sind angekommen und das Essen schmeckt.",
+      "expected": [],
+      "forbidden": [
+        "Rose",
+        "Wolf",
+        "Waren",
+        "Essen",
+        "Tierpark"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-clinic-ward",
+      "category": "false-positive",
+      "text": "Im Krankenhaus 5 befindet sich die Abteilung für Physiotherapie. Auf Station 7 wurde ein Parkplatz neu markiert.",
+      "expected": [],
+      "forbidden": [
+        "Krankenhaus",
+        "Physiotherapie",
+        "Station",
+        "Parkplatz"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-numeric-ward",
+      "category": "false-positive",
+      "text": "Im Raum 11 finden die Treffen statt, im Abschnitt 4 sind die Unterlagen und im Haus 12 steht das Material.",
+      "expected": [],
+      "forbidden": [
+        "Raum",
+        "Abschnitt",
+        "Haus",
+        "Material"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-address-newline",
+      "category": "address",
+      "text": "Postanschrift:\nAm Wall 7\n28203 Bremen\nBitte die Akte in das Büro senden, nicht an den Empfang.",
+      "expected": [
+        {
+          "text": "Am Wall 7",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28203",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Akte",
+        "Büro",
+        "Empfang"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-address-glued-number",
+      "category": "address",
+      "text": "Lieferadresse: Berliner Straße18, 28215 Bremen. Der Hausmeister nimmt die Pakete im Lager entgegen.",
+      "expected": [
+        {
+          "text": "Berliner Straße18",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Lieferadresse",
+        "Hausmeister",
+        "Lager"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-city-homonym",
+      "category": "geography",
+      "text": "Die Waren sind in Ordnung. In Waren wurde am Wochenende ein Markt eröffnet. Das Essen war gut, in Essen war es gestern warm.",
+      "expected": [
+        {
+          "text": "Waren",
+          "kind": "CITY",
+          "mode": "active",
+          "occurrence": 2
+        },
+        {
+          "text": "Essen",
+          "kind": "CITY",
+          "mode": "active",
+          "occurrence": 2
+        }
+      ],
+      "forbidden": [
+        "Waren sind",
+        "Essen war gut"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-postal-compact",
+      "category": "address",
+      "text": "Die Anschrift lautet Mohnblumenweg12a,28203Bremen. Eine Zustellung an das Krankenhaus ist nicht erlaubt.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28203",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Krankenhaus"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-email-plus",
+      "category": "contact",
+      "text": "Bitte die Unterlagen an u.li+test@example.org,und zusätzlich an buero@example.org schicken. Vielen Dank für den Rückruf.",
+      "expected": [
+        {
+          "text": "u.li+test@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        },
+        {
+          "text": "buero@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Unterlagen",
+        "Rückruf"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-phone-mixed",
+      "category": "contact",
+      "text": "Rückrufnummer: +49 151 23456789 oder unter 030/12345678 erreichbar. Das Krankenhaus hat heute geschlossen.",
+      "expected": [
+        {
+          "text": "+49 151 23456789",
+          "kind": "PHONE",
+          "mode": "active"
+        },
+        {
+          "text": "030/12345678",
+          "kind": "PHONE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Krankenhaus"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-iban-bic",
+      "category": "finance",
+      "text": "Bitte überweisen an IBAN DE89 3704 0044 0532 0130 00, BIC COBADEFFXXX. Der Beleg ist bereits in der Buchhaltung.",
+      "expected": [
+        {
+          "text": "DE89 3704 0044 0532 0130 00",
+          "kind": "IBAN",
+          "mode": "active"
+        },
+        {
+          "text": "COBADEFFXXX",
+          "kind": "BIC",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Buchhaltung",
+        "Beleg"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-cases",
+      "category": "identifier",
+      "text": "Aktenzeichen: XY-72441. Patienten-ID H-77120, Fallnummer 73124567. Die Dokumentation bleibt bei der Verwaltung.",
+      "expected": [
+        {
+          "text": "XY-72441",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "H-77120",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "73124567",
+          "kind": "ID",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Dokumentation",
+        "Verwaltung"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-network-log",
+      "category": "it",
+      "text": "Netzwerknotiz: Gerät an 10.12.0.33 meldet sich unter https://hilfe.example.org/status?x=1. Das System ist wieder erreichbar.",
+      "expected": [
+        {
+          "text": "10.12.0.33",
+          "kind": "IP",
+          "mode": "active"
+        },
+        {
+          "text": "https://hilfe.example.org/status?x=1",
+          "kind": "URL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Netzwerknotiz",
+        "System"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-mixed-date-conventions",
+      "category": "date",
+      "text": "Kontrolle am 25.12.2026, danach erneuter Termin am 2027-01-05. Der Kalender enthält keine weiteren Angaben.",
+      "expected": [
+        {
+          "text": "25.12.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "2027-01-05",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kalender",
+        "Termin"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-short-years",
+      "category": "date",
+      "text": "Aufnahme am 05.04.26, Entlassung am 07.04.26. Die handschriftliche Angabe 31.02.26 ist offensichtlich kein Datum.",
+      "expected": [
+        {
+          "text": "05.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "07.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "31.02.26",
+        "handschriftliche"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-partial-date",
+      "category": "date",
+      "text": "Der Dienst beginnt am 6. Mai, die Übergabe erfolgte am 10. Mai. Die Stationsleitung bespricht die Planung.",
+      "expected": [
+        {
+          "text": "6. Mai",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "10. Mai",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Dienst",
+        "Stationsleitung"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-standalone-ambiguous",
+      "category": "names",
+      "text": "Ulrich und Peter. Ohne weiteren Satzkontext ist nicht klar, ob diese Wörter Personennamen bezeichnen.",
+      "expected": [
+        {
+          "text": "Ulrich",
+          "kind": "FIRST_NAME",
+          "mode": "review"
+        },
+        {
+          "text": "Peter",
+          "kind": "FIRST_NAME",
+          "mode": "review"
+        }
+      ],
+      "forbidden": [
+        "Satzkontext"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-person-genitive",
+      "category": "names",
+      "text": "Frau Anna Müller unterschrieb den Bogen. Müllers Unterschrift wurde später dem Schreiben beigelegt.",
+      "expected": [
+        {
+          "text": "Anna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müllers",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Unterschrift",
+        "Bogen"
+      ],
+      "numericOrder": "auto"
+    },
+    {
+      "id": "challenge-id-trailing-punctuation",
+      "category": "identifier",
+      "text": "Dokumentationsfehler: Rechnungsnummer RE-56230, Bestellnummer B-90301. Beide Einträge sind nur beispielhaft.",
+      "expected": [
+        {
+          "text": "RE-56230",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "B-90301",
+          "kind": "ID",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Dokumentationsfehler",
+        "Einträge"
+      ],
+      "numericOrder": "auto"
+    }
+  ]
+}
