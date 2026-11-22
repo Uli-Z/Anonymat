@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Fully invented corpus. Expected spans refer to exact text occurrences; all occurrences are expected unless a fixture specifies otherwise. A DATE with ambiguous or invalid syntax deliberately has no automatic assertion.",
+  "note": "Fully invented corpus: 42 development scenarios plus 18 independent holdout scenarios. Expected spans refer to exact text occurrences; all occurrences are expected unless overlaid by a longer explicitly annotated span. Review items must remain unmasked without confirmation.",
   "fixtures": [
     {
       "id": "clinic-admission",
@@ -50,7 +50,8 @@
         "Hb",
         "RR"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "discharge-letter",
@@ -78,7 +79,8 @@
         "Kreatinin",
         "CRP"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "genitive-name",
@@ -106,7 +108,8 @@
         "Büro",
         "Rückruf"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "first-name-context",
@@ -133,7 +136,8 @@
         "Untersuchung",
         "Ergebnisse"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "isolated-first-names",
@@ -154,7 +158,8 @@
       "forbidden": [
         "Beschreibung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "hospital-no-address",
@@ -169,7 +174,8 @@
         "Zimmer",
         "Behandlung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "common-nouns",
@@ -184,7 +190,8 @@
         "Garten",
         "Feiertag"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "address-labelled",
@@ -216,7 +223,8 @@
         "Post",
         "Brief"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "street-context",
@@ -238,7 +246,8 @@
         "Station",
         "Krankenhaus"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "street-with-number",
@@ -265,7 +274,8 @@
         "Schuppen",
         "Garage"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-basic",
@@ -292,7 +302,8 @@
         "Sprechstunde",
         "Kontrolle"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-day-month",
@@ -319,7 +330,8 @@
         "Aufnahme",
         "Nachkontrolle"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-month-year",
@@ -347,7 +359,8 @@
         "Bericht",
         "Prüfung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-typo-no-space-lower",
@@ -369,7 +382,8 @@
         "untersucht",
         "geplant"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-typo-no-space-upper",
@@ -391,7 +405,8 @@
         "Patient",
         "Entlassung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-typo-missing-delimiter",
@@ -412,7 +427,8 @@
       "forbidden": [
         "Befunds"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-typo-after-period",
@@ -433,7 +449,8 @@
       "forbidden": [
         "Aufnahme"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-ambiguous",
@@ -445,7 +462,8 @@
         "Landeseinstellung",
         "Datum"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-invalid",
@@ -456,7 +474,8 @@
         "Befund",
         "Zettel"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "numeric-labs",
@@ -471,7 +490,8 @@
         "37",
         "85"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "medication-dose",
@@ -483,7 +503,8 @@
         "Torasemid",
         "GFR"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "appointment-clock",
@@ -510,7 +531,8 @@
         "Rückruf",
         "Büro"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "contact-email",
@@ -537,7 +559,8 @@
         "Urlaub",
         "Betreff"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "contact-phone",
@@ -563,7 +586,8 @@
       "forbidden": [
         "Telefon"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "invoice",
@@ -595,7 +619,8 @@
         "49,95",
         "EUR"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "case-numbers",
@@ -622,7 +647,8 @@
         "Station",
         "Probe"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "car-plate",
@@ -639,7 +665,8 @@
         "Hof",
         "Parkplatz"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "it-ticket",
@@ -667,7 +694,8 @@
         "Support",
         "CPU"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "social-work",
@@ -703,7 +731,8 @@
       "forbidden": [
         "Hausbesuch"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "school-letter",
@@ -735,7 +764,8 @@
         "Eltern",
         "Klassenfahrt"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "messenger-typos",
@@ -757,7 +787,8 @@
         "hi",
         "gruß"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "name-typo-title",
@@ -778,7 +809,8 @@
       "forbidden": [
         "Rücksprache"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "name-typo-transposition",
@@ -795,7 +827,8 @@
         "Praxis",
         "Patienten"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "name-labelled-typo",
@@ -821,7 +854,8 @@
       "forbidden": [
         "Vorgang"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "unicode-hyphen-name",
@@ -842,7 +876,8 @@
       "forbidden": [
         "Termin"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "travel-confirmation",
@@ -884,7 +919,8 @@
         "Hotel",
         "Rückreise"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "pediatric-letter",
@@ -906,7 +942,8 @@
         "Kinderklinik",
         "Impfung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "forms-po-box",
@@ -943,7 +980,8 @@
         "Straße",
         "Ort"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "date-multilingual",
@@ -975,7 +1013,8 @@
         "Appointment",
         "Consultation"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "typo-plz-glued",
@@ -1001,7 +1040,8 @@
       "forbidden": [
         "Notaufnahme"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "office-neutral",
@@ -1015,7 +1055,8 @@
         "Krankenhaus",
         "Formular"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
     },
     {
       "id": "long-hospital-narrative",
@@ -1031,7 +1072,414 @@
         "Station",
         "Behandlung"
       ],
-      "numericOrder": "auto"
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "holdout-glued-um",
+      "category": "typo",
+      "text": "Eintrag vom 17.11.2026um 08:00 Uhr: Visite durchgeführt, anschließend Therapieplanung.",
+      "expected": [
+        {
+          "text": "17.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "08:00",
+          "kind": "TIME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Visite",
+        "Therapieplanung"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-short-year",
+      "category": "typo",
+      "text": "Aufnahme 05.04.26, Entlassung 07.04.26. Der Patient erinnert sich an beide Tage.",
+      "expected": [
+        {
+          "text": "05.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "07.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Aufnahme",
+        "Entlassung",
+        "Patient"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-compact-address",
+      "category": "address",
+      "text": "Lieferort: Mohnblumenweg12a, 28215 Bremen. Bitte beim Nachbarn abgeben.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Nachbarn"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-dr-joined",
+      "category": "typo",
+      "text": "Fr.Schmidt soll Rücksprache mit Dr.Müller halten. Die Übergabe war gestern.",
+      "expected": [
+        {
+          "text": "Schmidt",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rücksprache",
+        "Übergabe"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-mixed-date-format",
+      "category": "date",
+      "text": "Termin am 21/11/2026. Zweite Kontrolle am 11/21/2026 laut englischem Formular.",
+      "expected": [
+        {
+          "text": "21/11/2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "11/21/2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kontrolle",
+        "Formular"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-date-1-digit",
+      "category": "date",
+      "text": "Kontrolltermin: 7.3.1989 im Archiv dokumentiert. Der Ordner selbst ist öffentlich.",
+      "expected": [
+        {
+          "text": "7.3.1989",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Archiv",
+        "Ordner"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-city-conflict",
+      "category": "false-positive",
+      "text": "Das Essen war lecker. Die Waren kamen pünktlich. In Waren wurde später ein Markt eröffnet.",
+      "expected": [
+        {
+          "text": "Waren",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Essen",
+        "Markt"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-name-genitive",
+      "category": "names",
+      "text": "Frau Anna Müller berichtete vom Gespräch mit Müllers Anwalt.",
+      "expected": [
+        {
+          "text": "Anna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müllers",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Anwalt",
+        "Gespräch"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-name-umlaut",
+      "category": "names",
+      "text": "Der Patient Özdemir hat im Klinikalltag einen Termin. Herr Özdemir kommt morgen wieder.",
+      "expected": [
+        {
+          "text": "Özdemir",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Klinikalltag",
+        "Termin"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-lab-false-alarm",
+      "category": "false-positive",
+      "text": "Gerinnung: INR 1,8, Quick 62 %, Thrombozyten 165 /nl. Antikoagulation wurde pausiert.",
+      "expected": [],
+      "forbidden": [
+        "Quick",
+        "Thrombozyten",
+        "Gerinnung",
+        "Antikoagulation"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-postal-label",
+      "category": "address",
+      "text": "Postleitzahl: 28215, Ort: Bremen. Straße: Berliner Straße 11b. Name: Lara Schwarz.",
+      "expected": [
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "Berliner Straße 11b",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "Lara Schwarz",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Postleitzahl"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-email-no-space",
+      "category": "contact",
+      "text": "Kontakt:julia.schmidt@example.org,weitere Rückfragen über www.example.org.",
+      "expected": [
+        {
+          "text": "julia.schmidt@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        },
+        {
+          "text": "www.example.org",
+          "kind": "URL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kontakt",
+        "Rückfragen"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-health-note",
+      "category": "medical",
+      "text": "Pat.: Herr Demir, geb. 29.02.1988. 36,9 °C, Puls 82, SpO2 97 %. Entlassbrief folgt.",
+      "expected": [
+        {
+          "text": "Demir",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "29.02.1988",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Puls",
+        "SpO2",
+        "Entlassbrief"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-nonentity-chapter",
+      "category": "false-positive",
+      "text": "Im Abschnitt 5 stehen fünf Häuser, 15 Seiten und 20 Aufgaben. Krankenhaus und Schule sind Beispiele.",
+      "expected": [],
+      "forbidden": [
+        "Abschnitt",
+        "Häuser",
+        "Seiten",
+        "Krankenhaus",
+        "Schule"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-dates-weekday",
+      "category": "date",
+      "text": "Dienstag, 10. März 2026: Besprechung. Der Folgetermin ist Donnerstag, 12. März 2026.",
+      "expected": [
+        {
+          "text": "Dienstag, 10. März 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Donnerstag, 12. März 2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Besprechung",
+        "Folgetermin"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-ordernum",
+      "category": "identifier",
+      "text": "Kundennummer: KD-48392; Bestellnummer B-90001, Rechnung vom 19.09.2026.",
+      "expected": [
+        {
+          "text": "KD-48392",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "B-90001",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "19.09.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rechnung"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-normal-road",
+      "category": "address",
+      "text": "Wohnung in der Gartenstraße 12, 28199 Bremen. Der Weg zur Schule dauert etwa 10 Minuten.",
+      "expected": [
+        {
+          "text": "Gartenstraße 12",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28199",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Weg",
+        "Schule"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-year-month-other",
+      "category": "date",
+      "text": "Die Reha begann im Mai 2026, Ende voraussichtlich Juni 2026. Medikation ist unabhängig davon.",
+      "expected": [
+        {
+          "text": "Mai 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Juni 2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Reha",
+        "Medikation"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
     }
   ]
 }
