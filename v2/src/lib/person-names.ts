@@ -40,12 +40,16 @@ const nonPersonWords = new Set(('krankenhaus klinik klinikum arztpraxis praxis p
 export const bundledGivenNameCount=givenNames.length;
 export const bundledFamilyNameCount=familyNames.length;
 
-const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([A-ZÄÖÜ][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?)/gu;
+const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([\p{Lu}][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[\p{Lu}][\p{L}\p{M}'’-]+)(?:\s+([\p{Lu}][\p{L}\p{M}'’-]+))?)/gu;
 // Typical dictation typo: "HerrnMüller" / "FrauSchmidt".
 const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau|Fr\.|Hr\.|Dr\.|Prof\.)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
 const labeledName = /\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
-const twoNames = /(?<![\p{L}\p{M}])([A-ZÄÖÜ][\p{L}\p{M}'’-]+)\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
+const twoNames = /(?<![\p{L}\p{M}])([\p{Lu}][\p{L}\p{M}'’-]+)\s+([\p{Lu}][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
 const wordPattern = /[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
+// Strong semantic cues permit novel international spellings without relying on
+// a surname dictionary or prompting on every capitalized ordinary word.
+const explicitlyNamed = /\b(?:Patient(?:in|en)?|Betroffene|Kind|Anrufer(?:in)?)\s+(?:heißt|heisst|namens)\s+([\p{Lu}][\p{L}\p{M}'’-]+)\s+([\p{Lu}][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
+const lowercaseConversation = /\b(?:mit|von|für|bei)\s+([\p{Ll}][\p{Ll}\p{M}'’-]{2,})\s+(?:gesprochen|telefoniert|geschrieben|gechattet|verabredet)\b/giu;
 const articleBefore = /\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|im|ins|am|beim|zum|zur)\s+$/iu;
 const personalBefore = /\b(?:mit|von|für|bei|an|zu|durch|gegen|über|mein|meine|unser|unsere|seine|ihre)\s+$/iu;
 const explicitPersonBefore = /\b(?:herr|frau|patient|patientin|kollege|kollegin|arzt|ärztin|professor|professorin|kontaktperson)\s+$/iu;
@@ -100,8 +104,21 @@ export function scanPersonNames(text:string):NameHit[]{
   for(const match of text.matchAll(salutation)){
     const first=match[1],second=match[2];
     if(match.index===undefined || !first)continue;
-    const name=second && firstNames.has(fold(first))?first+' '+second:first;
+    const internationalInitial=second && [...first+second].some(c=>/\p{Lu}/u.test(c) && !/[A-ZÄÖÜ]/u.test(c));
+    const compoundGiven=first.includes('-') && second && surnames.has(fold(second));
+    const name=second && (firstNames.has(fold(first))||compoundGiven||internationalInitial)?first+' '+second:first;
     add(name,match.index+match[0].lastIndexOf(name));
+  }
+  for(const match of text.matchAll(explicitlyNamed)){
+    if(match.index===undefined)continue;
+    const name=match[1]+' '+match[2];
+    add(name,match.index+match[0].lastIndexOf(name));
+  }
+  // Only strong conversational grammar supports automatic masking of lowercase
+  // given names; a lowercase token alone remains unclassified.
+  for(const match of text.matchAll(lowercaseConversation)){
+    if(match.index===undefined || !frequentFirst.has(fold(match[1])))continue;
+    add(match[1],match.index+match[0].indexOf(match[1]),'FIRST_NAME');
   }
   for(const match of text.matchAll(gluedSalutation)){
     if(match.index===undefined || !match[1])continue;
