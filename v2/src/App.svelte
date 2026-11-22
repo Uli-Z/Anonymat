@@ -190,6 +190,7 @@
     manual = remapFindings(manual, changes, next, 'manual');
     ignoredPlaces = remapFindings(ignoredPlaces, changes, next, 'exact');
     source = next;
+    resultVisible = false;
     reply = '';
     menu = null;
     quickAction = null;
@@ -547,7 +548,7 @@
           <span><i class="legend-ignored"></i> Ignoriert</span>
         </div>
         <div class="editor-actions">
-          <button type="button" class="secondary-button" onclick={() => findingsDialog?.showModal()}>
+          <button type="button" class="secondary-button" onclick={() => { quickAction=null; menu=null; findingsDialog?.showModal(); }}>
             Ersetzungen anzeigen <span class="count-inline">{groups.length}</span>
           </button>
           <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
