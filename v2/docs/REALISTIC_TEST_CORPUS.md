@@ -85,4 +85,10 @@ Nach gezielten Änderungen an `person-names.ts` und `partial-dates.ts` ergab der
 
 Der Zusatztest läuft mit `npm test -- tests/realistic-challenge.test.ts` und ist nach dem Audit nun **verbindlich**: Schon eine fehlende, falsch klassifizierte oder zu breite Schutzstelle, eine zusätzliche automatische Markierung oder eine fehlgeschlagene Rückführung lässt CI scheitern.
 
+### Zusätzliche Gegenprüfung mit vollständig erzeugten Lexika
+
+Die beiden CI-Workflows testen unterschiedliche Lexikonstände: `V2 checks` nutzt die kleineren eingecheckten Dateien, während `CI` zuerst die vollständigen externen Namens-, Städte- und Straßenlexika offline für die Anwendung baut. Der erste strenge Lauf mit den **großen Lexika** entdeckte zwei zusätzliche False Positives, die der kleine Lexikonstand nicht auslöste: `Im Raum 11` wurde wegen eines entsprechenden OSM-Straßeneintrags als Adresse klassifiziert und `IBAN` wurde aus dem umfassenden Namenslexikon als Personenname gelernt. Beide Ursachen sind durch Kontext-/Negativregeln korrigiert. Der reproduzierbare Regressionstest enthält jetzt auch den gezielt eingespeisten Straßenlexikoneintrag `Im Raum`.
+
+Die dokumentierten 46/46-Erkennungen beziehen sich auf die neuen 26 Szenarien und ersetzen nicht die separate Qualitätsprüfung außerhalb dieser Beispiele.
+
 Die neuen Regeln bleiben bewusst **kontextabhängig**: Unbekannte Namen werden nicht allein wegen Großschreibung automatisch geschützt; eine ausdrücklich angegebene Patientenbenennung kann jedoch unbekannte Namen rechtfertigen. Kleingeschriebene Vornamen erfordern eine enge, personenspezifische Gesprächsformulierung. Die Ergebnisse belegen nur diese synthetischen Beispiele, keine allgemeine garantierte Erkennungsquote.
