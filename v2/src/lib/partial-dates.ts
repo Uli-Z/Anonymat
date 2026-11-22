@@ -6,7 +6,7 @@
  * and stay protected by tokens.
  */
 import {
-  MONTHS, SHORT_MONTHS, scanDates, shiftIsoDay,
+  MONTHS, SHORT_MONTHS, scanDates, shiftIsoDay, calendarDayDifference,
   type DateLanguage, type NumericDateOrder
 } from './dates';
 
@@ -183,6 +183,29 @@ export function partialOriginalIso(
   const iso=String(referenceYear).padStart(4,'0')+'-'+String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
   return shiftIsoDay(iso,0);
 }
+/**
+ * When editing two yearless dates, choose the nearest calendar displacement.
+ * This handles transitions like 11 November → 10 January as +60 rather than
+ * -306 days. Larger displacements are ambiguous without a real year and can
+ * instead be entered in the advanced settings as a numeric offset.
+ */
+export function nearestPartialDateOffset(from:PartialMatch,to:PartialMatch):number|null{
+  const source=partialOriginalIso(from);
+  if(!source||to.precision!=='day-month')return null;
+  const candidates:number[]=[];
+  for(const year of [1999,2000,2001]){
+    const projected=shiftIsoDay(
+      String(year)+'-'+String(to.month).padStart(2,'0')+'-'+String(to.day).padStart(2,'0'),0
+    );
+    if(projected){
+      const distance=calendarDayDifference(source,projected);
+      if(distance!==null)candidates.push(distance);
+    }
+  }
+  candidates.sort((a,b)=>Math.abs(a)-Math.abs(b)||a-b);
+  return candidates[0]??null;
+}
+
 /** Reconstruct a shifted day/month expression in the language and syntax of the input. */
 export function formatPartialLike(iso:string,template:PartialMatch):string{
   const [,monthText,dayText]=iso.split('-');
