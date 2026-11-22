@@ -24,6 +24,8 @@
   let dateShiftEnabled = $state(true);
   let dateOffsetMode = $state<'random'|'manual'>('random');
   let settingsDialog: HTMLDialogElement | undefined;
+  let findingsDialog: HTMLDialogElement | undefined;
+  let resultVisible = $state(false);
   let cityLexiconEnabled = $state(true);
   let analysisVersion = $state(0);
   let isAnalyzing = $state(false);
@@ -38,7 +40,6 @@
   let dateOffset = $state(randomDateOffset());
   let numericOrder = $state<NumericDateOrder>('auto');
   let replyNumericOrder = $state<NumericDateOrder>('auto');
-  let partialReferenceYear = $state<number | null>(null);
   // Keep the inverse data from the last export even if the draft or offset changes.
   let exportSnapshot = $state<{mapping:MappingEntry[]; shiftedDates:string[]; partialDates:ShiftedPartial[]; offset:number}|null>(null);
   let editingReplacement = $state<string | null>(null);
@@ -110,9 +111,11 @@
       manual:$state.snapshot(manual),ignoredPlaces:$state.snapshot(ignoredPlaces),
       ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,cityLexiconEnabled,
       rules:$state.snapshot(replacementRules),
-      dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder,partialReferenceYear}
+      dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder}
     };
     void analysisVersion;
+    // Never reveal an earlier preview after source, rules or settings have changed.
+    resultVisible=false;
     if(!source.trim()){
       reviewed={findings:[],active:[],groups:[]};
       prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[]};
@@ -146,6 +149,12 @@
     },150);
     return ()=>window.clearTimeout(timer);
   });
+
+  function openResult():void{
+    if(isAnalyzing || analysisError || !source.trim())return;
+    resultVisible=true;
+    window.requestAnimationFrame(()=>document.getElementById('result-title')?.scrollIntoView({behavior:'smooth',block:'start'}));
+  }
 
   function cancelAnalysis():void{
     latestJob++;
@@ -323,8 +332,8 @@
       const fullTarget=parseDate(token,{numericOrder});
       const partialOriginal=parsePartialDate(group.text,{numericOrder});
       const partialTarget=parsePartialDate(token,{numericOrder});
-      const origIso=fullOriginal?.iso ?? (partialOriginal && partialOriginalIso(partialOriginal,partialReferenceYear));
-      const targetIso=fullTarget?.iso ?? (partialTarget && partialOriginalIso(partialTarget,partialReferenceYear));
+      const origIso=fullOriginal?.iso ?? (partialOriginal && partialOriginalIso(partialOriginal));
+      const targetIso=fullTarget?.iso ?? (partialTarget && partialOriginalIso(partialTarget));
       const offset=origIso && targetIso?calendarDayDifference(origIso,targetIso):null;
       if(offset===null || !Number.isSafeInteger(offset) || offset===0 || Math.abs(offset)>3650){
         replacementError='Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).';
@@ -390,8 +399,9 @@
     dateOffset = randomDateOffset();
     numericOrder = 'auto';
     replyNumericOrder = 'auto';
-    partialReferenceYear = null;
     exportSnapshot = null;
+    resultVisible = false;
+    findingsDialog?.close();
     editingReplacement = null;
     replacementError = '';
     selectedRange = {from: 0, to: 0};
@@ -402,7 +412,7 @@
   }
 
   async function copyMasked():Promise<void>{
-    if(isAnalyzing || analysisError || !source.trim())return;
+    if(isAnalyzing || analysisError || !source.trim() || !resultVisible)return;
     const snapshot={
       mapping:prepared.mapping.map(item=>({...item})),
       shiftedDates:prepared.dates.map(item=>item.shiftedIso),
@@ -504,7 +514,7 @@
       </section>
     {/if}
 
-    <div class="workspace-grid">
+    <div class="editing-workspace">
       <section class="panel editor-panel" aria-labelledby="source-title">
         <div class="panel-heading">
           <div>
@@ -536,15 +546,113 @@
           <span><i class="legend-manual"></i> Manuell</span>
           <span><i class="legend-ignored"></i> Ignoriert</span>
         </div>
+        <div class="editor-actions">
+          <button type="button" class="secondary-button" onclick={() => findingsDialog?.showModal()}>
+            Ersetzungen anzeigen <span class="count-inline">{groups.length}</span>
+          </button>
+          <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
+            Ergebnis prüfen <span aria-hidden="true">↓</span>
+          </button>
+        </div>
       </section>
+    </div>
 
-      <section class="panel findings-panel" aria-labelledby="findings-title">
+    <div class="step-heading second-step">
+      <div class="step-number">2</div>
+      <div>
+        <h2>Ergebnis prüfen</h2>
+        <p>Die anonymisierte Fassung wird erst auf Wunsch angezeigt. Kontrolliere alle Angaben vor der Weitergabe.</p>
+      </div>
+    </div>
+
+    <section class="panel output-panel" aria-labelledby="result-title">
+      <div class="panel-heading">
+        <div>
+          <h3 id="result-title">Pseudonymisierter Text</h3>
+          <p>Nur diesen überprüften Text an externe KI-Dienste weitergeben</p>
+        </div>
+        <button class="primary-button" type="button" onclick={copyMasked} disabled={!resultVisible || !source.trim() || isAnalyzing || !!analysisError}>
+          <span aria-hidden="true">⧉</span> Text kopieren
+        </button>
+      </div>
+      <div class="preview" aria-live="polite">
+        {#if !resultVisible}
+          <div class="preview-gate">
+            <p>Der Ergebnistext bleibt während der Bearbeitung ausgeblendet. Sobald die Analyse abgeschlossen ist, kannst du ihn hier kontrollieren.</p>
+            <button type="button" class="secondary-button" onclick={() => resultVisible=true} disabled={!source.trim() || isAnalyzing || !!analysisError}>Anonymisierten Text anzeigen</button>
+          </div>
+        {:else if isAnalyzing}
+          <span class="preview-empty">Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.</span>
+        {:else if analysisError}
+          <span class="preview-empty">Analyse nicht abgeschlossen. Bitte erneut analysieren.</span>
+        {:else if source.trim()}
+          {#each preview as part}
+            {#if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
+          {/each}
+        {:else}
+          <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
+        {/if}
+      </div>
+      {#if resultVisible && prepared.warnings.length}
+        <div class="inline-warning">{prepared.warnings.join(' ')}</div>
+      {/if}
+      {#if resultVisible && source.trim() && !isAnalyzing && !analysisError && prepared.mapping.length === 0 && prepared.dates.length === 0 && prepared.partialDates.length === 0}
+        <div class="inline-warning">Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.</div>
+      {/if}
+    </section>
+
+    <div class="step-heading third-step">
+      <div class="step-number">3</div>
+      <div>
+        <h2>KI-Ergebnis zurückübersetzen</h2>
+        <p>Füge den bearbeiteten oder übersetzten Text ein. Platzhalter und bekannte verschobene Kalenderdaten werden lokal wiederhergestellt.</p>
+      </div>
+    </div>
+
+    <div class="restore-grid">
+      <section class="panel" aria-labelledby="reply-title">
+        <div class="panel-heading">
+          <div><h3 id="reply-title">Antwort der KI</h3><p>Text mit Platzhaltern hier einfügen</p></div>
+        </div>
+        <textarea class="reply-editor" bind:value={reply} spellcheck="false"
+          placeholder="Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ..."
+          aria-label="KI-Antwort mit Platzhaltern"></textarea>
+      </section>
+      <section class="panel" aria-labelledby="restored-title">
+        <div class="panel-heading">
+          <div><h3 id="restored-title">Wiederhergestellter Text</h3><p>Originalangaben lokal eingesetzt</p></div>
+          <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
+        </div>
+        <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
+        {#if reply.trim() && (inverseDates.warnings.length || inversePartial.warnings.length)}
+          <div class="inline-warning">{[...inversePartial.warnings,...inverseDates.warnings].join(' ')}</div>
+        {/if}
+        {#if reply.trim() && (restored.missing.length || restored.unknown.length)}
+          <div class="inline-warning">
+            {#if restored.missing.length}Nicht wiedergefunden: {restored.missing.join(', ')}. {/if}
+            {#if restored.unknown.length}Unbekannte Tokens: {restored.unknown.join(', ')}.{/if}
+            Bitte das Ergebnis prüfen.
+          </div>
+        {/if}
+      </section>
+    </div>
+
+    <div class="footer-note">
+      <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
+      <span>Automatische Erkennungen sind Vorschläge und müssen geprüft werden. Die Verarbeitung erfolgt lokal; Texte werden nicht gespeichert oder versendet.</span>
+    </div>
+    {#if notice}<div class="toast" role="status">{notice}</div>{/if}
+  </main>
+
+  <footer class="site-footer"><span>Anonymat 2.0 Alpha 6 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+
+      <dialog class="findings-dialog" bind:this={findingsDialog} aria-labelledby="findings-title">
         <div class="panel-heading">
           <div>
             <h3 id="findings-title">Erkannte Angaben</h3>
             <p>Auch direkt über den Text bearbeitbar</p>
           </div>
-          <span class="count-badge">{findings.length}</span>
+          <div class="findings-dialog-actions"><span class="count-badge">{findings.length}</span><form method="dialog"><button class="settings-close" type="submit" aria-label="Ersetzungen schließen">×</button></form></div>
         </div>
         <div class="findings-body">
           {#if groups.length === 0}
@@ -603,84 +711,7 @@
             </div>
           {/if}
         </div>
-      </section>
-    </div>
-
-    <section class="panel output-panel" aria-labelledby="result-title">
-      <div class="panel-heading">
-        <div>
-          <h3 id="result-title">Pseudonymisierter Text</h3>
-          <p>Nur diesen überprüften Text an externe KI-Dienste weitergeben</p>
-        </div>
-        <button class="primary-button" type="button" onclick={copyMasked} disabled={!source.trim() || isAnalyzing || !!analysisError}>
-          <span aria-hidden="true">⧉</span> Text kopieren
-        </button>
-      </div>
-      <div class="preview" aria-live="polite">
-        {#if isAnalyzing}
-          <span class="preview-empty">Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.</span>
-        {:else if analysisError}
-          <span class="preview-empty">Analyse nicht abgeschlossen. Bitte erneut analysieren.</span>
-        {:else if source.trim()}
-          {#each preview as part}
-            {#if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
-          {/each}
-        {:else}
-          <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
-        {/if}
-      </div>
-      {#if prepared.warnings.length}
-        <div class="inline-warning">{prepared.warnings.join(' ')}</div>
-      {/if}
-      {#if source.trim() && !isAnalyzing && !analysisError && prepared.mapping.length === 0}
-        <div class="inline-warning">Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.</div>
-      {/if}
-    </section>
-
-    <div class="step-heading second-step">
-      <div class="step-number">2</div>
-      <div>
-        <h2>KI-Ergebnis zurückübersetzen</h2>
-        <p>Füge den bearbeiteten oder übersetzten Text ein. Platzhalter und bekannte verschobene Kalenderdaten werden lokal wiederhergestellt.</p>
-      </div>
-    </div>
-
-    <div class="restore-grid">
-      <section class="panel" aria-labelledby="reply-title">
-        <div class="panel-heading">
-          <div><h3 id="reply-title">Antwort der KI</h3><p>Text mit Platzhaltern hier einfügen</p></div>
-        </div>
-        <textarea class="reply-editor" bind:value={reply} spellcheck="false"
-          placeholder="Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ..."
-          aria-label="KI-Antwort mit Platzhaltern"></textarea>
-      </section>
-      <section class="panel" aria-labelledby="restored-title">
-        <div class="panel-heading">
-          <div><h3 id="restored-title">Wiederhergestellter Text</h3><p>Originalangaben lokal eingesetzt</p></div>
-          <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
-        </div>
-        <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
-        {#if reply.trim() && (inverseDates.warnings.length || inversePartial.warnings.length)}
-          <div class="inline-warning">{[...inversePartial.warnings,...inverseDates.warnings].join(' ')}</div>
-        {/if}
-        {#if reply.trim() && (restored.missing.length || restored.unknown.length)}
-          <div class="inline-warning">
-            {#if restored.missing.length}Nicht wiedergefunden: {restored.missing.join(', ')}. {/if}
-            {#if restored.unknown.length}Unbekannte Tokens: {restored.unknown.join(', ')}.{/if}
-            Bitte das Ergebnis prüfen.
-          </div>
-        {/if}
-      </section>
-    </div>
-
-    <div class="footer-note">
-      <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Automatische Erkennungen sind Vorschläge und müssen geprüft werden. Die Verarbeitung erfolgt lokal; Texte werden nicht gespeichert oder versendet.</span>
-    </div>
-    {#if notice}<div class="toast" role="status">{notice}</div>{/if}
-  </main>
-
-  <footer class="site-footer"><span>Anonymat 2.0 Alpha 6 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+      </dialog>
 
   <dialog class="settings-dialog" bind:this={settingsDialog} aria-labelledby="settings-title">
     <div class="settings-header">
@@ -720,23 +751,12 @@
               {/if}
             {:else}
               <div class="settings-random-row">
-                <p>Der genaue Wert bleibt verborgen. Für einen neuen Text wird er automatisch neu gewählt.</p>
+                <p>Der genaue Wert bleibt verborgen. Für einen neuen Text wird er automatisch neu gewählt. Datumsangaben ohne Jahr erhalten intern ein festes Kalenderjahr.</p>
                 <button type="button" class="secondary-button" onclick={() => dateOffset = randomDateOffset()}>Neuen Zufallswert wählen</button>
               </div>
             {/if}
           </div>
         {/if}
-        <div class="settings-field">
-          <label for="partial-reference-year">Bezugsjahr für Datumsangaben ohne Jahr <span class="settings-optional">(optional)</span></label>
-          <input id="partial-reference-year" type="number" min="1000" max="9999" step="1"
-            value={partialReferenceYear ?? ''}
-            oninput={event => {
-              const raw = event.currentTarget.value.trim();
-              partialReferenceYear = raw ? Number(raw) : null;
-            }}
-            placeholder="z. B. 2026"/>
-          <p>Nur mit festem Bezugsjahr sind Angaben wie „10. März“ verschiebbar. Monats- und Jahresangaben ohne Tag bleiben Platzhalter.</p>
-        </div>
         <div class="settings-field">
           <label for="source-date-order">Mehrdeutige Zahlenformate im Original</label>
           <select id="source-date-order" bind:value={numericOrder}>
