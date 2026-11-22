@@ -44,7 +44,7 @@ describe('independent 26-case realistic challenge batch (fully synthetic)',()=>{
     }
   });
 
-  it('reports recall, exact spans, over-masking, suggestions and reversibility without hiding limitations',()=>{
+  it('reports recall, exact spans, over-masking, suggestions and reversibility with blocking regression limits',()=>{
     const errors: Array<{id:string;missed:string[];notExact:string[];missingReview:string[];overMasks:string[];overReviews:string[];forbidden:string[];roundtrip:string[]}>=[];
     const counts={scenarios:fixtures.length,activeExpected:0,activeProtected:0,activeExact:0,
       reviewExpected:0,reviewOffered:0,missed:0,wrongSpanOrType:0,
@@ -98,9 +98,17 @@ describe('independent 26-case realistic challenge batch (fully synthetic)',()=>{
     }
     console.info('ANONYMAT_CHALLENGE_SUMMARY '+JSON.stringify(counts));
     console.info('ANONYMAT_CHALLENGE_FINDINGS '+JSON.stringify(errors));
-    // No retrospective relabeling of genuine detection misses as acceptable.
-    // This is a deliberately adversarial exploratory corpus: log its baseline
-    // before promoting stable cases to blocking regression assertions.
+    // After independently documenting the initial 4 misses and 1 partial-date
+    // offset error, all challenge cases now form a blocking CI regression set.
+    expect(counts.missed,'Sensitive spans must not be skipped').toBe(0);
+    expect(counts.activeProtected).toBe(counts.activeExpected);
+    expect(counts.activeExact,'Entity types and offsets must exactly match').toBe(counts.activeExpected);
+    expect(counts.reviewOffered).toBe(counts.reviewExpected);
+    expect(counts.wrongSpanOrType).toBe(0);
+    expect(counts.additionalActiveMasks,'No unannotated text may be masked').toBe(0);
+    expect(counts.additionalReviews,'No unwanted name review suggestions').toBe(0);
+    expect(counts.forbiddenMasked,'Ordinary words must stay untouched').toBe(0);
     expect(counts.failedTokenRoundTrips,'Applied token replacements must be reversible').toBe(0);
+    expect(counts.failedDateRoundTrips,'Shifted dates must restore exactly').toBe(0);
   });
 });

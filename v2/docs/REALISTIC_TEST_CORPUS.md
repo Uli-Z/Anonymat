@@ -62,3 +62,27 @@ Die Werte gelten **nur für diese 60 annotierten synthetischen Testtexte**. Sie 
 Zweistellige Jahreszahlen wie `05.04.26` werden aus Datenschutzgründen als Datum geschützt, **aber nicht automatisch auf ein Jahrhundert festgelegt oder verschoben**. Ungültige oder mehrdeutige Datumsangaben erfordern weiterhin menschliche Prüfung. Die Rückübersetzungstests modellieren Ersatz- und Verschiebungslogik, keine reale KI-Übersetzungsqualität.
 
 Neue Fehlfälle sollten als kleine synthetische Szenarien zuerst dem Korpus und anschließend – wo sinnvoll – den verbindlichen Regressionstests hinzugefügt werden.
+
+## Zweiter, unabhängiger Challenge-Durchlauf (22.11.2026)
+
+`tests/fixtures/realistic-challenge-scenarios.json` ergänzt den ersten Korpus um **26 neue, vollständig erfundene Texte**, **46 aktiv zu schützende Fundstellen**, **2 reine Prüfvorschläge** und **59 negative Vergleichsphrasen**. Die erste 60-Text-Messung bleibt als separat reproduzierbare Referenz erhalten.
+
+Im ersten, noch **unkorrigierten** Lauf wurden 42/46 Schutzstellen abgedeckt (41/46 exakt klassifiziert); 2/2 Prüfvorschläge waren korrekt. Die Fehler waren vier übersehene Namen: ein Bindestrichvorname mit Nachname, ein unbekannter Nachname in starkem Patientenkontext, ein Name mit internationalen diakritischen Großbuchstaben sowie ein kleingeschriebener Vorname im eindeutigen Chat-Kontext. Zusätzlich umfasste die Markierung von `10. Mai.` einen Satzpunkt. Es gab **0** Übermaskierungen der ausdrücklich negativen Phrasen und **0** fehlgeschlagene Rückführungen.
+
+Nach gezielten Änderungen an `person-names.ts` und `partial-dates.ts` ergab der tatsächliche V2-CI-Testlauf:
+
+| Messgröße, Zusatzkorpus | Nach Korrektur |
+| --- | ---: |
+| Vollständig abgedeckte aktive Schutzstellen | 46/46 |
+| Exakte Typen und Originalspannen | 46/46 |
+| Korrekte, unmaskierte Prüfvorschläge | 2/2 |
+| Übersehene aktive Schutzstellen | 0 |
+| Unerwartete automatische Treffer | 0 |
+| Unerwünschte Prüfvorschläge | 0 |
+| Maskierungen negativer Phrasen | 0 |
+| Fehlerhafte Token-Rückführungen | 0/26 |
+| Fehlerhafte Datums-Rückführungen | 0/26 |
+
+Der Zusatztest läuft mit `npm test -- tests/realistic-challenge.test.ts` und ist nach dem Audit nun **verbindlich**: Schon eine fehlende, falsch klassifizierte oder zu breite Schutzstelle, eine zusätzliche automatische Markierung oder eine fehlgeschlagene Rückführung lässt CI scheitern.
+
+Die neuen Regeln bleiben bewusst **kontextabhängig**: Unbekannte Namen werden nicht allein wegen Großschreibung automatisch geschützt; eine ausdrücklich angegebene Patientenbenennung kann jedoch unbekannte Namen rechtfertigen. Kleingeschriebene Vornamen erfordern eine enge, personenspezifische Gesprächsformulierung. Die Ergebnisse belegen nur diese synthetischen Beispiele, keine allgemeine garantierte Erkennungsquote.

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Independent, fully synthetic challenge batch; spans are exact surface strings. Cases intentionally include unsupported patterns. Outcomes are audited, not reclassified to force green.",
+  "note": "Independent fully synthetic challenge batch, originally exposing four missed names and one overlong date. All expected entities, reviews and negative contexts now form a blocking regression audit.",
   "fixtures": [
     {
       "id": "challenge-medical-newlines",
