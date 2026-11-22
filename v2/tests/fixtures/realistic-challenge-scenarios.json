@@ -273,12 +273,14 @@
         {
           "text": "Waren",
           "kind": "CITY",
-          "mode": "active"
+          "mode": "active",
+          "occurrence": 2
         },
         {
           "text": "Essen",
           "kind": "CITY",
-          "mode": "active"
+          "mode": "active",
+          "occurrence": 2
         }
       ],
       "forbidden": [
