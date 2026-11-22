@@ -90,6 +90,7 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .marked-editor .cm-selectionBackground{background:#bbd8ee!important}
 .marked-editor .cm-anonymat-hit{border-radius:3px;padding:1px 0;box-decoration-break:clone;cursor:pointer;text-decoration:none}
 .marked-editor .cm-anonymat-auto{background:#fff0cc;box-shadow:inset 0 -2px 0 #f0ae44;color:#4e3712}
+.marked-editor .cm-anonymat-review{background:#eef5ff;box-shadow:inset 0 -2px 0 #6485bc;color:#264a77}
 .marked-editor .cm-anonymat-manual{background:#d8f2e9;box-shadow:inset 0 -2px 0 #1c997e;color:#135d4c}
 .marked-editor .cm-anonymat-ignored{background:#f0f1f4;box-shadow:inset 0 -1px 0 #a2adb8;color:#77818c;text-decoration:line-through}
 .marked-editor .cm-anonymat-hit:hover{filter:brightness(.95)}
@@ -97,6 +98,7 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .mark-legend span{display:flex;gap:6px;align-items:center;color:#677888;font-size:11px}
 .mark-legend i{width:13px;height:11px;border-radius:2px;display:inline-block}
 .legend-auto{background:#fff0cc;border-bottom:2px solid #f0ae44}
+.legend-review{background:#eef5ff;border-bottom:2px solid #6485bc}
 .legend-manual{background:#d8f2e9;border-bottom:2px solid #1c997e}
 .legend-ignored{background:#f0f1f4;border-bottom:2px solid #a2adb8}
 .muted-finding .finding-value{color:#939eaa;text-decoration:line-through}
