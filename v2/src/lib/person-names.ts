@@ -125,7 +125,7 @@ export function scanPersonNames(text:string):NameHit[]{
     else if(surnames.has(fold(match[2])) && looksLikeGivenNameTypo(match[1])){
       const before=text.slice(Math.max(0,match.index-70),match.index);
       const after=text.slice(match.index+match[0].length,match.index+match[0].length+70);
-      if(explicitPersonBefore.test(before) || personalVerbAfter.test(after) || /^\\s+meldete\\b/iu.test(after))
+      if(explicitPersonBefore.test(before) || personalVerbAfter.test(after) || /^\s+meldete\b/iu.test(after))
         add(match[0],match.index);
     }
   }
