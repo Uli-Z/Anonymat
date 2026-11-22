@@ -17,8 +17,8 @@ export function wholeTermMatches(text: string, term: string): Array<{start:numbe
   return findTerms(text, [term]);
 }
 
-function candidate(kind:Kind,start:number,value:string,origin:Finding['origin'],prefix='auto'):Finding {
-  return {id:prefix+'-'+kind+'-'+start+'-'+value.length,kind,text:value,start,end:start+value.length,origin};
+function candidate(kind:Kind,start:number,value:string,origin:Finding['origin'],prefix='auto',confidence?:Finding['confidence']):Finding {
+  return {id:prefix+'-'+kind+'-'+start+'-'+value.length,kind,text:value,start,end:start+value.length,origin,...(confidence?{confidence}:{})};
 }
 /**
  * Priority is manual > longer > earlier. Occupied UTF-16 positions let us
@@ -52,14 +52,14 @@ export function mergeManual(auto:Finding[],manual:Finding[]):Finding[]{
 }
 export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enableCities=true):Finding[]{
   const candidates:Finding[]=[];
-  const add=(kind:Kind,start:number,value:string):void=>{
-    if(value.trim())candidates.push(candidate(kind,start,value,'automatic'));
+  const add=(kind:Kind,start:number,value:string,confidence?:Finding['confidence']):void=>{
+    if(value.trim())candidates.push(candidate(kind,start,value,'automatic','auto',confidence));
   };
   for(const hit of scanStructuredPII(text))add(hit.kind,hit.start,hit.text);
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   for(const hit of scanPartialDates(text,{numericOrder}))add('DATE',hit.start,hit.text);
-  for(const hit of scanPersonNames(text))add('PERSON',hit.start,hit.text);
+  for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);
   return removeOverlaps(candidates);
 }
