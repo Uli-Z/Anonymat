@@ -1,0 +1,1487 @@
+{
+  "version": 1,
+  "note": "Fully invented corpus: 42 development scenarios plus 18 independent holdout scenarios. Expected spans refer to exact text occurrences; all occurrences are expected unless overlaid by a longer explicitly annotated span. Review items must remain unmasked without confirmation.",
+  "fixtures": [
+    {
+      "id": "clinic-admission",
+      "category": "medical",
+      "text": "Aufnahmebericht: Patientin Anna Müller, geb. 10.03.1981, wohnhaft Mohnblumenweg 12a, 28203 Bremen. Aufnahme am 17.11.2026 im Krankenhaus nach Synkope. Hb 8,2 g/dl, RR 110/65 mmHg. Rückfrage an anna.mueller@example.org.",
+      "expected": [
+        {
+          "text": "Anna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "10.03.1981",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Mohnblumenweg 12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28203",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "17.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "anna.mueller@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Krankenhaus",
+        "Synkope",
+        "Aufnahmebericht",
+        "Hb",
+        "RR"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "discharge-letter",
+      "category": "medical",
+      "text": "Entlassbrief für Herrn Peter Becker. Behandlung vom 12.10.2026 bis 18.10.2026, anschließend hausärztliche Kontrolle. Das Kreatinin lag bei 1,31 mg/dl, CRP bei 8 mg/l.",
+      "expected": [
+        {
+          "text": "Peter Becker",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "12.10.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "18.10.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Behandlung",
+        "Kreatinin",
+        "CRP"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "genitive-name",
+      "category": "names",
+      "text": "Der Brief des Herrn Müllers liegt noch im Büro. Frau Schmidt bittet um Rückruf; Herr Müller hat unterschrieben.",
+      "expected": [
+        {
+          "text": "Müllers",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Schmidt",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Brief",
+        "Büro",
+        "Rückruf"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "first-name-context",
+      "category": "names",
+      "text": "Peter berichtete von der Untersuchung. Ulrich sagte danach zu und Maria erklärte die Ergebnisse.",
+      "expected": [
+        {
+          "text": "Peter",
+          "kind": "FIRST_NAME",
+          "mode": "active"
+        },
+        {
+          "text": "Ulrich",
+          "kind": "FIRST_NAME",
+          "mode": "active"
+        },
+        {
+          "text": "Maria",
+          "kind": "FIRST_NAME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Untersuchung",
+        "Ergebnisse"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "isolated-first-names",
+      "category": "names",
+      "text": "Peter und Ulrich. Keine weitere Beschreibung der Personen.",
+      "expected": [
+        {
+          "text": "Peter",
+          "kind": "FIRST_NAME",
+          "mode": "review"
+        },
+        {
+          "text": "Ulrich",
+          "kind": "FIRST_NAME",
+          "mode": "review"
+        }
+      ],
+      "forbidden": [
+        "Beschreibung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "hospital-no-address",
+      "category": "false-positive",
+      "text": "Im Krankenhaus 5 wird aktuell renoviert. Die Klinik hat eine Station 3 und ein Zimmer 12. Eine Behandlung fand nicht statt.",
+      "expected": [],
+      "forbidden": [
+        "Krankenhaus",
+        "Im Krankenhaus 5",
+        "Klinik",
+        "Station",
+        "Zimmer",
+        "Behandlung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "common-nouns",
+      "category": "false-positive",
+      "text": "Die Rose blüht im Garten. Der Wolf lebt im Wald. Das Essen ist gut, die Waren sind angekommen. Heute ist Feiertag.",
+      "expected": [],
+      "forbidden": [
+        "Rose",
+        "Wolf",
+        "Essen",
+        "Waren",
+        "Garten",
+        "Feiertag"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "address-labelled",
+      "category": "address",
+      "text": "Anschrift: Lange Reihe 27, 28195 Bremen. Weitere Anschrift: Am Wall 7. Der Brief kommt über die Post.",
+      "expected": [
+        {
+          "text": "Lange Reihe 27",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28195",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "Am Wall 7",
+          "kind": "ADDRESS",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Post",
+        "Brief"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "street-context",
+      "category": "address",
+      "text": "Sie wohnt am Mohnblumenweg und arbeitet an der Berliner Straße. Die Station liegt dagegen im Krankenhaus.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg",
+          "kind": "STREET",
+          "mode": "active"
+        },
+        {
+          "text": "Berliner Straße",
+          "kind": "STREET",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Station",
+        "Krankenhaus"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "street-with-number",
+      "category": "address",
+      "text": "Paket bitte an Mohnblumenweg 12a, 28197 Bremen liefern. Ablage im Schuppen, nicht in der Garage.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg 12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28197",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Schuppen",
+        "Garage"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-basic",
+      "category": "date",
+      "text": "Sprechstunde am 10.03.2026. Kontrolle 20.11.2026. Entlassung am 2026-11-21. Das Datum ist korrekt.",
+      "expected": [
+        {
+          "text": "10.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "20.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "2026-11-21",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Sprechstunde",
+        "Kontrolle"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-day-month",
+      "category": "date",
+      "text": "Am 10. März war die Aufnahme, am 10.03. erfolgte die Nachkontrolle. Im April 2026 war die Person bereits entlassen.",
+      "expected": [
+        {
+          "text": "10. März",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "10.03.",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "April 2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Aufnahme",
+        "Nachkontrolle"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-month-year",
+      "category": "date",
+      "text": "Die Bescheinigung gilt ab März 2026; im April liegt ein neuer Bericht vor. Im Jahr 2027 folgt die Prüfung.",
+      "expected": [
+        {
+          "text": "März 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "April",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "2027",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Bescheinigung",
+        "Bericht",
+        "Prüfung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-typo-no-space-lower",
+      "category": "typo",
+      "text": "Patient erschien am 10.03.2026wurde anschließend untersucht. Der nächste Termin war am 12.03.2026geplant.",
+      "expected": [
+        {
+          "text": "10.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "12.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "untersucht",
+        "geplant"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-typo-no-space-upper",
+      "category": "typo",
+      "text": "Im Protokoll steht 21.11.2026Patient wurde übernommen. Danach folgte 22.11.2026Entlassung.",
+      "expected": [
+        {
+          "text": "21.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "22.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Patient",
+        "Entlassung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-typo-missing-delimiter",
+      "category": "typo",
+      "text": "Geb.am10.03.1980.Entlassung am 15.04.2026. Der Rest des Befunds ist normal.",
+      "expected": [
+        {
+          "text": "10.03.1980",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "15.04.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Befunds"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-typo-after-period",
+      "category": "typo",
+      "text": "Geburtsdatum: 10.03.1980.Danach erfolgte die Aufnahme am 12.09.2026.",
+      "expected": [
+        {
+          "text": "10.03.1980",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "12.09.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Aufnahme"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-ambiguous",
+      "category": "date",
+      "text": "Eintrag vom 04/05/2026; der Bericht nennt keine Landeseinstellung. Das Datum ist nicht eindeutig.",
+      "expected": [],
+      "forbidden": [
+        "Bericht",
+        "Landeseinstellung",
+        "Datum"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-invalid",
+      "category": "date",
+      "text": "Auf dem fehlerhaften Zettel steht 31.02.2026. Der Befund selbst ist unauffällig.",
+      "expected": [],
+      "forbidden": [
+        "Befund",
+        "Zettel"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "numeric-labs",
+      "category": "false-positive",
+      "text": "Labor: Hb 10.03 mg/dl, Leukozyten 11.5 /nl, pH 7.45, RR 120/80, Puls 95/min. Alter 37 Jahre, Gewicht 85 kg.",
+      "expected": [],
+      "forbidden": [
+        "10.03",
+        "11.5",
+        "7.45",
+        "120/80",
+        "37",
+        "85"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "medication-dose",
+      "category": "false-positive",
+      "text": "Metoprolol 47,5 mg morgens, Torasemid 10 mg mittags, O2 2 l/min, GFR 32 ml/min. Keine Personendaten im Text.",
+      "expected": [],
+      "forbidden": [
+        "Metoprolol",
+        "Torasemid",
+        "GFR"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "appointment-clock",
+      "category": "time",
+      "text": "Wir treffen uns am 20.11.2026 um 09:45 Uhr. Rückruf gegen 18:30 Uhr; Besprechung danach im Büro.",
+      "expected": [
+        {
+          "text": "20.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "09:45",
+          "kind": "TIME",
+          "mode": "active"
+        },
+        {
+          "text": "18:30",
+          "kind": "TIME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rückruf",
+        "Büro"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "contact-email",
+      "category": "contact",
+      "text": "Bitte Frau Laura Wagner per E-Mail an laura.wagner@example.org schreiben. Alternativ: info@example.net; Betreff: Urlaub.",
+      "expected": [
+        {
+          "text": "Laura Wagner",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "laura.wagner@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        },
+        {
+          "text": "info@example.net",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Urlaub",
+        "Betreff"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "contact-phone",
+      "category": "contact",
+      "text": "Telefon: +49 151 23456789, in dringenden Fällen 030 12345678 anrufen. Name: Thomas Meyer.",
+      "expected": [
+        {
+          "text": "+49 151 23456789",
+          "kind": "PHONE",
+          "mode": "active"
+        },
+        {
+          "text": "030 12345678",
+          "kind": "PHONE",
+          "mode": "active"
+        },
+        {
+          "text": "Thomas Meyer",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Telefon"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "invoice",
+      "category": "finance",
+      "text": "Rechnungsnummer RE-20334. Zahlung an DE89 3704 0044 0532 0130 00; BIC: COBADEFFXXX. Rechnungsdatum 03.06.2026, Betrag 49,95 EUR.",
+      "expected": [
+        {
+          "text": "RE-20334",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "DE89 3704 0044 0532 0130 00",
+          "kind": "IBAN",
+          "mode": "active"
+        },
+        {
+          "text": "COBADEFFXXX",
+          "kind": "BIC",
+          "mode": "active"
+        },
+        {
+          "text": "03.06.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "49,95",
+        "EUR"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "case-numbers",
+      "category": "identifier",
+      "text": "Patienten-ID: AB-90323. Aktenzeichen AZ-88372. Fallnummer 12345678. Auf der Station wurde die Probe verwechselt.",
+      "expected": [
+        {
+          "text": "AB-90323",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "AZ-88372",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "12345678",
+          "kind": "ID",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Station",
+        "Probe"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "car-plate",
+      "category": "identifier",
+      "text": "Kfz-Kennzeichen: HB AB 123. Der Wagen steht im Hof, der Parkplatz ist leer.",
+      "expected": [
+        {
+          "text": "HB AB 123",
+          "kind": "LICENSE_PLATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Hof",
+        "Parkplatz"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "it-ticket",
+      "category": "it",
+      "text": "IT-Ticket: Server 192.168.10.12 ist unter https://example.org/status erreichbar. Support: support@example.org. Die CPU-Auslastung beträgt 80 %.",
+      "expected": [
+        {
+          "text": "192.168.10.12",
+          "kind": "IP",
+          "mode": "active"
+        },
+        {
+          "text": "https://example.org/status",
+          "kind": "URL",
+          "mode": "active"
+        },
+        {
+          "text": "support@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Server",
+        "Support",
+        "CPU"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "social-work",
+      "category": "social",
+      "text": "Ansprechpartnerin: Fatima Demir. Sie lebt in Berlin, ihre Postadresse ist Berliner Straße 4, 10115 Berlin. Hausbesuch am 18.11.2026.",
+      "expected": [
+        {
+          "text": "Fatima Demir",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Berlin",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "Berliner Straße 4",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "10115",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "18.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Hausbesuch"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "school-letter",
+      "category": "school",
+      "text": "Liebe Eltern, die Klassenfahrt nach Hamburg findet am 15.05.2027 statt. Bitte bis 30.04.2027 unterschreiben. Ansprechpartner: Herr Becker.",
+      "expected": [
+        {
+          "text": "Hamburg",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "15.05.2027",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "30.04.2027",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Becker",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Eltern",
+        "Klassenfahrt"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "messenger-typos",
+      "category": "typo",
+      "text": "hi, hab grad mit peter geredet, der schrieb: 'ich bin am 10.03.2026dabei'. mail geht an peter@example.org. gruß",
+      "expected": [
+        {
+          "text": "10.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "peter@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "hi",
+        "gruß"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "name-typo-title",
+      "category": "typo",
+      "text": "Kontakt mit HerrnMüller ist erfolgt. Danach rief FrauSchmidt an. Bitte Rücksprache halten.",
+      "expected": [
+        {
+          "text": "Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Schmidt",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rücksprache"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "name-typo-transposition",
+      "category": "typo",
+      "text": "Annna Müller meldete sich in der Praxis. Der Name wurde vom Patienten am Telefon buchstabiert.",
+      "expected": [
+        {
+          "text": "Annna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Praxis",
+        "Patienten"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "name-labelled-typo",
+      "category": "typo",
+      "text": "Patientenname: Annna Müller. Vorname: Annna, Nachname: Müller. Vorgang abgeschlossen.",
+      "expected": [
+        {
+          "text": "Annna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Annna",
+          "kind": "FIRST_NAME",
+          "mode": "active"
+        },
+        {
+          "text": "Müller",
+          "kind": "LAST_NAME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Vorgang"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "unicode-hyphen-name",
+      "category": "names",
+      "text": "Frau Ayşe Yılmaz wurde aufgenommen. Später bestätigte Frau Ayşe Yılmaz den Termin am 20.11.2026.",
+      "expected": [
+        {
+          "text": "Ayşe Yılmaz",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "20.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Termin"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "travel-confirmation",
+      "category": "travel",
+      "text": "Buchungsbestätigung: Familie Schneider reist am 03.08.2027 nach Paris. Rückreise am 17.08.2027. Hotel: Bahnhofstraße 9, 75001 Paris.",
+      "expected": [
+        {
+          "text": "Schneider",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "03.08.2027",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Paris",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "17.08.2027",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Bahnhofstraße 9",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "75001",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Hotel",
+        "Rückreise"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "pediatric-letter",
+      "category": "medical",
+      "text": "An die Eltern von Emma Meyer: Die Impfung erfolgte am 05.03.2026. Im Bericht steht Kinderklinik, nicht ein Straßenname.",
+      "expected": [
+        {
+          "text": "Emma Meyer",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "05.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kinderklinik",
+        "Impfung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "forms-po-box",
+      "category": "office",
+      "text": "Name: Sarah Koch; Straße: Berliner Straße 18; PLZ: 28215; Ort: Bremen; Mail: sarah.koch@example.org.",
+      "expected": [
+        {
+          "text": "Sarah Koch",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Berliner Straße 18",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "sarah.koch@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Straße",
+        "Ort"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "date-multilingual",
+      "category": "date",
+      "text": "Appointment: March 10, 2026. Consultation le 10 mars 2026. Control el 10 de marzo de 2026. Abschluss am 10.03.2026.",
+      "expected": [
+        {
+          "text": "March 10, 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "10 mars 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "10 de marzo de 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "10.03.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Appointment",
+        "Consultation"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "typo-plz-glued",
+      "category": "typo",
+      "text": "Die Adresse lautet Mohnblumenweg 12a,28203Bremen. Bitte in der Notaufnahme Bescheid geben.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg 12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28203",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Notaufnahme"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "office-neutral",
+      "category": "false-positive",
+      "text": "Auswertung 2026: 128 Projekte, 23 Teams, Kostenquote 17,6 %. Im Krankenhaus wurde ein neues Formular eingeführt.",
+      "expected": [],
+      "forbidden": [
+        "Auswertung",
+        "Projekte",
+        "Kostenquote",
+        "Krankenhaus",
+        "Formular"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "long-hospital-narrative",
+      "category": "medical",
+      "text": "Die Patientin wurde im Krankenhaus aufgenommen. Der Rettungsdienst brachte sie in die Notaufnahme. Nach Untersuchung und Therapie folgte die Entlassung auf die Station 3. Die Ärztin besprach die Behandlung.",
+      "expected": [],
+      "forbidden": [
+        "Krankenhaus",
+        "Rettungsdienst",
+        "Notaufnahme",
+        "Untersuchung",
+        "Therapie",
+        "Station",
+        "Behandlung"
+      ],
+      "numericOrder": "auto",
+      "set": "development"
+    },
+    {
+      "id": "holdout-glued-um",
+      "category": "typo",
+      "text": "Eintrag vom 17.11.2026um 08:00 Uhr: Visite durchgeführt, anschließend Therapieplanung.",
+      "expected": [
+        {
+          "text": "17.11.2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "08:00",
+          "kind": "TIME",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Visite",
+        "Therapieplanung"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-short-year",
+      "category": "typo",
+      "text": "Aufnahme 05.04.26, Entlassung 07.04.26. Der Patient erinnert sich an beide Tage.",
+      "expected": [
+        {
+          "text": "05.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "07.04.26",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Aufnahme",
+        "Entlassung",
+        "Patient"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-compact-address",
+      "category": "address",
+      "text": "Lieferort: Mohnblumenweg12a, 28215 Bremen. Bitte beim Nachbarn abgeben.",
+      "expected": [
+        {
+          "text": "Mohnblumenweg12a",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Nachbarn"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-dr-joined",
+      "category": "typo",
+      "text": "Fr.Schmidt soll Rücksprache mit Dr.Müller halten. Die Übergabe war gestern.",
+      "expected": [
+        {
+          "text": "Schmidt",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rücksprache",
+        "Übergabe"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-mixed-date-format",
+      "category": "date",
+      "text": "Termin am 21/11/2026. Zweite Kontrolle am 11/21/2026 laut englischem Formular.",
+      "expected": [
+        {
+          "text": "21/11/2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "11/21/2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kontrolle",
+        "Formular"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-date-1-digit",
+      "category": "date",
+      "text": "Kontrolltermin: 7.3.1989 im Archiv dokumentiert. Der Ordner selbst ist öffentlich.",
+      "expected": [
+        {
+          "text": "7.3.1989",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Archiv",
+        "Ordner"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-city-conflict",
+      "category": "false-positive",
+      "text": "Das Essen war lecker. Die Waren kamen pünktlich. In Waren wurde später ein Markt eröffnet.",
+      "expected": [
+        {
+          "text": "Waren",
+          "kind": "CITY",
+          "mode": "active",
+          "occurrence": 2
+        }
+      ],
+      "forbidden": [
+        "Essen",
+        "Markt",
+        "Waren"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-name-genitive",
+      "category": "names",
+      "text": "Frau Anna Müller berichtete vom Gespräch mit Müllers Anwalt.",
+      "expected": [
+        {
+          "text": "Anna Müller",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "Müllers",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Anwalt",
+        "Gespräch"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-name-umlaut",
+      "category": "names",
+      "text": "Der Patient Özdemir hat im Klinikalltag einen Termin. Herr Özdemir kommt morgen wieder.",
+      "expected": [
+        {
+          "text": "Özdemir",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Klinikalltag",
+        "Termin"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-lab-false-alarm",
+      "category": "false-positive",
+      "text": "Gerinnung: INR 1,8, Quick 62 %, Thrombozyten 165 /nl. Antikoagulation wurde pausiert.",
+      "expected": [],
+      "forbidden": [
+        "Quick",
+        "Thrombozyten",
+        "Gerinnung",
+        "Antikoagulation"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-postal-label",
+      "category": "address",
+      "text": "Postleitzahl: 28215, Ort: Bremen. Straße: Berliner Straße 11b. Name: Lara Schwarz.",
+      "expected": [
+        {
+          "text": "28215",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        },
+        {
+          "text": "Berliner Straße 11b",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "Lara Schwarz",
+          "kind": "PERSON",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Postleitzahl"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-email-no-space",
+      "category": "contact",
+      "text": "Kontakt:julia.schmidt@example.org,weitere Rückfragen über www.example.org.",
+      "expected": [
+        {
+          "text": "julia.schmidt@example.org",
+          "kind": "EMAIL",
+          "mode": "active"
+        },
+        {
+          "text": "www.example.org",
+          "kind": "URL",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Kontakt",
+        "Rückfragen"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-health-note",
+      "category": "medical",
+      "text": "Pat.: Herr Demir, geb. 29.02.1988. 36,9 °C, Puls 82, SpO2 97 %. Entlassbrief folgt.",
+      "expected": [
+        {
+          "text": "Demir",
+          "kind": "PERSON",
+          "mode": "active"
+        },
+        {
+          "text": "29.02.1988",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Puls",
+        "SpO2",
+        "Entlassbrief"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-nonentity-chapter",
+      "category": "false-positive",
+      "text": "Im Abschnitt 5 stehen fünf Häuser, 15 Seiten und 20 Aufgaben. Krankenhaus und Schule sind Beispiele.",
+      "expected": [],
+      "forbidden": [
+        "Abschnitt",
+        "Häuser",
+        "Seiten",
+        "Krankenhaus",
+        "Schule"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-dates-weekday",
+      "category": "date",
+      "text": "Dienstag, 10. März 2026: Besprechung. Der Folgetermin ist Donnerstag, 12. März 2026.",
+      "expected": [
+        {
+          "text": "Dienstag, 10. März 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Donnerstag, 12. März 2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Besprechung",
+        "Folgetermin"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-ordernum",
+      "category": "identifier",
+      "text": "Kundennummer: KD-48392; Bestellnummer B-90001, Rechnung vom 19.09.2026.",
+      "expected": [
+        {
+          "text": "KD-48392",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "B-90001",
+          "kind": "ID",
+          "mode": "active"
+        },
+        {
+          "text": "19.09.2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Rechnung"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-normal-road",
+      "category": "address",
+      "text": "Wohnung in der Gartenstraße 12, 28199 Bremen. Der Weg zur Schule dauert etwa 10 Minuten.",
+      "expected": [
+        {
+          "text": "Gartenstraße 12",
+          "kind": "ADDRESS",
+          "mode": "active"
+        },
+        {
+          "text": "28199",
+          "kind": "POSTAL_CODE",
+          "mode": "active"
+        },
+        {
+          "text": "Bremen",
+          "kind": "CITY",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Weg",
+        "Schule"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    },
+    {
+      "id": "holdout-year-month-other",
+      "category": "date",
+      "text": "Die Reha begann im Mai 2026, Ende voraussichtlich Juni 2026. Medikation ist unabhängig davon.",
+      "expected": [
+        {
+          "text": "Mai 2026",
+          "kind": "DATE",
+          "mode": "active"
+        },
+        {
+          "text": "Juni 2026",
+          "kind": "DATE",
+          "mode": "active"
+        }
+      ],
+      "forbidden": [
+        "Reha",
+        "Medikation"
+      ],
+      "numericOrder": "auto",
+      "set": "holdout"
+    }
+  ]
+}
