@@ -40,7 +40,7 @@ describe('partial date recognition and safety',()=>{
       ['day-only','10.'],['year-only','2026']
     ]);
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(masked.mapping).toHaveLength(2);
     expect(masked.dates).toEqual([]);
@@ -71,22 +71,23 @@ describe('partial date recognition and safety',()=>{
     expect(us.month).toBe(4);
     expect(us.day).toBe(15);
   });
-  it('tokenises partial dates by default, even when full dates are shifted',()=>{
+  it('automatically shifts yearless day/month dates while tokenising month/year expressions',()=>{
     const source='Am 10. März; im April 2026; am 10.03.; 10.03.2026.';
     const found=detectPII(source);
     expect(found.filter(hit=>hit.kind==='DATE')).toHaveLength(4);
     const masked=maskText(source,found,{}, {dateShiftEnabled:true,offsetDays:30});
-    expect(masked.text).toContain('[DATE_001]');
-    expect(masked.text).toContain('[DATE_002]');
-    expect(masked.text).toContain('[DATE_003]');
-    expect(masked.text).toContain('09.04.2026');
-    expect(masked.partialDates).toEqual([]);
-    expect(restoreText(masked.text,masked.mapping).text).toBe(source.replace('10.03.2026','09.04.2026'));
+    expect(masked.text).toBe('Am 9. April; im [DATE_001]; am 9.04.; 09.04.2026.');
+    expect(masked.partialDates).toHaveLength(2);
+    expect(masked.dates).toHaveLength(1);
+    expect(masked.mapping).toHaveLength(1);
+    const partial=restoreShiftedPartialDates(masked.text,masked.partialDates);
+    const full=restoreShiftedDates(partial.text,masked.dates.map(date=>date.shiftedIso),30);
+    expect(restoreText(full.text,masked.mapping).text).toBe(source);
   });
-  it('shifts day/month without year using the same fixed day offset and explicit year',()=>{
+  it('shifts day/month without year using the same fixed day offset, without configuration',()=>{
     const source='10. März; March 10; 10 mars; 10 de marzo; 10.03.';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(masked.text).toBe('9. April; April 9; 9 avril; 9 de abril; 9.04.');
     expect(masked.partialDates).toHaveLength(5);
@@ -97,7 +98,7 @@ describe('partial date recognition and safety',()=>{
   it('restores translated French/English/Spanish partial dates and leaves unknown entries unchanged',()=>{
     const source='10. März am Morgen.';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     for(const [reply,expected] of [
       ['9 avril, puis 2 mai','10 mars, puis 2 mai'],
@@ -112,7 +113,7 @@ describe('partial date recognition and safety',()=>{
   it('detects missing or duplicated occurrences and never restores extra copies',()=>{
     const source='10. März';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     const repeated=restoreShiftedPartialDates('9 avril et 9 avril',masked.partialDates);
     expect(repeated.text).toBe('10 mars et 9 avril');
@@ -121,14 +122,18 @@ describe('partial date recognition and safety',()=>{
     expect(missing.text).toBe('Sans date');
     expect(missing.warnings[0]).toContain('fehlt');
   });
-  it('checks leap days against reference year and handles year crossings',()=>{
+  it('supports leap day automatically and handles year crossings',()=>{
     const feb=parsePartialDate('29. Februar')!;
+    expect(partialOriginalIso(feb)).toBe('2000-02-29');
     expect(partialOriginalIso(feb,null)).toBeNull();
     expect(partialOriginalIso(feb,2025)).toBeNull();
     expect(partialOriginalIso(feb,2024)).toBe('2024-02-29');
+    const leap=maskText('Am 29. Februar.',detectPII('Am 29. Februar.'),{}, {dateShiftEnabled:true,offsetDays:1});
+    expect(leap.text).toBe('Am 1. März.');
+    expect(restoreShiftedPartialDates(leap.text,leap.partialDates).text).toBe('Am 29. Februar.');
     const source='31. Dezember und 2. Januar';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(masked.text).toBe('30. Januar und 1. Februar');
     expect(restoreShiftedPartialDates(masked.text,masked.partialDates).text).toBe(source);
@@ -136,7 +141,7 @@ describe('partial date recognition and safety',()=>{
   it('does not shift yearless day/month next to a weekday it cannot verify',()=>{
     const source='Dienstag, 10. März; 10 mars, mardi.';
     const result=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(result.partialDates).toEqual([]);
     expect(result.mapping).toHaveLength(2);
@@ -146,7 +151,7 @@ describe('partial date recognition and safety',()=>{
   it('does not infer a month-year day or shift such periods even with a reference year',()=>{
     const source='März 2026, 03/2026, im März';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(masked.dates).toHaveLength(0);
     expect(masked.partialDates).toHaveLength(0);
@@ -156,7 +161,7 @@ describe('partial date recognition and safety',()=>{
   it('maintains the mixed full-date/yearless-date/token reverse order',()=>{
     const source='10.03.2026, 10. März und März 2026.';
     const masked=maskText(source,detectPII(source),{}, {
-      dateShiftEnabled:true,offsetDays:30,partialReferenceYear:2026
+      dateShiftEnabled:true,offsetDays:30
     });
     expect(masked.dates).toHaveLength(1);
     expect(masked.partialDates).toHaveLength(1);
