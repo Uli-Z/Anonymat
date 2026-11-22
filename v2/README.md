@@ -5,6 +5,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 ## Funktionen im Alpha-Prototyp
 
 - Lokaler Texteditor mit Live-Vorschlägen für E-Mail, URLs, IBAN/BIC, Telefonnummern, IP-Adressen, kontextgebundene Akten-/Patientennummern, Kfz-Kennzeichen, Straßen, Hausnummern, PLZ und Städtenamen. Namen werden auch nach Anreden, bei Namensfeldern und mit deutschen Genitivformen (z. B. „des Herrn Müller“, „Müllers“) erkannt. Aus „Frau Müller“ wird „Müller“ für alle Vorkommen im aktuellen Dokument gelernt – auch vor der Anrede oder wenn der Name erst später eingetippt wird.
+- Einzelne häufige Vornamen wie „Peter“ und „Ulrich“ werden bei personenbezogenem Satzkontext erkannt; isolierte Namen ohne solchen Kontext werden als **Prüfvorschläge** sichtbar, aber noch nicht ersetzt. Ein Klick bestätigt den Kandidaten als dokumentweit gelernte Regel. Die Trefferliste und der Ergebnisbereich weisen auf offene Prüfvorschläge hin. Gewöhnliche Begriffe wie „Krankenhaus“ werden nicht allein durch Wörterbuchtreffer oder eine Ortspräposition zu Straßennamen.
 - Beliebige Textauswahl mit **einem Klick** auf die eingeblendete Aktion „Auswahl anonymisieren“ markieren; die gewählte Stelle lehrt Anonymat den gleichen Begriff für weitere Vorkommen.
 - Automatische und manuelle Treffer sind direkt im Originaltext farblich hervorgehoben und anklickbar.
 - Kontextmenü zum Ändern des Platzhaltertyps, Entfernen/Ignorieren einer Stelle oder Ignorieren eines Begriffs im gesamten Text.
