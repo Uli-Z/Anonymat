@@ -11,7 +11,7 @@
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
-  import { parsePartialDate, partialOriginalIso, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
+  import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'OTHER'];
 
@@ -335,7 +335,9 @@
       const partialTarget=parsePartialDate(token,{numericOrder});
       const origIso=fullOriginal?.iso ?? (partialOriginal && partialOriginalIso(partialOriginal));
       const targetIso=fullTarget?.iso ?? (partialTarget && partialOriginalIso(partialTarget));
-      const offset=origIso && targetIso?calendarDayDifference(origIso,targetIso):null;
+      const offset=partialOriginal && partialTarget
+        ?nearestPartialDateOffset(partialOriginal,partialTarget)
+        :origIso && targetIso?calendarDayDifference(origIso,targetIso):null;
       if(offset===null || !Number.isSafeInteger(offset) || offset===0 || Math.abs(offset)>3650){
         replacementError='Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).';
         return;
