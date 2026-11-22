@@ -60,9 +60,9 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   // Two-digit years are century-ambiguous: protect with a DATE token, never
   // silently interpret or shift them to a guessed calendar year.
-  const shortYear=/((?<![\\p{L}\\p{N}]))(\\d{1,2})([./-])(\\d{1,2})\\3(\\d{2})(?![\\p{L}\\p{N}])/gu;
+  const shortYear=/(?<![\p{L}\p{N}])(\d{1,2})([./-])(\d{1,2})\2(\d{2})(?![\p{L}\p{N}])/gu;
   for(const match of text.matchAll(shortYear)){
-    const day=Number(match[2]),month=Number(match[4]);
+    const day=Number(match[1]),month=Number(match[3]);
     const limit=[31,29,31,30,31,30,31,31,30,31,30,31][month-1];
     if(limit && day>=1 && day<=limit)add('DATE',match.index,match[0]);
   }
