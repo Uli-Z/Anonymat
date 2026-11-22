@@ -3,7 +3,7 @@ import {detectPII} from '../src/lib/detect';
 import {maskText,restoreText} from '../src/lib/replace';
 import {restoreShiftedDates} from '../src/lib/dates';
 import {
-  scanPartialDates,parsePartialDate,partialOriginalIso,formatPartialLike,restoreShiftedPartialDates
+  scanPartialDates,parsePartialDate,partialOriginalIso,nearestPartialDateOffset,formatPartialLike,restoreShiftedPartialDates
 } from '../src/lib/partial-dates';
 
 describe('partial date recognition and safety',()=>{
@@ -121,6 +121,13 @@ describe('partial date recognition and safety',()=>{
     const missing=restoreShiftedPartialDates('Sans date',masked.partialDates);
     expect(missing.text).toBe('Sans date');
     expect(missing.warnings[0]).toContain('fehlt');
+  });
+  it('uses the nearest calendar crossing when editing yearless dates',()=>{
+    const from=parsePartialDate('11. November')!;
+    const to=parsePartialDate('10. Januar')!;
+    expect(nearestPartialDateOffset(from,to)).toBe(60);
+    expect(nearestPartialDateOffset(to,from)).toBe(-60);
+    expect(nearestPartialDateOffset(parsePartialDate('29. Februar')!,parsePartialDate('1. März')!)).toBe(1);
   });
   it('supports leap day automatically and handles year crossings',()=>{
     const feb=parsePartialDate('29. Februar')!;
