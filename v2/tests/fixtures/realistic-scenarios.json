@@ -1221,12 +1221,14 @@
         {
           "text": "Waren",
           "kind": "CITY",
-          "mode": "active"
+          "mode": "active",
+          "occurrence": 2
         }
       ],
       "forbidden": [
         "Essen",
-        "Markt"
+        "Markt",
+        "Waren"
       ],
       "numericOrder": "auto",
       "set": "holdout"

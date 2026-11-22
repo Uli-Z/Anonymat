@@ -15,7 +15,7 @@ import corpus from './fixtures/realistic-scenarios.json';
  * does not turn CI red for every currently unsupported typo; separate
  * regression assertions below enforce safety properties already supported.
  */
-type Expected = { text: string; kind: Kind; mode: 'active' | 'review' };
+type Expected = { text: string; kind: Kind; mode: 'active' | 'review'; occurrence?: number };
 type Fixture = {
   id: string;
   category: string;
@@ -41,7 +41,9 @@ function occurrences(source: string, needle: string): Array<{ start: number; end
 
 function goldSpans(f: Fixture): Span[] {
   const proposals = f.expected.flatMap(e =>
-    occurrences(f.text, e.text).map(span => ({ ...e, ...span }))
+    occurrences(f.text, e.text)
+      .filter((_,index) => e.occurrence === undefined || e.occurrence === index+1)
+      .map(span => ({ ...e, ...span }))
   );
   // A "Vorname: Annna" annotation must not erroneously demand that
   // "Annna" inside the separately annotated "Annna Müller" be split.

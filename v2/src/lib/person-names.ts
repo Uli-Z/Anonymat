@@ -42,7 +42,7 @@ export const bundledFamilyNameCount=familyNames.length;
 
 const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([A-ZÄÖÜ][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?)/gu;
 // Typical dictation typo: "HerrnMüller" / "FrauSchmidt".
-const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
+const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau|Fr\.|Hr\.|Dr\.|Prof\.)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
 const labeledName = /\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
 const twoNames = /(?<![\p{L}\p{M}])([A-ZÄÖÜ][\p{L}\p{M}'’-]+)\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
 const wordPattern = /[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
