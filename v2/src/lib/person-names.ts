@@ -41,6 +41,8 @@ export const bundledGivenNameCount=givenNames.length;
 export const bundledFamilyNameCount=familyNames.length;
 
 const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([A-ZÄÖÜ][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?)/gu;
+// Typical dictation typo: "HerrnMüller" / "FrauSchmidt".
+const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
 const labeledName = /\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
 const twoNames = /(?<![\p{L}\p{M}])([A-ZÄÖÜ][\p{L}\p{M}'’-]+)\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
 const wordPattern = /[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
@@ -49,6 +51,22 @@ const personalBefore = /\b(?:mit|von|für|bei|an|zu|durch|gegen|über|mein|meine
 const explicitPersonBefore = /\b(?:herr|frau|patient|patientin|kollege|kollegin|arzt|ärztin|professor|professorin|kontaktperson)\s+$/iu;
 const personalVerbAfter = /^\s+(?:sagte|berichtete|erzählte|erklärte|fragte|antwortete|schrieb|bestätigte|rief|kam|ging|hat|hatte|war|wurde|ist|bleibt|möchte|will|kann|soll|sprach|erhielt|erhält|besuchte|unterschrieb|arbeitet|lebt|wohnt)\b/iu;
 
+function oneEditApart(a:string,b:string):boolean {
+  if(a===b || Math.abs(a.length-b.length)>1)return false;
+  let i=0,j=0,edits=0;
+  while(i<a.length && j<b.length){
+    if(a[i]===b[j]){i++;j++;continue;}
+    if(++edits>1)return false;
+    if(a.length>b.length)i++;
+    else if(b.length>a.length)j++;
+    else{i++;j++;}
+  }
+  return edits+(a.length-i)+(b.length-j)===1;
+}
+function looksLikeGivenNameTypo(value:string):boolean {
+  const key=fold(value);
+  return key.length>=4 && [...frequentFirst].some(name=>oneEditApart(key,name));
+}
 function stemSurname(value:string):string {
   if(value.endsWith("'s") || value.endsWith('’s'))return value.slice(0,-2);
   if(value.endsWith('s') && value.length>4 && surnames.has(fold(value.slice(0,-1))))return value.slice(0,-1);
@@ -85,12 +103,18 @@ export function scanPersonNames(text:string):NameHit[]{
     const name=second && firstNames.has(fold(first))?first+' '+second:first;
     add(name,match.index+match[0].lastIndexOf(name));
   }
+  for(const match of text.matchAll(gluedSalutation)){
+    if(match.index===undefined || !match[1])continue;
+    if(surnames.has(fold(match[1])) || firstNames.has(fold(match[1])))
+      add(match[1],match.index+match[0].length);
+  }
   for(const match of text.matchAll(labeledName)){
     const first=match[2],second=match[3];
     if(match.index===undefined || !first)continue;
     const label=fold(match[1]);
     const single=label==='vorname'||label==='nachname'||label==='familienname';
-    const name=first+(!single&&second?' '+second:'');
+    const honorific=/^(?:Herrn?|Frau|Hr|Fr)$/iu.test(first);
+    const name=honorific && second && !single ? second : first+(!single&&second?' '+second:'');
     add(name,match.index+match[0].lastIndexOf(name),
       label==='vorname'?'FIRST_NAME':label==='nachname'||label==='familienname'?'LAST_NAME':'PERSON');
   }
@@ -98,6 +122,12 @@ export function scanPersonNames(text:string):NameHit[]{
     if(match.index===undefined)continue;
     if(firstNames.has(fold(match[1])) && surnames.has(fold(match[2])))
       add(match[0],match.index);
+    else if(surnames.has(fold(match[2])) && looksLikeGivenNameTypo(match[1])){
+      const before=text.slice(Math.max(0,match.index-70),match.index);
+      const after=text.slice(match.index+match[0].length,match.index+match[0].length+70);
+      if(explicitPersonBefore.test(before) || personalVerbAfter.test(after) || /^\\s+meldete\\b/iu.test(after))
+        add(match[0],match.index);
+    }
   }
   for(const match of findTerms(text,[...learned]))
     hits.push({start:match.start,text:match.text,kind:'PERSON',confidence:'certain'});
