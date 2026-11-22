@@ -13,6 +13,8 @@ const BIC = /\b(?:BIC|SWIFT(?:-Code)?)\s*[:#]?\s*([A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:
 const IDENTIFIER = /\b(?:Patienten(?:-?ID|-?Nr\.?|-?nummer)?|Patientenakte|Fall(?:nummer|-?ID)|Aktenzeichen|AZ|KVNR|Versichertennummer|Krankenversichertennummer|Steuer(?:-?ID|identifikationsnummer|nummer)|USt-?IdNr\.?|Personalnummer|Kundennummer|Rechnungsnummer|Bestellnummer|Ausweisnummer|Passnummer|Seriennummer|Fahrgestellnummer|FIN|VIN|Geburtsregisternummer|Vorgangsnummer|ID)\s*(?:[:=#]|\bNr\.?)?\s*([A-Z0-9][A-Z0-9./_-]{3,35})/giu;
 const PLATE = /\b(?:Kennzeichen|Kfz[- ]?Kennzeichen|Nummernschild)\s*[:#]?\s*([A-ZÄÖÜ]{1,3}[-\s]+[A-Z]{1,2}[-\s]+\d{1,4}[EH]?)\b/giu;
 const TIME = /(?:(?:\bum|\bgegen|\bUhrzeit\s*:?)\s*)(\d{1,2}:\d{2})(?=\s*(?:Uhr\b|[,.;]|$))/giu;
+const PERIOD_NOT_STREET = /^(?:Am|An|Im|Auf|Bei|Unter|Vor|Hinter|Zum|Zur)\s+(?:Jahr|Monat|Januar|Februar|März|Maerz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(?:19|20)\d{2}$/iu;
+const GENERIC_PLACE_NOUN = /^(?:Parkplatz|Arbeitsplatz|Spielplatz|Sitzplatz)$/iu;
 
 function checkIban(value:string):boolean {
   const compact=value.replace(/\s/g,'').toUpperCase();
@@ -56,8 +58,11 @@ export function scanStructuredPII(text:string):StructuredHit[]{
   }
   for(const match of text.matchAll(IDENTIFIER)){
     const group=matchGroup(match,1);
-    if(group && /[\d]/.test(group.text) && !/^\d{4}$/.test(group.text))
-      push('ID',group.start,group.text);
+    if(group){
+      // Trailing sentence punctuation is not part of an identifier.
+      const value=group.text.replace(/[.,;:]+$/u,'');
+      if(/[\d]/.test(value) && !/^\d{4}$/.test(value))push('ID',group.start,value);
+    }
   }
   for(const match of text.matchAll(PLATE)){
     const group=matchGroup(match,1);
@@ -70,9 +75,12 @@ export function scanStructuredPII(text:string):StructuredHit[]{
     const grammatical=/^(?:(?:An|Am|In|Auf|Bei|Unter|Vor|Hinter)\s+(?:der|dem|den)\s+|(?:Der|Die|Das)\s+)/u.exec(match[0]);
     const offset=grammatical?.[0].length??0;
     const value=match[0].slice(offset);
+    if(GENERIC_PLACE_NOUN.test(value))continue;
     push(/\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?$/u.test(value)?'ADDRESS':'STREET',match.index+offset,value);
   }
   for(const match of text.matchAll(NAMED_STREET)){
+    // Calendar periods are not named streets.
+    if(PERIOD_NOT_STREET.test(match[0]))continue;
     // General location phrases with a number are not necessarily addresses:
     // "Im Krankenhaus 5" often refers to a ward/building, not a street.
     const prior=text.slice(Math.max(0,match.index-50),match.index);
@@ -85,7 +93,7 @@ export function scanStructuredPII(text:string):StructuredHit[]{
     const before=text.slice(Math.max(0,match.index-25),match.index);
     const after=text.slice(match.index+match[0].length,match.index+match[0].length+36);
     if(/\b(?:PLZ|Postleitzahl|postcode|postal code)\s*[:#]?\s*$/iu.test(before)
-       || /^\s+[A-ZÄÖÜ][\p{L}\p{M}ßäöü-]{2,}(?:\s+[A-ZÄÖÜ][\p{L}\p{M}ßäöü-]{2,})?/u.test(after))
+       || /^\s*[A-ZÄÖÜ][\p{Ll}\p{M}ßäöü-]{2,}(?:\s+[A-ZÄÖÜ][\p{L}\p{M}ßäöü-]{2,})?/u.test(after))
       push('POSTAL_CODE',match.index,match[0]);
   }
   for(const match of text.matchAll(TIME)){
