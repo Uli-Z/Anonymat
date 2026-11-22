@@ -192,3 +192,65 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   .settings-footer{padding:13px 18px}
   .settings-random-row{align-items:stretch}
 }
+
+/* Focused document workflow: no resizing side panels while typing. */
+.editing-workspace{width:100%;min-width:0}
+.editing-workspace>.editor-panel{width:100%}
+.editing-workspace .marked-editor{
+  height:clamp(360px,56vh,620px);
+  min-height:360px;
+  max-height:none;
+  overflow:hidden;
+}
+.editing-workspace .marked-editor .cm-editor{
+  height:100%;
+  min-height:0;
+  max-height:none;
+}
+.editing-workspace .marked-editor .cm-scroller{
+  height:100%;
+  overflow:auto;
+}
+.editing-workspace .marked-editor .cm-content{min-height:100%}
+.editor-actions{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:center;
+  flex-wrap:wrap;
+  border-top:1px solid #e8eef1;
+  background:#fafcfd;
+  padding:14px 18px;
+}
+.editor-actions .count-inline{margin-left:5px}
+.output-panel{margin-top:0}
+.preview-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;min-height:136px;padding:10px;text-align:center}
+.preview-gate p{max-width:470px;color:#627888;font-size:13px;line-height:1.6;margin:0}
+.third-step{margin-top:35px}
+.findings-dialog{
+  width:min(640px,calc(100vw - 28px));
+  max-height:min(780px,calc(100dvh - 28px));
+  margin:auto;
+  padding:0;
+  border:1px solid #dce5e9;
+  border-radius:14px;
+  background:#fff;
+  color:#243647;
+  box-shadow:0 22px 90px rgba(16,38,48,.24);
+  overflow:hidden;
+}
+.findings-dialog[open]{display:flex;flex-direction:column}
+.findings-dialog::backdrop{background:rgba(15,32,45,.52)}
+.findings-dialog .panel-heading{flex-shrink:0}
+.findings-dialog .findings-body{flex:1;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+.findings-dialog .findings-list{padding:0 16px 15px}
+.findings-dialog-actions{display:flex;align-items:center;gap:12px}
+@media(max-width:680px){
+  .editing-workspace .marked-editor{height:clamp(330px,54dvh,560px);min-height:330px}
+  .editing-workspace .marked-editor .cm-editor,.editing-workspace .marked-editor .cm-content{min-height:0}
+  .editor-actions{flex-wrap:wrap;gap:10px;padding:12px 14px}
+  .editor-actions button{flex:1 1 auto}
+  .findings-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px);border-radius:12px}
+  .findings-dialog .findings-list{padding:0 10px 10px}
+  .preview-gate{min-height:150px}
+}
