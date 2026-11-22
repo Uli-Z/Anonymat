@@ -40,9 +40,9 @@ const nonPersonWords = new Set(('krankenhaus klinik klinikum arztpraxis praxis p
 export const bundledGivenNameCount=givenNames.length;
 export const bundledFamilyNameCount=familyNames.length;
 
-const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([\p{Lu}][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[\p{Lu}][\p{L}\p{M}'’-]+)(?:\s+([\p{Lu}][\p{L}\p{M}'’-]+))?)/gu;
+const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.|OA\.?|OÄ\.?)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([\p{Lu}][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[\p{Lu}][\p{L}\p{M}'’-]+)(?:\s+([\p{Lu}][\p{L}\p{M}'’-]+))?)/gu;
 // Typical dictation typo: "HerrnMüller" / "FrauSchmidt".
-const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau|Fr\.|Hr\.|Dr\.|Prof\.)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
+const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau|Fr\.|Hr\.|Dr\.|Prof\.|OA\.?|OÄ\.?)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
 const labeledName = /\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
 const twoNames = /(?<![\p{L}\p{M}])([\p{Lu}][\p{L}\p{M}'’-]+)\s+([\p{Lu}][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
 const wordPattern = /[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
