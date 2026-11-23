@@ -51,12 +51,12 @@ describe('cross-document learning',()=>{
     expect(found.every(hit=>hit.confidence!=='review')).toBe(true);
   });
   it('traces a learned surname and genitive back to the original full-name rule',()=>{
-    const stored=makeRule('Ulrich Xytronix','PERSON')!;
-    const hits=scanDocument('Xytronix und Xytronixs.',[],'auto',true,[stored])
+    const stored=makeRule('Ulrich Xytronia','PERSON')!;
+    const hits=scanDocument('Xytronia und Xytronias.',[],'auto',true,[stored])
       .filter(hit=>hit.origin==='learned');
-    expect(hits.map(hit=>hit.text)).toEqual(['Xytronix','Xytronixs']);
+    expect(hits.map(hit=>hit.text)).toEqual(['Xytronia','Xytronias']);
     expect(hits.map(hit=>hit.learnedRuleKey)).toEqual([stored.key,stored.key]);
-    const withoutMemory=scanDocument('Xytronix und Xytronixs.',[],'auto',true,[])
+    const withoutMemory=scanDocument('Xytronia und Xytronias.',[],'auto',true,[])
       .filter(hit=>hit.origin==='learned');
     expect(withoutMemory).toHaveLength(0);
   });
