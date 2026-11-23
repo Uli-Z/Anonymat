@@ -375,18 +375,32 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 }
 .first-run-dialog[open]{display:flex;flex-direction:column}
 .first-run-dialog::backdrop{background:rgba(15,32,45,.64)}
-.first-run-header{display:flex;flex-direction:column;gap:14px;padding:22px 25px 16px;
-  border-bottom:1px solid #f0e6d8;background:linear-gradient(125deg,#fff9ef 0%,#fff 78%)}
-.first-run-heading{display:flex;align-items:center;gap:14px;min-width:0}
-.first-run-heading h2{font-size:20px;line-height:1.3;letter-spacing:-.45px;margin:0;font-weight:760;color:#273f4c}
-.first-run-symbol{display:grid;place-items:center;width:44px;height:44px;flex:none;
-  border-radius:13px;border:1px solid #f2d59e;background:#fff0d3;color:#a56e18}
-.first-run-symbol svg{width:25px;height:25px}
-.first-run-language{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-.first-run-language label{font-size:12px;font-weight:650;color:#586d7b}
-.first-run-language select{min-width:145px;max-width:100%;border:1px solid #d4dfe5;border-radius:8px;
-  background:#fff;color:#304657;padding:8px 10px;font-size:12px;cursor:pointer}
-.first-run-language select:focus-visible{outline:2px solid #0b6570;outline-offset:2px}
+.first-run-header{position:relative;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;padding:24px 25px 17px;border-bottom:1px solid #e9eff2;background:#fff}
+.first-run-heading{display:flex;align-items:flex-start;gap:10px;min-width:0;padding-top:4px}
+.first-run-heading h2{font-size:20px;line-height:1.3;letter-spacing:-.4px;margin:0;font-weight:740;color:#273f4c}
+.first-run-symbol{width:21px;height:21px;flex:none;margin-top:2px;color:#a17a3a}
+.first-run-language{position:relative;flex:none}
+.first-run-language-toggle{list-style:none;display:flex;align-items:center;justify-content:center;gap:3px;
+  min-width:43px;height:36px;padding:4px 5px;border:1px solid transparent;border-radius:8px;
+  background:transparent;cursor:pointer;color:#697d88}
+.first-run-language-toggle::-webkit-details-marker{display:none}
+.first-run-language-toggle::marker{content:""}
+.first-run-language-toggle span{font-size:21px;line-height:1}
+.first-run-language-toggle svg{width:11px;height:11px;flex:none}
+.first-run-language-toggle:hover,.first-run-language[open] .first-run-language-toggle{background:#f4f7f9;border-color:#e1e8ed}
+.first-run-language-toggle:focus-visible{outline:2px solid #0b6570;outline-offset:2px}
+.first-run-language-menu{position:absolute;top:calc(100% + 6px);right:0;width:240px;z-index:5;
+  border:1px solid #dfe7ec;border-radius:11px;background:#fff;padding:7px;
+  box-shadow:0 12px 35px rgba(16,38,48,.13)}
+.first-run-language-caption{color:#738490;font-size:11px;font-weight:650;padding:7px 9px 6px}
+.first-run-language-choice{width:100%;display:flex;align-items:center;gap:10px;border:0;
+  border-radius:7px;background:transparent;color:#304857;text-align:left;
+  padding:10px 9px;font-size:12.5px;line-height:1.35}
+.first-run-language-choice span:first-child{font-size:18px;line-height:1}
+.first-run-language-choice:hover,.first-run-language-choice:focus-visible{background:#f3f7f8}
+.first-run-language-choice[aria-pressed="true"]{background:#eaf4f3;color:#0a5862;font-weight:700}
+.first-run-language-choice[aria-pressed="true"]::after{content:"✓";margin-left:auto;color:#0a5862;font-size:12px}
 .first-run-dialog .primary-button{font-size:13px;padding:11px 17px}
 
 .first-run-body{padding-top:19px;padding-bottom:3px}
@@ -397,10 +411,10 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .first-run-ack input{flex:none;width:17px;height:17px;margin:2px 0 0;accent-color:#0b6570}
 @media(max-width:680px){
   .first-run-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px);border-radius:12px}
-  .first-run-header{padding:18px;gap:13px}
+  .first-run-header{padding:18px 15px 15px;gap:8px}
   .first-run-heading h2{font-size:18px}
-  .first-run-symbol{width:40px;height:40px}
-  .first-run-language{justify-content:flex-start}
+  .first-run-symbol{width:19px;height:19px}
+  .first-run-language-menu{width:min(240px,calc(100vw - 42px))}
   .first-run-body{padding-left:18px;padding-right:18px}
 
   .first-run-dialog .review-actions button{width:100%}
