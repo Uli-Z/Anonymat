@@ -10,6 +10,6 @@ export function analyze(request:AnalysisRequest,progress?:(stage:'detect'|'repla
     request.numericOrder,request.cityLexiconEnabled,request.learned ?? []
   );
   progress?.('replace',75);
-  const prepared=maskText(request.text,reviewed.active,request.rules,request.dateOptions);
+  const prepared=maskText(request.text,reviewed.active,request.rules,request.dateOptions,reviewed.pending);
   return {reviewed,prepared,elapsedMs:performance.now()-start};
 }

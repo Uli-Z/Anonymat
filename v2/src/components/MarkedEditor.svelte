@@ -11,6 +11,7 @@
     ignored: boolean;
     review: boolean;
     manual: boolean;
+    tooltip: string;
   };
 
   interface Props {
@@ -71,11 +72,12 @@
         ranges.push(Decoration.mark({
           class:[
             'cm-anonymat-hit',
-            mark.ignored?'cm-anonymat-ignored':mark.review?'cm-anonymat-review':mark.manual?'cm-anonymat-manual':'cm-anonymat-auto'
+            mark.review?'cm-anonymat-review':'cm-anonymat-active',
+            mark.manual?'cm-anonymat-manual':'cm-anonymat-auto'
           ].join(' '),
           attributes:{
             'data-hit-id':mark.id,
-            title:mark.ignored?'Ignorierter Treffer · klicken zum Wiederherstellen':mark.review?'Möglicher Name · zur Bestätigung klicken':'Personenbezogene Angabe · klicken zum Bearbeiten'
+            title:mark.tooltip
           }
         }).range(from,to));
       }

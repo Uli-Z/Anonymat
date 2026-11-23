@@ -15,6 +15,7 @@ export interface TermGroup {
 export interface ReviewedDocument {
   findings: Finding[];
   active: Finding[];
+  pending: Finding[];
   groups: TermGroup[];
 }
 /**
@@ -38,6 +39,9 @@ export function reviewDocument(
     && !ignoredPlaces.some(place => overlaps(place, hit))
   );
   const activeIds = new Set(active.map(hit=>hit.id));
+  const pending=findings.filter(hit=>hit.confidence==='review' && !activeIds.has(hit.id)
+    && !excluded.has(hit.text.normalize('NFC').toLocaleLowerCase('de'))
+    && !ignoredPlaces.some(place=>overlaps(place,hit)));
   const map = new Map<string,TermGroup>();
   for(const hit of findings){
     const key=hit.kind+':'+hit.text.normalize('NFC').toLocaleLowerCase('de');
@@ -52,5 +56,5 @@ export function reviewDocument(
     if(hit.origin==='learned')group.learned=true;
     if(hit.confidence==='review')group.review=true;
   }
-  return {findings,active,groups:[...map.values()]};
+  return {findings,active,pending,groups:[...map.values()]};
 }

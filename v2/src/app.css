@@ -77,10 +77,10 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .marked-editor .cm-placeholder{color:#9ca9b7}
 .marked-editor .cm-selectionBackground{background:#bbd8ee!important}
 .marked-editor .cm-anonymat-hit{border-radius:3px;padding:1px 0;box-decoration-break:clone;cursor:pointer;text-decoration:none}
-.marked-editor .cm-anonymat-auto{background:#fff0cc;box-shadow:inset 0 -2px 0 #f0ae44;color:#4e3712}
-.marked-editor .cm-anonymat-review{background:#eef5ff;box-shadow:inset 0 -2px 0 #6485bc;color:#264a77}
-.marked-editor .cm-anonymat-manual{background:#d8f2e9;box-shadow:inset 0 -2px 0 #1c997e;color:#135d4c}
-.marked-editor .cm-anonymat-ignored{background:#f0f1f4;box-shadow:inset 0 -1px 0 #a2adb8;color:#77818c;text-decoration:line-through}
+.marked-editor .cm-anonymat-active{background:#d9f3e5;box-shadow:inset 0 -2px 0 #28865f;color:#15543e}
+.marked-editor .cm-anonymat-review{background:#fff0d6;box-shadow:none;color:#67400a;
+  text-decoration:underline;text-decoration-style:dashed;text-decoration-color:#a86a12;
+  text-decoration-thickness:2px;text-underline-offset:4px}
 .marked-editor .cm-anonymat-hit:hover{filter:brightness(.95)}
 .muted-finding .finding-value{color:#939eaa;text-decoration:line-through}
 .hit-popover{position:fixed;z-index:9000;min-width:245px;width:min(300px,calc(100vw - 24px));padding:13px;background:white;border:1px solid #dce5eb;border-radius:12px;box-shadow:0 14px 45px rgba(20,40,55,.2)}
@@ -293,6 +293,54 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   .analysis-banner{right:10px;bottom:10px;width:calc(100vw - 20px)}
 }
 
+/* Two clear actions rather than a color legend: active marks and open proposals. */
+.preview-suggestion{
+  display:inline;vertical-align:baseline;padding:0 1px;border:0;border-bottom:2px dashed #ae741e;
+  border-radius:3px;background:#fff0d6;color:#5e3907;font:inherit;line-height:inherit;
+  cursor:pointer;box-decoration-break:clone;
+}
+.preview-suggestion:hover,.preview-suggestion:focus-visible{background:#ffdea9;outline:2px solid #bd831d;outline-offset:2px}
+.proposal-review-banner{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px;
+  margin:16px 18px 18px;padding:16px;border:1px solid #e6c98e;border-left:4px solid #b4781c;
+  border-radius:9px;background:#fff9ec;
+}
+.proposal-review-copy{flex:1 1 240px}
+.proposal-review-copy strong{display:block;font-size:14px;color:#69480f}
+.proposal-review-copy p{margin:5px 0 0;color:#685535;font-size:12px;line-height:1.55}
+.copy-warning-dialog{
+  width:min(540px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
+  margin:auto;padding:0;border:1px solid #e7d2a2;border-radius:16px;
+  background:#fff;color:#243647;box-shadow:0 22px 90px rgba(16,38,48,.24);overflow:hidden;
+}
+.copy-warning-dialog[open]{display:flex;flex-direction:column}
+.copy-warning-dialog::backdrop{background:rgba(15,32,45,.52)}
+.copy-warning-dialog .settings-body{padding-top:19px;padding-bottom:16px}
+.copy-warning-dialog .settings-body p{font-size:13px;line-height:1.6;color:#506675;margin:0 0 12px}
+.copy-warning-terms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.copy-warning-terms span{font-size:12px;padding:4px 7px;border-bottom:2px dashed #b4781c;background:#fff1d8;border-radius:4px;color:#65450f}
+.hit-status{margin:4px 0 8px;font-weight:650;font-size:12px;padding:7px 9px;border-radius:6px}
+.hit-status-review{color:#765009;background:#fff0d6;border-bottom:2px dashed #b4781c}
+.hit-status-active{color:#15543e;background:#d9f3e5}
+.restore-group-button{border:1px solid #d4e3e8;color:#28505b;background:#fff;border-radius:6px;padding:6px 9px;font-size:11px;margin-top:8px}
+.hit-sheet-backdrop{display:none}
+@media(max-width:680px), (pointer:coarse){
+  .hit-sheet-backdrop{display:block;position:fixed;inset:0;z-index:8999;border:0;background:rgba(14,32,42,.38)}
+  .hit-popover{
+    left:0!important;right:0!important;top:auto!important;bottom:0!important;
+    width:100%;min-width:0;max-height:min(75dvh,620px);overflow:auto;padding:20px 19px 24px;
+    border-radius:18px 18px 0 0;box-shadow:0 -12px 42px rgba(16,35,48,.22)
+  }
+  .hit-popover::before{
+    content:"";display:block;width:36px;height:4px;border-radius:4px;
+    background:#c0cbd3;margin:-7px auto 15px
+  }
+  .hit-actions button{padding:13px 9px;font-size:14px;min-height:44px}
+  .copy-warning-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px);border-radius:12px}
+  .proposal-review-banner{margin:14px;padding:14px}
+  .proposal-review-banner button{width:100%}
+}
+
 /* Browser-only learning: compact modal and optional management table. */
 .review-dialog,.consent-dialog{
   width:min(520px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
@@ -307,7 +355,7 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .selection-remember{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;color:#4d6472;cursor:pointer}
 .selection-remember input{accent-color:#0b6570}
 .learned-list{display:flex;flex-direction:column;max-height:260px;overflow:auto;border:1px solid #e1eaee;border-radius:9px;margin:15px 0}
-.learned-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(100px,135px) auto auto;align-items:center;gap:10px;padding:9px 11px;border-bottom:1px solid #edf1f3;font-size:12px}
+.learned-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(100px,135px) auto;align-items:center;gap:10px;padding:9px 11px;border-bottom:1px solid #edf1f3;font-size:12px}
 .learned-row:last-child{border-bottom:0}
 .learned-row strong{font-weight:650;overflow-wrap:anywhere}
 .learned-row select{min-width:0;width:100%;border:1px solid #d8e5e7;border-radius:6px;background:#fff;padding:6px;font-size:12px}
