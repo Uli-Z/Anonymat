@@ -47,7 +47,7 @@ test('manual highlights persist after editing elsewhere and can be removed', asy
   await page.keyboard.press('ControlOrMeta+End');
   for (let i = 0; i < 8; i++) await page.keyboard.press('Shift+ArrowLeft');
 
-  await page.locator('.selection-toolbar').getByRole('button', { name: /Auswahl anonymisieren/ }).click();
+  await page.locator('.selection-popover').getByRole('button', { name: /Sonstiges/ }).click();
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(1);
   await expect(page.locator('.cm-anonymat-manual')).toHaveText('FREIGABE');
   await reveal(page);
@@ -120,7 +120,7 @@ test('selecting an unknown word learns repeated words throughout the document', 
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.press('ArrowLeft'); // period
   for (let i = 0; i < 'FREIGABE'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
-  await page.locator('.selection-toolbar').getByRole('button', {name:/Auswahl anonymisieren/}).click();
+  await page.locator('.selection-popover').getByRole('button', {name:/Sonstiges/}).click();
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(2);
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
@@ -158,4 +158,54 @@ test('editing a replacement token keeps restoration working after French AI text
   await page.getByRole('textbox', {name:'KI-Antwort mit Platzhaltern'})
     .fill('Madame [PATIENT_A] a répondu.');
   await expect(page.locator('.restore-preview')).toContainText('Madame Müller a répondu.');
+});
+
+
+test('manual selection offers named categories in one popover, without a second toolbar', async ({ page }) => {
+  const editor = page.locator('.cm-content');
+  await editor.fill('Bitte CODEWORT');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  for (let i = 0; i < 'CODEWORT'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+
+  const popover = page.getByRole('dialog', {name:'Textauswahl anonymisieren'});
+  await expect(popover).toBeVisible();
+  await expect(page.locator('.selection-toolbar')).toHaveCount(0);
+  await expect(popover.getByRole('button', {name:/Sonstiges/})).toBeVisible();
+  await expect(popover.getByRole('button', {name:'Name',exact:true})).toBeVisible();
+  await expect(popover.getByRole('combobox',{name:'Weitere Kategorien'})).toBeVisible();
+  await popover.getByRole('button', {name:'Name',exact:true}).click();
+  await expect(page.locator('.cm-anonymat-manual')).toHaveText('CODEWORT');
+  await reveal(page);
+  await expect(page.locator('.preview')).toContainText('[PERSON_001]');
+});
+
+test('selection popover follows visible text when the editor itself scrolls', async ({page}) => {
+  const lines = Array.from({length: 65},(_,i)=> 'Abschnitt ' + i);
+  lines[59] = 'Sonderwort';
+  await page.locator('.cm-content').fill(lines.join('\\n'));
+  const editor = page.locator('.cm-content');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  for(let i=0;i<5;i++) await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('End');
+  for(let i=0;i<'Sonderwort'.length;i++) await page.keyboard.press('Shift+ArrowLeft');
+
+  const popover = page.getByRole('dialog',{name:'Textauswahl anonymisieren'});
+  await expect(popover).toBeVisible();
+  const before = await popover.boundingBox();
+  await page.locator('.cm-scroller').evaluate(scroller => {scroller.scrollTop -= 22;});
+  await expect.poll(async()=> (await popover.boundingBox())?.y).not.toBe(before?.y);
+  await popover.getByRole('button',{name:/Sonstiges/}).click();
+  await expect(page.locator('.cm-anonymat-manual')).toHaveText('Sonderwort');
+});
+
+test('help opens a concise FAQ without repeating privacy badges', async ({page}) => {
+  await page.getByRole('button',{name:'Hilfe & FAQ'}).click();
+  const faq = page.getByRole('dialog',{name:'Hilfe & FAQ'});
+  await expect(faq).toBeVisible();
+  await expect(faq).toContainText('Was bedeuten die Markierungsfarben?');
+  await expect(faq).toContainText('Ist das Ergebnis wirklich anonym?');
+  await page.getByRole('button',{name:'Hilfe schließen'}).click();
+  await expect(faq).not.toBeVisible();
 });
