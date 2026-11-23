@@ -45,6 +45,15 @@ describe('synthetic pseudonyms from bundled lexica',()=>{
     expect(restoreText(result.text,result.mapping).text).toBe(source);
   });
 
+  it('shares an alias when the same surname has different detected categories',()=>{
+    const source='Müller und Müller';
+    const result=maskText(source,hits(source,[
+      {value:'Müller',kind:'PERSON'},{value:'Müller',kind:'LAST_NAME'}
+    ]),{}, {defaultReplacementMode:'synthetic',syntheticSeed:seed});
+    expect(result.mapping[0].token).toBe(result.mapping[1].token);
+    expect(restoreText(result.text,result.mapping).text).toBe(source);
+  });
+
   it('allows explicit per-term placeholder and synthetic overrides',()=>{
     const source='Anna wohnte in Bremen.';
     const active=hits(source,[{value:'Anna',kind:'FIRST_NAME'},{value:'Bremen',kind:'CITY'}]);
