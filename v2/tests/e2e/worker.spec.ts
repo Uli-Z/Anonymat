@@ -4,6 +4,11 @@ import { pathToFileURL } from 'node:url';
 
 const html=pathToFileURL(resolve('dist/index.html')).href;
 
+test.use({ locale: 'de-DE' });
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('anonymat-first-run-ack-v2', 'accepted'));
+});
+
 test('analysis can be aborted and restarted without releasing stale output',async({page})=>{
   test.setTimeout(45000);
   await page.goto(html);
