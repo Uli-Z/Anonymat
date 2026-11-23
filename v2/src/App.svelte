@@ -253,7 +253,7 @@
     manual=[...manual.filter(hit=>!candidates.some(candidate=>spansOverlap(candidate,hit))),...candidates];
     ignoredTerms=ignoredTerms.filter(term=>!terms.has(normalizedKey(term)));
     for(const hit of candidates)recordLearning(hit.text,hit.kind);
-    notice=candidates.length+' '+t('Vorschläge übernommen. Bitte das Ergebnis prüfen.');
+    notice=candidates.length+' '+t(candidates.length===1?'Vorschlag übernommen. Bitte das Ergebnis prüfen.':'Vorschläge übernommen. Bitte das Ergebnis prüfen.');
   }
   function reviewIndividually():void{
     reviewPromptHandled=true;
@@ -1013,7 +1013,7 @@
       <form method="dialog"><button type="submit" class="settings-close" aria-label={t("Kopierwarnung schließen")}>×</button></form>
     </div>
     <div class="settings-body">
-      <p>{t('Es gibt noch')} {pendingGroups.length} {pendingGroups.length===1?t('ungeprüften Vorschlag'):t('ungeprüfte Vorschläge')}, {t('die im pseudonymisierten Text unverändert stehen.')}</p>
+      <p>{#if pendingGroups.length===1}{t('Ein Vorschlag ist noch ungeprüft und steht im pseudonymisierten Text unverändert.')}{:else}{pendingGroups.length} {t('Vorschläge sind noch ungeprüft und stehen im pseudonymisierten Text unverändert.')}{/if}</p>
       <p>{t("Der Text kann dadurch identifizierende Angaben enthalten. Bitte prüfe ihn, bevor du ihn weitergibst.")}</p>
       <div class="copy-warning-terms" aria-label={t("Ungeprüfte Begriffe")}>
         {#each pendingGroups.slice(0,5) as group}
@@ -1212,7 +1212,7 @@
           <span><strong>{t("Manuelle Ersetzungen merken")}</strong><small>{t("Bestätigte Begriffe werden künftig automatisch pseudonymisiert. Die Originalbegriffe bleiben lokal im Browserprofil gespeichert.")}</small></span>
         </label>
         {#if consentState==='on'}
-          <p class="settings-note">{learnedRules.length} {t('gespeicherte Begriffe. Sie werden in zukünftigen Texten automatisch pseudonymisiert.')}</p>
+          <p class="settings-note">{learnedRules.length} {learnedRules.length===1?t('gespeicherter Begriff. Er wird in zukünftigen Texten automatisch pseudonymisiert.'):t('gespeicherte Begriffe. Sie werden in zukünftigen Texten automatisch pseudonymisiert.')}</p>
           {#if learnedRules.length}
             <div class="learned-list">
               {#each learnedRules as rule (rule.key)}
