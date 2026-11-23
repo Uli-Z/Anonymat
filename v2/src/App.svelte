@@ -71,6 +71,7 @@
   let replacementError = $state('');
   let selectedRange = $state({ from: 0, to: 0 });
   let quickAction = $state<{x: number; y: number} | null>(null);
+  let selectionReplacementMode = $state<'default'|'token'|'synthetic'>('default');
   let reply = $state('');
   let notice = $state('');
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
@@ -375,6 +376,7 @@
     reply = '';
     menu = null;
     quickAction = null;
+    selectionReplacementMode = 'default';
     notice = '';
     if(!next.trim())reviewPromptHandled=false;
   }
@@ -436,7 +438,15 @@
   }
 
   function addManual(kind: Kind): void {
-    setManualMark(selectedRange.from, selectedRange.to, kind);
+    const {from,to}=selectedRange;
+    const term=source.slice(from,to).trim();
+    const mode=selectionReplacementMode;
+    setManualMark(from,to,kind);
+    if(term && mode!=='default'){
+      if(mode==='token' || supportsSynthetic(kind))setRuleMode(kind,term,mode);
+      else notice='Für diese Kategorie ist nur ein Platzhalter möglich.';
+    }
+    selectionReplacementMode='default';
   }
 
   function suppressOne(hit: Finding): void {
@@ -622,6 +632,7 @@
     ignoredPlaces = [];
     ignoredTerms = [];
     replacementRules = {};
+    selectionReplacementMode = 'default';
     syntheticSeed = newSyntheticSeed();
     dateShiftEnabled = true;
     dateOffsetMode = 'random';
@@ -1192,6 +1203,14 @@
         <strong>Auswahl pseudonymisieren</strong>
         <button class="popover-close" type="button" aria-label="Auswahlmenü schließen" onclick={() => quickAction = null}>×</button>
       </div>
+      <label class="selection-mode-control">
+        Ersetzen durch
+        <select aria-label="Ersetzung für Textauswahl" bind:value={selectionReplacementMode}>
+          <option value="default">Standard</option>
+          <option value="token">Platzhalter</option>
+          <option value="synthetic">Pseudonym (Namen und Orte)</option>
+        </select>
+      </label>
       <button class="selection-default" type="button" onclick={() => addManual('OTHER')}>
         <strong>Sonstiges</strong><small>Allgemeiner Platzhalter</small>
       </button>
