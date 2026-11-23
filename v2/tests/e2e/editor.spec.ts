@@ -184,6 +184,47 @@ test('manual selection offers named categories in one popover, without a second 
   await expect(page.locator('.preview')).toContainText('[PERSON_001]');
 });
 
+test('selecting a region with multiple matches offers individual bulk decisions',async({page})=>{
+  const editor=page.locator('.cm-content');
+  await editor.fill('Anna Müller schrieb an anna@example.org.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(2);
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+Home');
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.up('Shift');
+
+  const popover=page.getByRole('dialog',{name:'Textauswahl pseudonymisieren'});
+  await expect(popover).toContainText('2 Fundstellen in Auswahl');
+  await expect(popover.getByRole('checkbox')).toHaveCount(2);
+  await expect(popover).toContainText('Anna Müller');
+  await expect(popover).toContainText('anna@example.org');
+  await popover.getByRole('checkbox',{name:/anna@example.org/}).uncheck();
+  await popover.getByRole('button',{name:/Ausgewählte nicht ersetzen/}).click();
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(1);
+  await expect(page.locator('.cm-anonymat-active')).toContainText(['anna@example.org']);
+  await reveal(page);
+  await expect(page.locator('.preview')).toContainText('Anna Müller');
+});
+
+test('bulk selection accepts reviewed findings independently of other marked text',async({page})=>{
+  const editor=page.locator('.cm-content');
+  await editor.fill('Frau Anna Müller sprach mit Ulrich am 12.08.2024.');
+  await expect(page.locator('.cm-anonymat-hit').first()).toBeVisible();
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+Home');
+  await page.keyboard.down('Shift');
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.up('Shift');
+  const popover=page.getByRole('dialog',{name:'Textauswahl pseudonymisieren'});
+  await expect(popover.locator('.selection-bulk-item').first()).toBeVisible();
+  const count=await popover.getByRole('checkbox').count();
+  expect(count).toBeGreaterThanOrEqual(2);
+  await popover.getByRole('button',{name:/Ausgewählte pseudonymisieren/}).click();
+  await expect(popover).not.toBeVisible();
+  await expect(page.getByRole('button',{name:/Ergebnis prüfen/})).toBeEnabled();
+});
+
 test('selection popover follows visible text when the editor itself scrolls', async ({page}) => {
   const lines = Array.from({length: 65},(_,i)=> 'Abschnitt ' + i);
   lines[59] = 'Sonderwort';

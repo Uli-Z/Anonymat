@@ -81,10 +81,11 @@ test('source editor stays the same height while findings change',async({page})=>
 test('number detection toggle persists and affects the next text',async({page})=>{
   const settings=page.locator('dialog.settings-dialog');
   await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
-  const numbers=settings.getByRole('checkbox',{name:/Zahlen erkennen/});
+  const numbers=settings.getByRole('checkbox',{name:'Zahlen',exact:true});
   await expect(numbers).toBeChecked();
-  await settings.getByText('Weitere Kategorien einzeln einstellen').click();
-  await expect(settings.getByRole('checkbox',{name:'IBAN'})).toBeChecked();
+  await expect(settings.getByRole('checkbox',{name:'IBAN'})).toBeVisible();
+  await expect(settings.locator('.detection-category-option')).toHaveCount(18);
+  await expect(settings.locator('details').filter({hasText:'Weitere Kategorien einzeln einstellen'})).toHaveCount(0);
   await numbers.uncheck();
   await settings.getByRole('button',{name:'Schließen',exact:true}).click();
   await page.locator('.cm-content').fill('Die Länge beträgt 128 cm.');
