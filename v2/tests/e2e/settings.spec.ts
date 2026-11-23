@@ -4,7 +4,10 @@ import { pathToFileURL } from 'node:url';
 
 const html = pathToFileURL(resolve('dist/index.html')).href;
 
+test.use({ locale: 'de-DE' });
+
 test.beforeEach(async ({page}) => {
+  await page.addInitScript(() => localStorage.setItem('anonymat-first-run-ack-v2','accepted'));
   await page.goto(html);
 });
 
