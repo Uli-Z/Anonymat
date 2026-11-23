@@ -24,7 +24,7 @@ const STORE='rules';
 let connection:Promise<IDBDatabase>|null=null;
 function database():Promise<IDBDatabase>{
   if(!connection){
-    connection=new Promise((resolve,reject)=>{
+    connection=new Promise<IDBDatabase>((resolve,reject)=>{
       if(typeof indexedDB==='undefined'){reject(new Error('IndexedDB nicht verfügbar'));return;}
       const request=indexedDB.open(DB_NAME,1);
       request.onupgradeneeded=()=>{
@@ -37,7 +37,7 @@ function database():Promise<IDBDatabase>{
       request.onblocked=()=>reject(new Error('Speicherzugriff blockiert'));
     }).catch(error=>{connection=null;throw error;});
   }
-  return connection;
+  return connection!;
 }
 async function transact<T>(
   mode:IDBTransactionMode,
