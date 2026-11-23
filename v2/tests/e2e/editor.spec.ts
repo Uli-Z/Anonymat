@@ -36,7 +36,7 @@ test('automatic highlights open an inline context menu and can be ignored', asyn
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(1);
   await openReplacements(page);
-  await page.getByRole('button',{name:'Alle Stellen wieder ersetzen'}).click();
+  await page.locator('.finding-row').filter({hasText:'Anna Müller'}).getByRole('checkbox').check();
   await closeReplacements(page);
   await expect(page.locator('.cm-anonymat-active')).toHaveCount(2);
 });
@@ -192,7 +192,7 @@ test('selection popover follows visible text when the editor itself scrolls', as
   await page.keyboard.press('End');
   for(let i=0;i<'Sonderwort'.length;i++) await page.keyboard.press('Shift+ArrowLeft');
 
-  const popover = page.getByRole('dialog',{name:'Textauswahl anonymisieren'});
+  const popover = page.getByRole('dialog',{name:'Textauswahl pseudonymisieren'});
   await expect(popover).toBeVisible();
   const before = await popover.boundingBox();
   await page.locator('.cm-scroller').evaluate(scroller => {scroller.scrollTop -= 22;});
