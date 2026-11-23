@@ -50,6 +50,23 @@ describe('cross-document learning',()=>{
     expect(found.map(hit=>hit.text)).toEqual(['Meier','Meiers']);
     expect(found.every(hit=>hit.confidence!=='review')).toBe(true);
   });
+  it('traces a learned surname and genitive back to the original full-name rule',()=>{
+    const stored=makeRule('Ulrich Xytronix','PERSON')!;
+    const hits=scanDocument('Xytronix und Xytronixs.',[],'auto',true,[stored])
+      .filter(hit=>hit.origin==='learned');
+    expect(hits.map(hit=>hit.text)).toEqual(['Xytronix','Xytronixs']);
+    expect(hits.map(hit=>hit.learnedRuleKey)).toEqual([stored.key,stored.key]);
+    const withoutMemory=scanDocument('Xytronix und Xytronixs.',[],'auto',true,[])
+      .filter(hit=>hit.origin==='learned');
+    expect(withoutMemory).toHaveLength(0);
+  });
+  it('keeps the learned-rule provenance when occurrences are ignored in the document',()=>{
+    const stored=makeRule('Zorbel','PERSON')!;
+    const reviewed=reviewDocument('Zorbel antwortet.',[],[],['Zorbel'],'auto',true,[stored]);
+    expect(reviewed.active).toHaveLength(0);
+    expect(reviewed.findings.find(hit=>hit.origin==='learned')?.learnedRuleKey).toBe(stored.key);
+    expect(reviewed.groups[0]?.learned).toBe(true);
+  });
   it('does not match substrings of ordinary words',()=>{
     const remembered=[makeRule('Zorbel','PERSON')!];
     const matches=scanDocument('Zorbelberg und Zorbel.',[],'auto',true,remembered)
