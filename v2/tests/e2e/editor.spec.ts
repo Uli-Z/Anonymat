@@ -31,14 +31,14 @@ test('automatic highlights open an inline context menu and can be ignored', asyn
 
   await page.locator('.cm-anonymat-auto').first().click();
   await expect(page.getByRole('dialog', { name: 'Markierung bearbeiten' })).toBeVisible();
-  await page.getByRole('button', { name: /Nur diese Stelle ignorieren/ }).click();
-  await expect(page.locator('.cm-anonymat-ignored')).toHaveCount(1);
+  await page.getByRole('button', { name: /Nur diese Stelle nicht ersetzen/ }).click();
+  await expect(page.locator('.cm-anonymat-hit')).toHaveCount(1);
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(1);
-
-  await page.locator('.cm-anonymat-ignored').click();
-  await page.getByRole('button', { name: /Wieder anonymisieren/ }).click();
-  await expect(page.locator('.cm-anonymat-auto')).toHaveCount(2);
+  await openReplacements(page);
+  await page.getByRole('button',{name:'Alle Stellen wieder ersetzen'}).click();
+  await closeReplacements(page);
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(2);
 });
 
 test('manual highlights persist after editing elsewhere and can be removed', async ({ page }) => {
@@ -90,15 +90,15 @@ test('ignoring one occurrence never creates a phantom entry, but global ignore h
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
 
   await page.locator('.cm-anonymat-auto').nth(1).click();
-  await page.getByRole('button', { name: /Nur diese Stelle ignorieren/ }).click();
-  await expect(page.locator('.cm-anonymat-ignored')).toHaveCount(1);
+  await page.getByRole('button', { name: /Nur diese Stelle nicht ersetzen/ }).click();
+  await expect(page.locator('.cm-anonymat-hit')).toHaveCount(2);
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
 
   await page.locator('.cm-anonymat-auto').first().click();
-  await page.getByRole('button', { name: /Begriff im ganzen Text ignorieren/ }).click();
-  await expect(page.locator('.cm-anonymat-ignored')).toHaveCount(3);
+  await page.getByRole('button', { name: /Begriff im ganzen Text nicht ersetzen/ }).click();
+  await expect(page.locator('.cm-anonymat-hit')).toHaveCount(0);
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(0);
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
@@ -169,7 +169,7 @@ test('manual selection offers named categories in one popover, without a second 
   await page.keyboard.press('ControlOrMeta+End');
   for (let i = 0; i < 'CODEWORT'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
 
-  const popover = page.getByRole('dialog', {name:'Textauswahl anonymisieren'});
+  const popover = page.getByRole('dialog', {name:'Textauswahl pseudonymisieren'});
   await expect(popover).toBeVisible();
   await expect(page.locator('.selection-toolbar')).toHaveCount(0);
   await expect(popover.getByRole('button', {name:/Sonstiges/})).toBeVisible();
@@ -206,6 +206,7 @@ test('help opens a concise FAQ without repeating privacy badges', async ({page})
   const faq = page.getByRole('dialog',{name:'Hilfe & FAQ'});
   await expect(faq).toBeVisible();
   await expect(faq).toContainText('Warum läuft Anonymat im Browser?');
+  await expect(faq).toContainText('Warum heißt es Anonymat, obwohl nur pseudonymisiert wird?');
   await expect(faq).toContainText('Werden meine Texte oder Änderungen übertragen?');
   await expect(faq).toContainText('Du bist selbst dafür verantwortlich');
   await expect(faq.locator('section')).toHaveCount(6);

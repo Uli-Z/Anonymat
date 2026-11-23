@@ -322,6 +322,7 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .hit-status{margin:4px 0 8px;font-weight:650;font-size:12px;padding:7px 9px;border-radius:6px}
 .hit-status-review{color:#765009;background:#fff0d6;border-bottom:2px dashed #b4781c}
 .hit-status-active{color:#15543e;background:#d9f3e5}
+.restore-group-button{border:1px solid #d4e3e8;color:#28505b;background:#fff;border-radius:6px;padding:6px 9px;font-size:11px;margin-top:8px}
 .hit-sheet-backdrop{display:none}
 @media(max-width:680px), (pointer:coarse){
   .hit-sheet-backdrop{display:block;position:fixed;inset:0;z-index:8999;border:0;background:rgba(14,32,42,.38)}

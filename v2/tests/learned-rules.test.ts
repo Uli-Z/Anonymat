@@ -9,20 +9,21 @@ describe('cross-document learning',()=>{
     const rule=makeRule('  Änne Meier  ','PERSON');
     expect(rule?.key).toBe(normalizedKey('änne meier'));
     expect(rule?.term).toBe('Änne Meier');
-    expect(rule?.autoApply).toBe(false);
+    expect(rule).not.toHaveProperty('autoApply');
     expect(makeRule('  ','OTHER')).toBeNull();
     expect(makeRule('X','PERSON')).toBeNull();
   });
-  it('reuses a prior manual name as a review proposal, never an unapproved replacement',()=>{
+  it('immediately masks a stored manual name in future texts',()=>{
     const learned=makeRule('Zorbel','PERSON')!;
     const input='Zorbel wurde aufgenommen. ZORBEL wurde entlassen.';
     const reviewed=reviewDocument(input,[],[],[],'auto',true,[learned]);
     expect(reviewed.findings.filter(f=>f.origin==='learned')).toHaveLength(2);
-    expect(reviewed.groups.find(g=>g.text==='Zorbel')).toMatchObject({count:2,activeCount:0,learned:true,review:true});
-    expect(maskText(input,reviewed.active).text).toBe(input);
+    expect(reviewed.groups.find(g=>g.text==='Zorbel')).toMatchObject({count:2,activeCount:2,learned:true,review:false});
+    expect(reviewed.pending).toHaveLength(0);
+    expect(maskText(input,reviewed.active).text).not.toContain('Zorbel');
   });
-  it('automatically masks an explicitly trusted stored rule in another text',()=>{
-    const rule={...makeRule('Zorbel','LAST_NAME')!,autoApply:true};
+  it('automatically masks every stored rule in another text',()=>{
+    const rule=makeRule('Zorbel','LAST_NAME')!;
     const input='Zorbel bestätigt, ZORBEL antwortet.';
     const reviewed=reviewDocument(input,[],[],[],'auto',true,[rule]);
     expect(reviewed.active.filter(h=>h.origin==='learned')).toHaveLength(2);
@@ -30,7 +31,7 @@ describe('cross-document learning',()=>{
   });
   it('respects manually marked corrections over stored classification',()=>{
     const input='Zorbel sprach.';
-    const remembered=[{...makeRule('Zorbel','CITY')!,autoApply:true}];
+    const remembered=[makeRule('Zorbel','CITY')!];
     const manual=[{id:'manual-1',kind:'PERSON' as const,origin:'manual' as const,
       text:'Zorbel',start:0,end:6}];
     expect(scanDocument(input,manual,'auto',true,remembered)[0].kind).toBe('PERSON');
@@ -42,12 +43,12 @@ describe('cross-document learning',()=>{
     expect(reviewed.active.find(hit=>hit.text==='Müller')?.kind).toBe('LAST_NAME');
     expect(reviewed.active.find(hit=>hit.text==='Müller')?.origin).toBe('learned');
   });
-  it('proposes the surname and German genitive after learning a full person name',()=>{
+  it('directly masks the surname and German genitive after learning a full person name',()=>{
     const remembered=[makeRule('Ulrich Meier','PERSON')!];
     const input='Meier und Meiers, nicht Meierberg.';
     const found=scanDocument(input,[],'auto',true,remembered).filter(hit=>hit.origin==='learned');
     expect(found.map(hit=>hit.text)).toEqual(['Meier','Meiers']);
-    expect(found.every(hit=>hit.confidence==='review')).toBe(true);
+    expect(found.every(hit=>hit.confidence!=='review')).toBe(true);
   });
   it('does not match substrings of ordinary words',()=>{
     const remembered=[makeRule('Zorbel','PERSON')!];
