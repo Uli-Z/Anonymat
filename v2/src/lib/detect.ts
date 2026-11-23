@@ -86,8 +86,14 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   for(const hit of partialDates)add('DATE',hit.start,hit.text);
   for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);
-  // Numbers come last: dates, identifiers and addresses win on equal spans.
-  if(enableNumbers)for(const hit of scanNumbers(text))add('NUMBER',hit.start,hit.text);
+  // Numbers are the last-resort fallback. A longer "number" such as
+  // "-10.01.2025" must never outrank a valid DATE, ID, address or other
+  // recognized entity just because it includes a leading dash.
+  if(enableNumbers)for(const hit of scanNumbers(text)){
+    if(candidates.some(item=>item.kind!=='NUMBER'
+      && hit.start<item.end && item.start<hit.end))continue;
+    add('NUMBER',hit.start,hit.text);
+  }
   return removeOverlaps(candidates);
 }
 

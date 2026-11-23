@@ -25,6 +25,12 @@ describe('two independently editable dates separated by a dash',()=>{
       const full=source.slice(source.indexOf('–')>=0?source.indexOf('–')+1:source.indexOf('-')+1).trimStart();
       expect(hits.filter(hit=>hit.kind==='DATE').map(hit=>hit.text),source).toEqual([short,full]);
       expect(hits.filter(hit=>hit.kind==='PHONE'),source).toEqual([]);
+      // Number scanning is enabled by default in the app. It must not
+      // promote "-10.01.2025" over the second DATE finding.
+      const withNumbers=detectPII(source,'auto',true,true);
+      expect(withNumbers.filter(hit=>hit.kind==='DATE').map(hit=>hit.text),source)
+        .toEqual([short,full]);
+      expect(withNumbers.some(hit=>hit.kind==='NUMBER'),source).toBe(false);
       expect(scanDates(source).matches.map(hit=>hit.text)).toEqual([full]);
       expect(scanPartialDates(source).map(hit=>hit.text)).toEqual([short]);
     }
