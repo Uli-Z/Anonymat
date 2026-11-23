@@ -46,6 +46,15 @@
   }
   let syntheticSeed = $state(newSyntheticSeed());
   let dateOffsetMode = $state<'random'|'manual'>('random');
+  const FIRST_RUN_ACK_KEY = 'anonymat-first-run-ack-v2';
+  let firstRunDialog: HTMLDialogElement | undefined;
+  let firstRunConfirmed = $state(false);
+  function acknowledgeFirstRun():void{
+    if(!firstRunConfirmed)return;
+    try{localStorage.setItem(FIRST_RUN_ACK_KEY,'accepted');}
+    catch{ /* Storage may be disabled; acknowledge for this session only. */ }
+    firstRunDialog?.close();
+  }
   let settingsDialog: HTMLDialogElement | undefined;
   let faqDialog: HTMLDialogElement | undefined;
   let consentDialog: HTMLDialogElement | undefined;
@@ -167,6 +176,10 @@
       }
     }catch{ /* Private browsing can restrict site storage. */ }
     consentState=pref;
+    let firstRunAccepted=false;
+    try{firstRunAccepted=localStorage.getItem(FIRST_RUN_ACK_KEY)==='accepted';}
+    catch{ /* A blocked store means the warning will reappear on reload. */ }
+    if(!firstRunAccepted)firstRunDialog?.showModal();
     if(pref==='on'){
       void loadLearnedRules().then(rules=>{
         if(!cancelled)learnedRules=rules;
@@ -742,6 +755,23 @@
 <svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; quickAction = null; }} />
 
 <div class="app-shell">
+  <dialog class="first-run-dialog" bind:this={firstRunDialog} aria-labelledby="first-run-title" aria-describedby="first-run-summary" oncancel={event=>event.preventDefault()}>
+    <div class="settings-header">
+      <h2 id="first-run-title">{t("Wichtiger Hinweis zur Pseudonymisierung")}</h2>
+    </div>
+    <div class="settings-body first-run-body">
+      <p id="first-run-summary">{t("Anonymat unterstützt die Pseudonymisierung von Texten, garantiert aber weder eine vollständige noch eine fehlerfreie Erkennung. Persönliche Angaben können übersehen, falsch ersetzt oder durch den Zusammenhang weiterhin erkennbar sein. Das Ergebnis ist nicht automatisch anonym.")}</p>
+      <p>{t("Prüfe jeden Ergebnistext vollständig, bevor du ihn kopierst oder weitergibst. Für die Freigabe und den verantwortungsvollen Umgang mit personenbezogenen Daten bist du selbst verantwortlich.")}</p>
+      <p>{t("Die Verarbeitung deiner Texte erfolgt lokal im Browser auf deinem Gerät. Anonymat sendet diese Texte nicht an einen Server. Erst wenn du Inhalte selbst kopierst oder an externe Dienste weitergibst, verlassen sie diesen Bereich. Das optionale Gedächtnis speichert einzelne bestätigte Begriffe nur in deinem Browserprofil.")}</p>
+      <label class="first-run-ack">
+        <input type="checkbox" bind:checked={firstRunConfirmed} />
+        <span>{t("Ich habe den Hinweis gelesen und verstanden.")}</span>
+      </label>
+    </div>
+    <div class="review-actions">
+      <button type="button" class="primary-button" disabled={!firstRunConfirmed} onclick={acknowledgeFirstRun}>{t("Verstanden – Anonymat starten")}</button>
+    </div>
+  </dialog>
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
