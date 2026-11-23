@@ -727,7 +727,7 @@
         field.remove();
         if (!success) throw new Error('copy failed');
       }
-      notice = label + ' kopiert.';
+      notice = t(label) + ' ' + t('kopiert.');
     } catch {
       notice = t("Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.");
     }
@@ -868,7 +868,7 @@
       {#if resultVisible && pending.length}
         <div class="proposal-review-banner" role="status">
           <div class="proposal-review-copy">
-            <strong>{pendingGroups.length} {pendingGroups.length===1?t("Vorschlag ist"):t("Vorschläge sind")} noch ungeprüft</strong>
+            <strong>{pendingGroups.length} {pendingGroups.length===1?t('Vorschlag ist'):t('Vorschläge sind')} {t('noch ungeprüft')}</strong>
             <p>{t("Orange markierte Angaben stehen weiterhin unverändert im Text und können Personen identifizierbar machen.")}</p>
           </div>
           <button type="button" class="secondary-button" onclick={reviewIndividually}>{t("Vorschläge prüfen")}</button>
@@ -911,7 +911,7 @@
           <div class="inline-warning">
             {#if restored.missing.length}{t('Nicht wiedergefunden:')} {restored.missing.join(', ')}. {/if}
             {#if restored.unknown.length}{t('Unbekannte Tokens:')} {restored.unknown.join(', ')}.{/if}
-            Bitte das Ergebnis prüfen.
+            {t('Bitte das Ergebnis prüfen.')}
           </div>
         {/if}
       </section>
@@ -958,7 +958,7 @@
                           {#if group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text))}
                             <div>{t("Ändert den gemeinsamen Tagesoffset für alle verschobenen Daten.")}</div>
                           {/if}
-                          {#if replacementError}<div class="replacement-error">{replacementError}</div>{/if}
+                          {#if replacementError}<div class="replacement-error">{t(replacementError)}</div>{/if}
                         </form>
                       {:else}
                         <div class="replacement-inline">
@@ -1013,7 +1013,7 @@
       <form method="dialog"><button type="submit" class="settings-close" aria-label={t("Kopierwarnung schließen")}>×</button></form>
     </div>
     <div class="settings-body">
-      <p>Es gibt noch {pendingGroups.length} {pendingGroups.length===1?t("ungeprüften Vorschlag"):t("ungeprüfte Vorschläge")}, die im pseudonymisierten Text unverändert stehen.</p>
+      <p>{t('Es gibt noch')} {pendingGroups.length} {pendingGroups.length===1?t('ungeprüften Vorschlag'):t('ungeprüfte Vorschläge')}, {t('die im pseudonymisierten Text unverändert stehen.')}</p>
       <p>{t("Der Text kann dadurch identifizierende Angaben enthalten. Bitte prüfe ihn, bevor du ihn weitergibst.")}</p>
       <div class="copy-warning-terms" aria-label={t("Ungeprüfte Begriffe")}>
         {#each pendingGroups.slice(0,5) as group}
@@ -1198,7 +1198,7 @@
             {lexiconCounts.streets.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Straßen')} ·
             {lexiconCounts.cities.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Orte (davon')} {lexiconCounts.cityHomonyms.toLocaleString(language==='de'?'de-DE':'en-US')} {t('mehrdeutige Namen).')}
           {:else}
-            Die Größenangaben der Lexika erscheinen nach der ersten Analyse.
+            {t('Die Größenangaben der Lexika erscheinen nach der ersten Analyse.')}
           {/if}</p>
           <p>{t("GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Daten sind offline eingebettet.")}</p>
           {#if lastScanMs !== null}<p>{t('Letzter vollständiger Scan:')} {lastScanMs.toFixed(0)} ms.</p>{/if}
