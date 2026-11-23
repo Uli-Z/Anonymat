@@ -81,12 +81,12 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
 export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto',enableCities=true,remembered:readonly LearnedRule[]=[]):Finding[]{
   const inferred=detectPII(text,numericOrder,enableCities);
   const manual:Finding[]=[];
-  const learned=new Map<string,{term:string;kind:Kind;anchorId:string;stored:boolean;autoApply:boolean}>();
+  const learned=new Map<string,{term:string;kind:Kind;anchorId:string;stored:boolean}>();
   for(const rule of remembered){
     if(!rule.term || !rule.key)continue;
     const add=(term:string):void=>{
       const key=term.toLocaleLowerCase('de');
-      if(key && !learned.has(key))learned.set(key,{term,kind:rule.kind,anchorId:rule.key,stored:true,autoApply:rule.autoApply});
+      if(key && !learned.has(key))learned.set(key,{term,kind:rule.kind,anchorId:rule.key,stored:true});
     };
     add(rule.term);
     const parts=rule.kind==='PERSON'?rule.term.trim().split(/\s+/):[];
@@ -96,10 +96,6 @@ export function scanDocument(text:string,anchors:readonly Finding[],numericOrder
       add(last+'s');add(last+"'s");add(last+'’s');
     }
   }
-  // A previously verified category may safely correct an automatically
-  // masked *identical span*, without downgrading that span into an open review.
-  const certainAutoSpans=new Set(inferred.filter(hit=>hit.confidence!=='review')
-    .map(hit=>hit.start+':'+hit.end));
   for(const anchor of anchors){
     if(text.slice(anchor.start,anchor.end)!==anchor.text)continue;
     manual.push(anchor);
@@ -114,15 +110,15 @@ export function scanDocument(text:string,anchors:readonly Finding[],numericOrder
     }
     for(const term of terms){
       const key=term.toLocaleLowerCase('de');
-      if(key)learned.set(key,{term,kind:anchor.kind,anchorId:anchor.id,stored:false,autoApply:true});
+      if(key)learned.set(key,{term,kind:anchor.kind,anchorId:anchor.id,stored:false});
     }
   }
   for(const hit of findTerms(text,[...learned.values()].map(rule=>rule.term))){
     const rule=learned.get(hit.term.toLocaleLowerCase('de'));
     if(!rule)continue;
-    const alreadyProtected=certainAutoSpans.has(hit.start+':'+hit.end);
-    manual.push(candidate(rule.kind,hit.start,hit.text,rule.stored?'learned':'manual','repeated-'+rule.anchorId,
-      rule.stored && !rule.autoApply && !alreadyProtected?'review':undefined));
+    // All stored, previously confirmed terms are active. Only uncertain
+    // dictionary/pattern detections require a review.
+    manual.push(candidate(rule.kind,hit.start,hit.text,rule.stored?'learned':'manual','repeated-'+rule.anchorId));
   }
   return mergeManual(inferred,manual);
 }

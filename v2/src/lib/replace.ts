@@ -17,6 +17,8 @@ export interface MaskedResult {
   dates: DateReplacement[];
   partialDates: ShiftedPartial[];
   warnings: string[];
+  /** Positions in the masked output that remain unmodified, unconfirmed review proposals. */
+  reviewSpans: Array<{start:number;end:number;text:string}>;
 }
 export interface RestoredResult {
   text: string;
@@ -51,7 +53,8 @@ export function maskText(
   source: string,
   active: readonly Finding[],
   rules: Readonly<Record<string, ReplacementRule>> = {},
-  dateOptions: DateMaskOptions = {}
+  dateOptions: DateMaskOptions = {},
+  pending: readonly Finding[] = []
 ): MaskedResult {
   const matches = [...active].sort((a,b)=>a.start-b.start);
   const counts: Partial<Record<Kind,number>> = {};
@@ -71,6 +74,21 @@ export function maskText(
   }
   let pos = 0;
   let output = '';
+  const pendingSorted=[...pending].sort((a,b)=>a.start-b.start);
+  const reviewSpans:Array<{start:number;end:number;text:string}>=[];
+  let reviewIndex=0;
+  // Record exact output positions while copying unchanged source fragments;
+  // this is reliable even when tokens or shifted dates change their length.
+  function appendUnchanged(end:number):void{
+    const offset=output.length;
+    while(reviewIndex<pendingSorted.length && pendingSorted[reviewIndex].end<=pos)reviewIndex++;
+    while(reviewIndex<pendingSorted.length && pendingSorted[reviewIndex].start<end){
+      const hit=pendingSorted[reviewIndex++];
+      if(hit.start<pos || hit.end>end || source.slice(hit.start,hit.end)!==hit.text)continue;
+      reviewSpans.push({start:offset+hit.start-pos,end:offset+hit.end-pos,text:hit.text});
+    }
+    output+=source.slice(pos,end);
+  }
 
   // Reserve names requested by user rules to prevent generated token clashes.
   const reserved = new Set(Object.values(rules)
@@ -90,7 +108,8 @@ export function maskText(
       const changed=parsed && validOffset ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);
-        output+=source.slice(pos,match.start)+shifted;
+        appendUnchanged(match.start);
+        output+=shifted;
         dates.push({original:match.text,shifted,shiftedIso:changed});
         pos=match.end;
         continue;
@@ -140,10 +159,12 @@ export function maskText(
       used.set(token,key);
       mapping.push({token,original:match.text,kind:match.kind});
     }
-    output += source.slice(pos,match.start)+token;
+    appendUnchanged(match.start);
+    output += token;
     pos=match.end;
   }
-  return {text:output+source.slice(pos),mapping,dates,partialDates,warnings};
+  appendUnchanged(source.length);
+  return {text:output,mapping,dates,partialDates,warnings,reviewSpans};
 }
 
 export function restoreText(input:string,mapping:readonly MappingEntry[]):RestoredResult{
@@ -165,15 +186,31 @@ export function restoreText(input:string,mapping:readonly MappingEntry[]):Restor
     unknown
   };
 }
-export interface PreviewPart {value:string;token:boolean}
-export function splitForPreview(value:string):PreviewPart[]{
+export interface PreviewPart {value:string;token:boolean;review?:boolean}
+export function splitForPreview(
+  value:string,
+  reviews:readonly {start:number;end:number;text:string}[]=[]
+):PreviewPart[]{
   const parts:PreviewPart[]=[];
-  let last=0;
-  for(const match of value.matchAll(TOKEN_PATTERN)){
-    if(match.index>last)parts.push({value:value.slice(last,match.index),token:false});
-    parts.push({value:match[0],token:true});
-    last=match.index+match[0].length;
+  const addPlain=(from:number,to:number):void=>{
+    if(to<=from)return;
+    const segment=value.slice(from,to);
+    let last=0;
+    for(const match of segment.matchAll(TOKEN_PATTERN)){
+      if(match.index>last)parts.push({value:segment.slice(last,match.index),token:false});
+      parts.push({value:match[0],token:true});
+      last=match.index+match[0].length;
+    }
+    if(last<segment.length)parts.push({value:segment.slice(last),token:false});
+  };
+  let pos=0;
+  for(const review of [...reviews].sort((a,b)=>a.start-b.start)){
+    if(review.start<pos || review.end>value.length || review.start>=review.end
+      || value.slice(review.start,review.end)!==review.text)continue;
+    addPlain(pos,review.start);
+    parts.push({value:review.text,token:false,review:true});
+    pos=review.end;
   }
-  if(last<value.length)parts.push({value:value.slice(last),token:false});
+  addPlain(pos,value.length);
   return parts;
 }

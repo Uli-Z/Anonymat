@@ -5,7 +5,6 @@ export interface LearnedRule {
   key: string;
   term: string;
   kind: Kind;
-  autoApply: boolean;
   updatedAt: number;
 }
 
@@ -13,10 +12,10 @@ export function normalizedKey(term:string):string {
   return term.trim().normalize('NFC').toLocaleLowerCase('de');
 }
 
-export function makeRule(term:string,kind:Kind,autoApply=false):LearnedRule|null {
+export function makeRule(term:string,kind:Kind):LearnedRule|null {
   const cleaned=term.trim().normalize('NFC');
   if(cleaned.length<2 || cleaned.length>200 || !/[\p{L}\p{N}]/u.test(cleaned))return null;
-  return {key:normalizedKey(cleaned),term:cleaned,kind,autoApply,updatedAt:Date.now()};
+  return {key:normalizedKey(cleaned),term:cleaned,kind,updatedAt:Date.now()};
 }
 
 const DB_NAME='anonymat-learned-rules';
@@ -58,10 +57,11 @@ export async function loadLearnedRules():Promise<LearnedRule[]>{
   return transact('readonly',(store,resolve,reject)=>{
     const request=store.getAll();
     request.onsuccess=()=>{
-      const rules=(request.result as LearnedRule[]).filter(rule=>
-        rule && rule.key===normalizedKey(rule.term) &&
-        typeof rule.autoApply==='boolean' && typeof rule.kind==='string'
-      );
+      // Earlier stored entries had an autoApply flag. Learning now always applies.
+      const rules=(request.result as Array<LearnedRule & {autoApply?:boolean}>)
+        .filter(rule=>rule && typeof rule.term==='string' && rule.key===normalizedKey(rule.term)
+          && typeof rule.kind==='string')
+        .map(({key,term,kind,updatedAt})=>({key,term,kind,updatedAt}));
       resolve(rules);
     };
     request.onerror=()=>reject(request.error);
@@ -71,7 +71,7 @@ export async function saveLearnedRules(rules:readonly LearnedRule[]):Promise<voi
   if(!rules.length)return;
   await transact<void>('readwrite',(store,resolve)=>{
     // Svelte $state entries are Proxies and cannot be structured-cloned by IndexedDB.
-    for(const rule of rules)store.put({key:rule.key,term:rule.term,kind:rule.kind,autoApply:rule.autoApply,updatedAt:rule.updatedAt});
+    for(const rule of rules)store.put({key:rule.key,term:rule.term,kind:rule.kind,updatedAt:rule.updatedAt});
     resolve();
   });
 }
