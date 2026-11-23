@@ -367,6 +367,25 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   .proposal-review-banner button{width:100%}
 }
 
+/* First-run warning is modal and cannot be dismissed without acknowledgement. */
+.first-run-dialog{
+  width:min(610px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
+  margin:auto;padding:0;border:1px solid #dce5e9;border-radius:16px;
+  background:#fff;color:#243647;box-shadow:0 22px 90px rgba(16,38,48,.26);overflow:hidden;
+}
+.first-run-dialog[open]{display:flex;flex-direction:column}
+.first-run-dialog::backdrop{background:rgba(15,32,45,.64)}
+.first-run-body{padding-top:19px;padding-bottom:3px}
+.first-run-body p{font-size:13px;line-height:1.65;color:#506675;margin:0 0 14px}
+.first-run-ack{display:flex;gap:11px;align-items:flex-start;margin:17px 0 12px;padding:12px;
+  border:1px solid #d8e5e9;border-radius:9px;font-size:13px;font-weight:650;line-height:1.55;
+  color:#304b5b;cursor:pointer}
+.first-run-ack input{flex:none;width:17px;height:17px;margin:2px 0 0;accent-color:#0b6570}
+@media(max-width:680px){
+  .first-run-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px);border-radius:12px}
+  .first-run-dialog .review-actions button{width:100%}
+}
+
 /* Browser-only learning: compact modal and optional management table. */
 .review-dialog,.consent-dialog{
   width:min(520px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
