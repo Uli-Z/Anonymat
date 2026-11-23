@@ -502,7 +502,7 @@
 
 <svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; quickAction = null; }} />
 
-<div class="app-shell">
+<div class="app-shell" data-debug-selection={selectedRange.from + ':' + selectedRange.to} data-debug-popover={quickAction ? 'open' : 'closed'}>
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
