@@ -70,7 +70,8 @@ export async function loadLearnedRules():Promise<LearnedRule[]>{
 export async function saveLearnedRules(rules:readonly LearnedRule[]):Promise<void>{
   if(!rules.length)return;
   await transact<void>('readwrite',(store,resolve)=>{
-    for(const rule of rules)store.put(rule);
+    // Svelte $state entries are Proxies and cannot be structured-cloned by IndexedDB.
+    for(const rule of rules)store.put({key:rule.key,term:rule.term,kind:rule.kind,autoApply:rule.autoApply,updatedAt:rule.updatedAt});
     resolve();
   });
 }
