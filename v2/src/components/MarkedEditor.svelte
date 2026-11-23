@@ -96,8 +96,10 @@
             if (update.docChanged) onChange(update.state.doc.toString(), update.changes);
             if (update.selectionSet || update.docChanged) {
               const { from, to } = update.state.selection.main;
-              const anchor = selectionAnchor();
-              onSelect(from, to, anchor);
+              // The initial selection must remain available even while
+              // CodeMirror is still laying out the selection during typing.
+              const rect = to > from ? view?.coordsAtPos(to) : null;
+              onSelect(from, to, rect ? {x: rect.left, y: rect.bottom, top: rect.top} : undefined);
             }
           }),
           EditorView.domEventHandlers({
@@ -155,7 +157,10 @@
   export function selectionAnchor(): { x: number; y: number; top: number } | undefined {
     if (!view || view.state.selection.main.empty) return undefined;
     const rect = view.coordsAtPos(view.state.selection.main.to);
-    return rect && visibleAt(rect) ? { x: rect.left, y: rect.bottom, top: rect.top } : undefined;
+    // coordsAtPos returns null for positions outside the rendered viewport.
+    // Avoid a second clipping test here: it can incorrectly reject a
+    // selection while CodeMirror is scrolling the caret into view.
+    return rect ? { x: rect.left, y: rect.bottom, top: rect.top } : undefined;
   }
 
   export function hitAnchor(id: string): DOMRect | undefined {
