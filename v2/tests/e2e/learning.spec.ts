@@ -124,3 +124,80 @@ test('touching an orange mark opens a bottom sheet with both decisions',async({b
   await expect(page.locator('.cm-anonymat-review')).toHaveCount(0);
   await context.close();
 });
+
+
+test('a learned hit offers permanent deletion while its current-text exclusion remains separate',async({page})=>{
+  await page.locator('.cm-content').fill('Bitte Zorbel');
+  await markLastWord(page,'Zorbel');
+  const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
+  await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  await expect(consent).not.toBeVisible();
+
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.locator('.cm-content').fill('Zorbel antwortet.');
+  const mark=page.locator('.cm-anonymat-active');
+  await expect(mark).toHaveText('Zorbel');
+  await mark.click();
+  const popup=page.getByRole('dialog',{name:'Markierung bearbeiten'});
+  await expect(popup.getByRole('button',{name:'Aus Gedächtnis löschen'})).toBeVisible();
+  await popup.getByRole('button',{name:'Begriff im ganzen Text nicht ersetzen'}).click();
+  await expect(mark).toHaveCount(0);
+
+  await page.getByRole('button',{name:/Ersetzungen anzeigen/}).click();
+  const row=page.locator('.finding-row').filter({hasText:'Zorbel'});
+  const deleteRule=row.getByRole('button',{name:'Aus lokalem Gedächtnis löschen: Zorbel'});
+  await expect(deleteRule).toBeVisible();
+  await deleteRule.click();
+  await expect(deleteRule).toHaveCount(0);
+
+  await page.getByRole('button',{name:'Ersetzungen schließen'}).click();
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  await expect(page.getByRole('button',{name:'Gelernten Begriff Zorbel löschen'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Schließen',exact:true}).click();
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.locator('.cm-content').fill('Zorbel antwortet.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(0);
+  await page.reload();
+  await page.locator('.cm-content').fill('Zorbel antwortet.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(0);
+});
+
+test('permanent deletion directly from a green learned mark survives reload',async({page})=>{
+  await page.locator('.cm-content').fill('Bitte Zorbel');
+  await markLastWord(page,'Zorbel');
+  const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
+  await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  await expect(consent).not.toBeVisible();
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.locator('.cm-content').fill('Zorbel meldete sich.');
+  const mark=page.locator('.cm-anonymat-active');
+  await expect(mark).toHaveText('Zorbel');
+  await mark.click();
+  const popup=page.getByRole('dialog',{name:'Markierung bearbeiten'});
+  await popup.getByRole('button',{name:'Aus Gedächtnis löschen'}).click();
+  await expect(mark).toHaveCount(0);
+  await page.reload();
+  await page.locator('.cm-content').fill('Zorbel meldete sich.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(0);
+});
+
+test('deleting a derived surname from its menu removes the original stored full-name rule',async({page})=>{
+  await page.locator('.cm-content').fill('Bitte Ulrich Xytronix');
+  await markLastWord(page,'Ulrich Xytronix');
+  const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
+  await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  await expect(consent).not.toBeVisible();
+
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.locator('.cm-content').fill('Xytronix meldete sich.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveText('Xytronix');
+  await page.locator('.cm-anonymat-active').click();
+  await page.getByRole('dialog',{name:'Markierung bearbeiten'})
+    .getByRole('button',{name:'Aus Gedächtnis löschen'}).click();
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  await expect(page.getByRole('button',{name:'Gelernten Begriff Ulrich Xytronix löschen'})).toHaveCount(0);
+  await page.getByRole('button',{name:'Schließen',exact:true}).click();
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.locator('.cm-content').fill('Xytronix meldete sich.');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(0);
+});
