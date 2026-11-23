@@ -61,7 +61,7 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   const dateRanges=scanDateRanges(text);
   for(const hit of scanStructuredPII(text)){
     // A valid date interval can resemble a phone number. Date semantics win.
-    if(hit.kind==='PHONE' && dateRanges.some(range=>overlaps(hit,range)))continue;
+    if(hit.kind==='PHONE' && dateRanges.some(range=>hit.start<range.end && range.start<hit.start+hit.text.length))continue;
     add(hit.kind,hit.start,hit.text);
   }
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
