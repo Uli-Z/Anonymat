@@ -33,7 +33,8 @@
   let consentState = $state<'unknown'|'on'|'off'>('unknown');
   let learnedRules = $state<LearnedRule[]>([]);
   let pendingLearning = $state<LearnedRule[]>([]);
-  let rememberAutomatically = $state(false);
+  let copyWarningDialog: HTMLDialogElement | undefined;
+  let copyWarningAcceptedJob = -1;
   let learningBusy = $state(false);
   let reviewPromptHandled = false;
   let reviewPromptTimer: number | undefined;
@@ -67,24 +68,28 @@
   let manualCounter = 0;
   let exclusionCounter = 0;
 
-  let reviewed = $state<ReviewedDocument>({findings:[],active:[],groups:[]});
-  let prepared = $state<MaskedResult>({text:'',mapping:[],dates:[],partialDates:[],warnings:[]});
+  let reviewed = $state<ReviewedDocument>({findings:[],active:[],pending:[],groups:[]});
+  let prepared = $state<MaskedResult>({text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[]});
   let findings = $derived(isAnalyzing?[]:reviewed.findings);
   let active = $derived(isAnalyzing?[]:reviewed.active);
+  let pending = $derived(isAnalyzing?[]:reviewed.pending);
   let groups = $derived(isAnalyzing?[]:reviewed.groups);
   let activeIds = $derived(new Set(active.map(hit=>hit.id)));
-  let editorMarks = $derived(findings.map(hit => {
-    const pendingReview=hit.confidence==='review' && !activeIds.has(hit.id)
-      && !ignoredTerms.some(term=>sameTerm(term,hit.text))
-      && !ignoredPlaces.some(place=>spansOverlap(place,hit));
-    return {id:hit.id,start:hit.start,end:hit.end,
-      ignored:!activeIds.has(hit.id) && !pendingReview,
-      review:pendingReview,manual:hit.origin==='manual'};
+  let pendingIds = $derived(new Set(pending.map(hit=>hit.id)));
+  // Only two visual states: active pseudonymization or an unconfirmed proposal.
+  // Ignored findings remain manageable in the list, but are not decorated.
+  let editorMarks = $derived(findings.filter(hit=>activeIds.has(hit.id)||pendingIds.has(hit.id)).map(hit => {
+    const review=pendingIds.has(hit.id);
+    const origin=hit.origin==='learned'?'aus dem lokalen Gedächtnis':
+      hit.origin==='manual'?'manuell bestätigt':'durch Mustererkennung';
+    return {
+      id:hit.id,start:hit.start,end:hit.end,review,
+      tooltip:(review?'Vorschlag – noch nicht pseudonymisiert':'Wird pseudonymisiert')
+        +' · '+KIND_LABELS[hit.kind]+' · '+origin+'. Klicken oder antippen zum Bearbeiten.'
+    };
   }));
   let pendingGroups = $derived(groups.filter(group=>group.review && group.activeCount===0
     && !ignoredTerms.some(term=>sameTerm(term,group.text))));
-  let priorSuggestions = $derived(pendingGroups.filter(group=>group.learned).length);
-  let patternSuggestions = $derived(pendingGroups.length-priorSuggestions);
 
   function mergeRemembered(existing:readonly LearnedRule[], incoming:readonly LearnedRule[]):LearnedRule[]{
     const map=new Map(existing.map(rule=>[rule.key,rule]));
@@ -134,11 +139,9 @@
       window.clearTimeout(reviewPromptTimer);
     };
   });
-  function recordLearning(term:string,kind:Kind,auto=false):void{
-    const base=makeRule(term,kind,auto);
-    if(!base)return;
-    const previous=[...learnedRules,...pendingLearning].find(rule=>rule.key===base.key);
-    const rule={...base,autoApply:auto || (previous?.kind===kind && previous.autoApply===true)};
+  function recordLearning(term:string,kind:Kind):void{
+    const rule=makeRule(term,kind);
+    if(!rule)return;
     if(consentState==='on'){
       learnedRules=mergeRemembered(learnedRules,[rule]);
       void saveLearnedRules([rule]).catch(memoryFailure);
@@ -147,7 +150,7 @@
       if(!consentDialog?.open)consentDialog?.showModal();
     }
   }
-  function updateLearned(rule:LearnedRule,patch:Partial<Pick<LearnedRule,'kind'|'autoApply'>>):void{
+  function updateLearned(rule:LearnedRule,patch:Pick<LearnedRule,'kind'>):void{
     const updated={...rule,...patch,updatedAt:Date.now()};
     learnedRules=mergeRemembered(learnedRules,[updated]);
     void saveLearnedRules([updated]).catch(memoryFailure);
@@ -258,8 +261,8 @@
     resultVisible=false;
     if(!source.trim()){
       window.clearTimeout(reviewPromptTimer);
-      reviewed={findings:[],active:[],groups:[]};
-      prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[]};
+      reviewed={findings:[],active:[],pending:[],groups:[]};
+      prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[]};
       isAnalyzing=false;
       analysisProgress=0;
       analysisStatus='';
@@ -311,7 +314,7 @@
     analysisVersion++;
   }
   let hasDateOverride = $derived(Object.values(replacementRules).some(rule=>rule.mode==='shift-date'));
-  let preview = $derived(splitForPreview(prepared.text));
+  let preview = $derived(splitForPreview(prepared.text,prepared.reviewSpans));
   let inversePartial = $derived(restoreShiftedPartialDates(
     reply, exportSnapshot?.partialDates ?? prepared.partialDates,
     {numericOrder:replyNumericOrder}
@@ -372,7 +375,7 @@
   }
 
   /** A single click converts the actual current editor selection into a learned rule. */
-  function setManualMark(start: number, end: number, kind: Kind,auto=false): void {
+  function setManualMark(start: number, end: number, kind: Kind): void {
     while (start < end && /\s/.test(source[start])) start++;
     while (end > start && /\s/.test(source[end - 1])) end--;
     if (start === end) {
@@ -386,7 +389,7 @@
       kind, text: source.slice(start, end), start, end
     };
     manual = [...manual.filter(hit => !spansOverlap(hit, added)), added];
-    recordLearning(added.text,kind,auto);
+    recordLearning(added.text,kind);
     ignoredPlaces = ignoredPlaces.filter(hit => !spansOverlap(hit, added));
     ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, added.text));
     menu = null;
@@ -396,8 +399,7 @@
   }
 
   function addManual(kind: Kind): void {
-    setManualMark(selectedRange.from, selectedRange.to, kind,rememberAutomatically);
-    rememberAutomatically=false;
+    setManualMark(selectedRange.from, selectedRange.to, kind);
   }
 
   function suppressOne(hit: Finding): void {
@@ -591,7 +593,7 @@
     faqDialog?.close();
     window.clearTimeout(reviewPromptTimer);
     reviewPromptHandled=false;
-    rememberAutomatically=false;
+    copyWarningAcceptedJob=-1;
     editingReplacement = null;
     replacementError = '';
     selectedRange = {from: 0, to: 0};
@@ -603,6 +605,10 @@
 
   async function copyMasked():Promise<void>{
     if(isAnalyzing || analysisError || !source.trim() || !resultVisible)return;
+    if(pending.length && copyWarningAcceptedJob!==latestJob){
+      copyWarningDialog?.showModal();
+      return;
+    }
     const snapshot={
       mapping:prepared.mapping.map(item=>({...item})),
       shiftedDates:prepared.dates.map(item=>item.shiftedIso),
@@ -611,6 +617,12 @@
     };
     await copy(prepared.text,'Pseudonymisierter Text');
     exportSnapshot=snapshot;
+  }
+
+  async function copyDespiteSuggestions():Promise<void>{
+    copyWarningAcceptedJob=latestJob;
+    copyWarningDialog?.close();
+    await copyMasked();
   }
 
   async function copy(value: string, label: string): Promise<void> {
