@@ -160,7 +160,11 @@ export function maskText(
       const wantsSynthetic=spec?.mode==='synthetic' || (!spec && dateOptions.defaultReplacementMode==='synthetic');
       if(wantsSynthetic && supportsSynthetic(match.kind)){
         const proposed=syntheticReplacement(match.kind,match.text,dateOptions.syntheticSeed??0,source,syntheticAssignments);
-        if(proposed && !used.has(proposed) && !preexistingTokens.has(proposed))token=proposed;
+        // A single source word may be classified as PERSON at one place and
+        // LAST_NAME at another. Sharing its pseudonym is intentional.
+        const previous=proposed?used.get(proposed):undefined;
+        const sameOriginal=previous?.slice(previous.indexOf(':')+1)===match.text;
+        if(proposed && (!previous || sameOriginal) && !preexistingTokens.has(proposed))token=proposed;
         else warnings.push('Für "'+match.text+'" war kein eindeutiges Pseudonym verfügbar; stattdessen Platzhalter verwendet.');
       }
       if(!token && spec?.mode==='custom-token') {
