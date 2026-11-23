@@ -34,6 +34,7 @@
   let learnedRules = $state<LearnedRule[]>([]);
   let pendingLearning = $state<LearnedRule[]>([]);
   let rememberAutomatically = $state(false);
+  let learningBusy = $state(false);
   let reviewPromptHandled = false;
   let reviewPromptTimer: number | undefined;
   let markedEditor: MarkedEditor | undefined;
@@ -94,18 +95,26 @@
     notice='Der lokale Regelspeicher ist nicht verfügbar. Die Markierungen gelten weiterhin für diesen Text.';
   }
   async function enableMemory(enabled:boolean):Promise<void>{
+    if(learningBusy)return;
+    if(!enabled){
+      pendingLearning=[];
+      consentState='off';
+      try{localStorage.setItem('anonymat-learning-consent-v1','off');}catch{memoryFailure();}
+      consentDialog?.close();
+      return;
+    }
+    learningBusy=true;
     const queued=[...pendingLearning];
-    consentDialog?.close();
-    pendingLearning=[];
-    consentState=enabled?'on':'off';
-    try{localStorage.setItem('anonymat-learning-consent-v1',enabled?'on':'off');}
-    catch{memoryFailure();}
-    if(!enabled)return;
     try{
       const saved=await loadLearnedRules();
-      learnedRules=mergeRemembered(saved,queued);
       if(queued.length)await saveLearnedRules(queued);
-    }catch{consentState='off';memoryFailure();}
+      learnedRules=mergeRemembered(saved,queued);
+      pendingLearning=[];
+      consentState='on';
+      try{localStorage.setItem('anonymat-learning-consent-v1','on');}catch{memoryFailure();}
+      consentDialog?.close();
+    }catch{memoryFailure();}
+    finally{learningBusy=false;}
   }
   onMount(()=>{
     let cancelled=false;
@@ -892,8 +901,8 @@
       <p>Auch Namen und andere personenbezogene Angaben werden dabei im Klartext im Browserprofil gespeichert. Vollständige Texte und Platzhalter-Zuordnungen werden nicht gespeichert. In den Einstellungen kannst du die Regeln einzeln oder vollständig löschen.</p>
     </div>
     <div class="review-actions">
-      <button type="button" class="secondary-button" onclick={() => {void enableMemory(false);}}>Nur diesen Text</button>
-      <button type="button" class="primary-button" onclick={() => {void enableMemory(true);}}>Lokales Gedächtnis aktivieren</button>
+      <button type="button" class="secondary-button" disabled={learningBusy} onclick={() => {void enableMemory(false);}}>Nur diesen Text</button>
+      <button type="button" class="primary-button" disabled={learningBusy} onclick={() => {void enableMemory(true);}}>{learningBusy?'Wird gespeichert…':'Lokales Gedächtnis aktivieren'}</button>
     </div>
   </dialog>
 

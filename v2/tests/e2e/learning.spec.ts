@@ -20,6 +20,7 @@ test('local consent, next-document suggestion and confirmation',async({page})=>{
   const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
   await expect(consent).toBeVisible();
   await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  await expect(consent).not.toBeVisible();
   await page.getByRole('button',{name:/Neuer Text/}).click();
   await page.locator('.cm-content').fill('Zorbel antwortet.');
   await expect(page.locator('.cm-anonymat-review')).toHaveText('Zorbel');
@@ -39,8 +40,9 @@ test('explicit automatic remembering persists after page reload and can be delet
   for(let i=0;i<6;i++)await page.keyboard.press('Shift+ArrowLeft');
   await page.locator('.selection-popover').getByRole('checkbox',{name:'Künftig automatisch anonymisieren'}).check();
   await page.locator('.selection-popover').getByRole('button',{name:'Name',exact:true}).click();
-  await page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'})
-    .getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
+  await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
+  await expect(consent).not.toBeVisible();
   await page.reload();
   await page.locator('.cm-content').fill('Zorbel antwortet.');
   await expect(page.locator('.cm-anonymat-auto')).toHaveText('Zorbel');
