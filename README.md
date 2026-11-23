@@ -18,8 +18,6 @@
 
 Use the [web app](https://uli-z.github.io/Anonymat/) or download **anonymat-2.0.1.html** from [GitHub Releases](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.1) and open it locally in a modern browser. Paste your text, review the highlighted findings, and inspect the pseudonymized result before copying it.
 
-The previous version remains available [here](https://uli-z.github.io/Anonymat/legacy/).
-
 ## Privacy and important limitations
 
 Anonymat processes entered text in your browser; it does not send that text to a server. Complete documents and replacement mappings remain in the browser session. Optional remembered terms are stored in the local browser profile only after consent and may themselves contain personal information.

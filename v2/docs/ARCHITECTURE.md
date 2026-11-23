@@ -1,4 +1,4 @@
-# Architektur – Anonymat 2.0 (Alpha)
+# Architektur – Anonymat 2
 
 ## Kette der Regeln
 
@@ -31,18 +31,18 @@ Bei überlappenden Fundstellen gewinnt zuerst die manuelle Festlegung, dann der 
 
 Das Ortslexikon wird in einem lokalen `Set` einmalig aufgebaut und anhand maximal sechs aufeinanderfolgender Wörter abgeglichen. Geographischer Kontext reduziert Fehlalarme durch ambige Namen wie „Essen“, „Waren“, „Lage“. Kein personenbezogener Text verlässt den Browser. GeoNames ist nicht vollständig; der Release-Build lädt die aktuelle Städte-/Siedlungsliste **nur beim Build** herunter. Siehe [CITY_LEXICON.md](CITY_LEXICON.md). 
 
-## Erweiterungspunkte (noch NICHT verfügbar)
+## Datumsangaben und Rückübersetzung
 
-\`shift-date\` ist als optionale Regel umgesetzt. \`dates.ts\` parst vollständige Kalenderdaten in de/en/fr/es, normalisiert auf ISO-Kalendertage und verschiebt sie gemeinsam mittels UTC-Kalendertagsarithmetik. \`partial-dates.ts\` erkennt Tag+Monat, Monat+Jahr und kontextgebundene Monatsangaben. Unvollständige Angaben werden standardmäßig als Tokens geschützt. Ein Tag+Monat ohne Jahr darf nur mit explizitem Bezugsjahr denselben Offset verwenden und wird anhand der im Export gespeicherten verschobenen ISO-Tage (Occurrence-Ledger) wiederhergestellt. Monat+Jahr hat keinen eindeutigen Kalendertag und wird nie für einen Tagesoffset auf einen erfundenen Tag ergänzt. Bei Duplikaten, fehlenden und neu eingefügten Daten wird gewarnt. Die Wiederherstellung vollständiger Daten berücksichtigt ebenfalls nur die im exportierten Text tatsächlich verschobenen ISO-Tage und meldet andere Daten. \`shift-time\`, \`synthetic-name\` und \`synthetic-email\` bleiben geplante, nicht ausführbare Modi.
+`dates.ts` und `partial-dates.ts` erkennen vollständige und unvollständige Datumsangaben. Einzelne Fundstellen bleiben auch in kompakten Schreibweisen getrennt editierbar. Der optionale Datumsversatz ist innerhalb einer Sitzung konsistent; die Rückübersetzung kann neben unveränderten verschobenen Daten auch aus ihnen abgeleitete Kalenderdaten umkehren. Nicht eindeutig rekonstruierbare Angaben erfordern eine Sichtprüfung.
 
-Besonders für datums- und uhrzeitbasierte Ersetzung müssen Parser/Formatter unabhängig von der Sprache des KI-Texts sein, dürfen ausschließlich eindeutige Daten verändern und müssen die Umkehrrechnung auf echte wiedererkannte Daten begrenzen. Zufallsoffsets werden mit Web Crypto erstellt und sind nur Pseudonymisierung, nicht garantierte Anonymisierung.
+`replace.ts` stellt bekannte Tokens und Pseudonyme anhand der Sitzungseinträge wieder her. Nicht mehr in einer KI-Antwort vorkommende ursprüngliche Daten sind kein eigener Fehler. Umdeutungen durch externe Tools, gleichlautende Pseudonyme oder mehrdeutige Kalenderdaten können die Rückübersetzung weiterhin beeinträchtigen.
 
 ## Leistungsziele und Grenzen
 
 - Der Mehrfachindex läuft asymptotisch in O(Textlänge + Gesamtlänge der Suchbegriffe + Treffer) statt bei vielen Begriffen jeweils den Text erneut zu scannen.
 - Bekannte RegEx werden separat einmal je Muster angewendet.
 - \`removeOverlaps\` verarbeitet Kandidaten derzeit bei vielen Überlappungen noch quadratisch; erst optimieren, wenn Messungen dies erfordern.
-- Bei großen Dokumenten kann das vollständige Neuscannen nach jedem Tastendruck die UI blockieren. Für längere Texte künftig Debounce/Worker *ohne Datenversand* erwägen und mit Lasttests prüfen.
+- Die Analyse läuft für größere Texte in einem eingebetteten Web Worker mit Debouncing und Stale-Result-Schutz. Langsame Geräte und große Dokumente erfordern weiterhin Performance-Tests.
 - Vollständige medizinische oder allgemeine PII-Erkennung wird nicht garantiert.
 - Keine serverseitigen Dienste, kein CDN, keine persistente Ablage von Originalen oder Zuordnungen.
 

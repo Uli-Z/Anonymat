@@ -1,6 +1,8 @@
-
-todo.txt
-testtext.md
-geckodriver.log
-dist/anonymat-test-*.html
-summary.txt
+# Generated artifacts, local tools and editor state
+node_modules/
+dist/
+site/
+.vscode/
+*.tsbuildinfo
+*.log
+.DS_Store

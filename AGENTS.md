@@ -1,32 +1,47 @@
-# Repository Guidelines
+# Anonymat repository guidelines
 
-## Project Structure & Module Organization
-- Core UI: `index.html` and `style.css` assemble the single-page app. Feature scripts (`anonymizer.js`, `editor.js`, `ui.js`, `modal.js`, `contextMenu.js`, `images.js`, `translations.js`, `placeholder.js`, `utils.js`, `config.js`, `date.js`) sit in the repo root and are bundled inline for release.
-- Distribution: production artifacts live in `dist/` as `anonymat-<version>.html`. Update `version.txt` before builds.
-- Tooling: `build_single_html.py` handles inlining and version stamping. Tests live in `test.js` and are injected only into the test build.
+## Active application
+- The maintained application is **Anonymat 2** in `v2/`: Svelte 5, TypeScript, Vite, CodeMirror, and a locally embedded Web Worker.
+- `v2/src/` contains the UI, detection and replacement logic; `v2/src/data/` holds small checked-in dictionary seeds.
+- `v2/tests/` contains Vitest unit/regression suites and Playwright browser tests. `v2/docs/` explains architecture, testing and the source licenses for dictionary data.
+- The repository root contains project metadata, release notes, and GitHub Actions workflows, **not** the old 0.9.x application.
+- Historical releases remain accessible through Git tags and GitHub Releases; do not reintroduce old application sources or committed release bundles.
 
-## Build, Test, and Development Commands
-- Build production bundle: `python3 build_single_html.py` → `dist/anonymat-<version>.html`.
-- Build test bundle: `python3 build_single_html.py -t` → `dist/anonymat-test-<version>.html` (includes test UI and harness).
-- Watch mode (rebuild on change): `python3 build_single_html.py -w [-t]`.
-- Delete last test bundle: `python3 build_single_html.py -d`.
-- Run locally: open the generated HTML in a browser; no server or external dependencies.
+## Local development
+Requires Node.js 22.12+.
 
-## Coding Style & Naming Conventions
-- JavaScript style: ES5/ES6 mix, 2-space indent, double quotes, semicolons. Keep IIFEs and plain modules; avoid new dependencies.
-- Naming: use descriptive names for placeholders and UI IDs (e.g., `anonymizeBtn`, `namePlaceholder`). Keep placeholder labels TitleCase inside brackets (e.g., `[Email]`, `[Name_2]`).
-- Formatting: preserve existing comment tone and guardrails; keep regex patterns readable and escaped.
+```sh
+cd v2
+npm install --no-audit --no-fund
+npm run dev           # development server
+npm run check         # Svelte and TypeScript diagnostics
+npm test              # Vitest
+npm run build         # standalone offline HTML -> v2/dist/index.html
+npm run verify        # check + unit tests + build
+npm run test:e2e      # Playwright browser tests (requires browser setup)
+```
 
-## Testing Guidelines
-- Test harness: `test.js` runs in the test build and surfaces results via the modal. Open `dist/anonymat-test-<version>.html` in a browser to view pass/fail details and copy errors.
-- Add regression cases by extending `testCases` in `test.js`; prefer concise inputs with explicit expected outputs and round-trip checks (`anonymize` → `deanonymize`).
-- No automated coverage tooling; keep new tests deterministic and offline.
+The production build is a **single self-contained HTML file**. Do not commit generated `dist/`, `site/`, or `node_modules/` directories.
 
-## Compatibility & Privacy
-- Browser support: relies on modern RegExp features (lookbehind, Unicode classes); target current Chrome/Edge/Firefox and Safari 16+.
-- Runtime: fully offline; only sets an `AppConfig` cookie for language preference. No telemetry or external requests.
+## Dictionary generation and deployment
+The small checked-in dictionaries make local development possible without fetching reference datasets. Full release/Pages builds run these **at build time**:
 
-## Commit & Pull Request Guidelines
-- Commits: follow the existing short imperative style (e.g., “Refactor placeholder detection logic”). Keep changes scoped and legible.
-- PRs: include a clear summary, rationale, and manual test notes (browser + test build). Attach before/after screenshots for UI tweaks and link related issues when available.
-- Versioning: bump `version.txt` when shipping a new bundle; ensure `dist/` outputs match the new version.
+```sh
+cd v2
+python3 scripts/generate-city-lexicon.py
+python3 scripts/generate-ambiguity-lexicon.py
+python3 scripts/generate-person-street-lexica.py
+npm run verify
+```
+
+- `.github/workflows/ci-v2.yml` checks the maintained app.
+- `.github/workflows/pages.yml` deploys Anonymat 2 to the GitHub Pages root and `/v2/`.
+- `.github/workflows/release.yml` publishes a versioned single-HTML artifact when explicitly triggered by a release-notes/workflow change or manual dispatch.
+- The current version is defined in `v2/package.json`, not a root `version.txt`.
+
+## Changes, tests and privacy
+- Keep the browser app fully local at runtime: no uploads of entered text, mappings, or remembered terms.
+- Use synthetic data in tests. Add regression coverage for detection boundaries, overlapping matches, date shifts, and restoration of edited AI responses.
+- Distinguish uncertain review suggestions from accepted replacements. User review is essential: pseudonymization is not guaranteed anonymization.
+- Run `npm run verify` for functional changes. For browser UI changes, run Playwright tests as appropriate. Do not automatically publish releases for ordinary changes.
+- Keep source and docs aligned; remove references to discontinued build scripts and versions rather than keeping unused compatibility code.

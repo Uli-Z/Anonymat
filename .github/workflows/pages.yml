@@ -23,8 +23,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Build legacy version
-        run: python3 build_single_html.py
       - name: Set up Node for Anonymat 2
         uses: actions/setup-node@v4
         with:
@@ -45,18 +43,14 @@ jobs:
           npm run verify
       - name: Prepare Pages site
         run: |
-          V2_VERSION=$(node -p "require('./v2/package.json').version")
-          LEGACY_VERSION=$(cat version.txt)
-          mkdir -p site/v2 site/legacy
-          # Anonymat 2 is the homepage and remains accessible via /v2/.
+          set -euo pipefail
+          VERSION=$(node -p "require('./v2/package.json').version")
+          mkdir -p site/v2
+          # Only the current Anonymat release is deployed; historical releases stay in GitHub Releases.
           cp v2/dist/index.html site/index.html
           cp v2/dist/index.html site/v2/index.html
-          cp v2/dist/index.html "site/anonymat-$V2_VERSION.html"
-          cp v2/dist/index.html "site/v2/anonymat-$V2_VERSION.html"
-          # Preserve existing links and offer a separate legacy entry point.
-          cp "dist/anonymat-$LEGACY_VERSION.html" site/legacy/index.html
-          cp "dist/anonymat-$LEGACY_VERSION.html" "site/legacy/anonymat-$LEGACY_VERSION.html"
-          cp "dist/anonymat-$LEGACY_VERSION.html" "site/anonymat-$LEGACY_VERSION.html"
+          cp v2/dist/index.html "site/anonymat-$VERSION.html"
+          cp v2/dist/index.html "site/v2/anonymat-$VERSION.html"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
