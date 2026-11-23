@@ -1,102 +1,43 @@
-# Anonymat
- 
-# Local Text Anonymizer  
+# Anonymat 2.0
 
-## Description  
-**Local Text Anonymizer** fills a gap for professional environments where the use of AI tools for text translation, correction, or improvement is severely limited by data protection regulations.  
-This lightweight, browser-based tool enables semi-automated anonymization of sensitive text, making it safe to use with external AI APIs — and just as easily allows re-identification of the text afterward.  
+**Pseudonymize sensitive text locally before sharing it with other tools.** Anonymat runs in the browser and helps you identify and replace personal information. You can review every replacement and restore original values locally.
 
-The tool runs as a single HTML file directly in the browser on almost any office machine.  
-A simple, clean user interface ensures anonymization can be done with minimal effort and time.  
+**[Open Anonymat 2.0](https://uli-z.github.io/Anonymat/)** · [Download the offline HTML file](https://github.com/Uli-Z/Anonymat/releases/latest) · [Release notes](RELEASE_NOTES.md)
 
-> Important: This is a partial automation tool. Final responsibility for proper anonymization remains with the user.  
-> Detection is intentionally simple and purely pattern-based. Expect incomplete and sometimes incorrect matches — this is a helper for local pre-processing, not a guaranteed anonymization service.  
+## What's new in 2.0
 
-![Anonymization flow](docs/anonymization-flow.svg)
+- **More complete detection:** Names (including contextual and inflected forms), addresses, locations, dates, amounts and measurements, contact details, and common identifiers. Uncertain matches are visibly marked as suggestions rather than silently replaced.
+- **You stay in control:** Review and correct findings in the text, add your own replacements, ignore individual occurrences, and enable or disable detection categories.
+- **Reversible pseudonymization:** Choose placeholders or, for supported names and places, locally generated pseudonyms. Shift dates while preserving intervals where possible. Restore original values from an AI-generated or edited response in the same browser session.
+- **Optional local memory:** With your consent, manually confirmed terms can be remembered in this browser profile and deleted again.
+- **Simpler workflow:** Edit the source, inspect the result, copy it, and optionally restore an external response. The interface is available in English and German, with automatic browser-language selection.
+- **Faster, self-contained processing:** Large offline dictionaries and analysis in a Web Worker. The downloadable application is a single HTML file.
 
----
+## Get started
 
-## Key Features  
-- Detects and anonymizes:  
-  - Names  
-  - Email addresses  
-  - Phone numbers  
-  - IBANs  
-- Fully local execution (no data leaves your device)  
-- GDPR-compliant workflow  
-  > *GDPR (General Data Protection Regulation) is an EU law enforcing strict privacy and data protection standards.*  
-- Easy deanonymization for re-importing edited texts  
-- Designed for professional use cases in regulated environments  
-- Zero installation: runs as a single file in any modern browser  
-- Minimal, distraction-free interface  
+Use the [web app](https://uli-z.github.io/Anonymat/) or download **anonymat-2.0.0.html** from [GitHub Releases](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.0) and open it locally in a modern browser. Paste your text, review the highlighted findings, and inspect the pseudonymized result before copying it.
 
----
+The previous version remains available [here](https://uli-z.github.io/Anonymat/legacy/).
 
-## Example: Anonymize Before Using AI  
-1. Original text:  
-   `Please contact John Doe at +1 555 123 4567 or john.doe@example.com for more information.`  
-2. In Anonymat, click `Anonymize` → for example:  
-   `Please contact [Name] at [Number] or [Email] for more information.`  
-3. Send this anonymized sentence to an AI system (e.g. for translation or rewriting).  
-4. Paste the AI output back into Anonymat and click `Deanonymize` to restore the original name, phone number, and email locally.  
+## Privacy and important limitations
 
----
+Anonymat processes entered text in your browser; it does not send that text to a server. Complete documents and replacement mappings remain in the browser session. Optional remembered terms are stored in the local browser profile only after consent and may themselves contain personal information.
 
-## Use Cases  
-- Anonymize internal or client texts before sending them to AI tools for translation, correction, or summarization  
-- Temporarily remove personal identifiers from reports or documentation for external review  
-- Prepare text content for any scenario where privacy must be ensured  
+**Pseudonymization is not anonymization.** Personal information may be missed or remain identifiable from context; replacements may be incorrect. **Review the entire output yourself before sharing it.** Using Anonymat does not automatically make a workflow compliant with data-protection law.
 
----
+## Development
 
-## Why GDPR-compliant?  
-All processing happens in your browser, offline, without external servers.  
-This ensures that the tool can be used within GDPR-regulated environments and respects strict corporate privacy policies.  
+The application source is in [v2/](v2/). Requirements: Node.js 22.12+.
 
----
+```sh
+cd v2
+npm install
+npm run verify
+# Standalone HTML: v2/dist/index.html
+```
 
-## How It Works  
-1. Download the file `dist/anonymat-<version>.html` and open the HTML file in your browser.  
-2. Paste or type the text.  
-3. Click `Anonymize` — detected personal data will be replaced by placeholders.  
-4. Edit or process the anonymized text in external tools.  
-5. Paste the processed text back into the tool and click `Deanonymize` to restore the original data.  
+Build details, tests and dictionary sources: [V2 developer guide](v2/README.md) · [Testing](v2/docs/TESTING.md) · [Lexicon sources and licenses](v2/docs/PERFORMANCE_AND_LEXICA.md).
 
----
+## License
 
-## Limitations  
-- The tool provides **semi-automated** anonymization;  
-- Complex text structures or unusual data formats might not be detected automatically.  
-- **The final responsibility for checking and verifying the anonymized text lies with the user.**  
-
----
-
-## Browser Support & Privacy
-- Requires a modern browser with ES2018+ regex support (lookbehind, Unicode classes). Tested on recent Chrome/Edge/Firefox; Safari 16+ recommended.
-- Everything runs locally; no network requests are made. The app stores language preferences in a short-lived `AppConfig` cookie and sets no telemetry.
-
----
-
-## Contributing  
-Suggestions and pull requests are welcome!  
-Please open an issue before making significant changes.  
-
----
-
-## License  
-GPL V.3.0
-
-
----
-
-## Anonymat 2.0 (Alpha preview)
-
-The next generation lives separately in [v2/](v2/README.md) and is built with **Svelte 5 + TypeScript**. The existing 0.9.3 application above remains available and unchanged.
-
-- **[Open the V2 prototype on GitHub Pages](https://uli-z.github.io/Anonymat/v2/)**
-- [V2 source code](v2/)
-- [Development plan](PLAN_V2.md)
-
-The **2.0 Alpha 6** preview includes context-based automatic detection of names (including German inflections), addresses, emails, phone numbers, identifiers and dates; editable manual overrides; reversible pseudonymization and optional date shifting. It uses offline reference lexica for about **120,000 European locations**, **292,000 German streets**, **18,000 given names** and **19,000 surnames**. The large dictionaries are embedded at build time; no source text is sent to an online lookup service. The analysis runs in a responsive, cancellable Web Worker with progress feedback. Performance tests and source licenses are documented in [V2 performance and lexica](v2/docs/PERFORMANCE_AND_LEXICA.md).
-
-**Important:** This is an early prototype with incomplete detection. Review every text yourself before sharing it with any external tool.
+[GNU General Public License v3.0](LICENSE).

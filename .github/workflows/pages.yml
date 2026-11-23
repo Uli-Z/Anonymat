@@ -2,7 +2,7 @@ name: Deploy Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
           python-version: "3.x"
       - name: Build legacy version
         run: python3 build_single_html.py
-      - name: Set up Node for version 2
+      - name: Set up Node for Anonymat 2
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -35,23 +35,28 @@ jobs:
       - name: Derive ordinary-word/city homonyms (build time)
         working-directory: v2
         run: python3 scripts/generate-ambiguity-lexicon.py
-      - name: Build first-name, surname and street lexica (offline runtime)
+      - name: Build name and street lexica (offline runtime)
         working-directory: v2
         run: python3 scripts/generate-person-street-lexica.py
-      - name: Verify and build version 2
+      - name: Verify and build Anonymat 2
         working-directory: v2
         run: |
           npm install --no-audit --no-fund
           npm run verify
       - name: Prepare Pages site
         run: |
-          VERSION=$(cat version.txt)
-          mkdir -p site/v2
-          cp "dist/anonymat-$VERSION.html" site/index.html
-          cp "dist/anonymat-$VERSION.html" "site/anonymat-$VERSION.html"
-          cp "v2/dist/index.html" "site/v2/index.html"
           V2_VERSION=$(node -p "require('./v2/package.json').version")
-          cp "v2/dist/index.html" "site/v2/anonymat-$V2_VERSION.html"
+          LEGACY_VERSION=$(cat version.txt)
+          mkdir -p site/v2 site/legacy
+          # Anonymat 2 is the homepage and remains accessible via /v2/.
+          cp v2/dist/index.html site/index.html
+          cp v2/dist/index.html site/v2/index.html
+          cp v2/dist/index.html "site/anonymat-$V2_VERSION.html"
+          cp v2/dist/index.html "site/v2/anonymat-$V2_VERSION.html"
+          # Preserve existing links and offer a separate legacy entry point.
+          cp "dist/anonymat-$LEGACY_VERSION.html" site/legacy/index.html
+          cp "dist/anonymat-$LEGACY_VERSION.html" "site/legacy/anonymat-$LEGACY_VERSION.html"
+          cp "dist/anonymat-$LEGACY_VERSION.html" "site/anonymat-$LEGACY_VERSION.html"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,57 @@
+name: Publish stable release
+
+# Release runs only when release notes or this workflow change, not on every push.
+on:
+  push:
+    branches: [main]
+    paths:
+      - RELEASE_NOTES.md
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Generate full offline dictionaries
+        working-directory: v2
+        run: |
+          python3 scripts/generate-city-lexicon.py
+          python3 scripts/generate-ambiguity-lexicon.py
+          python3 scripts/generate-person-street-lexica.py
+      - name: Verify release build
+        working-directory: v2
+        run: |
+          npm install --no-audit --no-fund
+          npm run verify
+          npm run test:e2e
+      - name: Publish versioned single-file HTML and GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./v2/package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            echo "Refusing to publish a prerelease as stable: $VERSION" >&2
+            exit 1
+          fi
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists; no changes made."
+            exit 0
+          fi
+          cp v2/dist/index.html "anonymat-$VERSION.html"
+          gh release create "v$VERSION" "anonymat-$VERSION.html" \
+            --target "$GITHUB_SHA" \
+            --title "Anonymat $VERSION" \
+            --notes-file RELEASE_NOTES.md \
+            --latest
