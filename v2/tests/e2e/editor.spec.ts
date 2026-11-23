@@ -244,3 +244,19 @@ test('a clicked detection can choose a pseudonym without changing the global def
   await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
   await expect(page.locator('#replacement-default')).toHaveValue('token');
 });
+
+
+test('manual text selection chooses a pseudonym before creating the mark',async({page})=>{
+  const editor=page.locator('.cm-content');
+  await editor.fill('Bitte CODEWORT');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  for(let i=0;i<'CODEWORT'.length;i++)await page.keyboard.press('Shift+ArrowLeft');
+  const popover=page.getByRole('dialog',{name:'Textauswahl pseudonymisieren'});
+  await popover.getByRole('combobox',{name:'Ersetzung für Textauswahl'}).selectOption('synthetic');
+  await popover.getByRole('button',{name:'Vorname',exact:true}).click();
+  await expect(page.locator('.cm-anonymat-manual')).toHaveText('CODEWORT');
+  await reveal(page);
+  await expect(page.locator('.preview .replacement-mark')).toHaveCount(1);
+  await expect(page.locator('.preview .placeholder-token')).toHaveCount(0);
+});
