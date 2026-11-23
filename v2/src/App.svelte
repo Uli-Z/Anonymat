@@ -509,6 +509,7 @@
   /** Bulk actions target only individually listed, fully contained findings. */
   function applyBulkSelection(action:'mask'|'exclude'):void{
     if(!bulkChosenHits.length)return;
+    const changedCount=bulkChosenHits.length;
     const changed=applyFindingsBatch(bulkChosenHits,action,selectionReplacementMode,{
       manual,ignoredPlaces,ignoredTerms,replacementRules,manualCounter,exclusionCounter
     });
@@ -523,7 +524,7 @@
     bulkDeselectedIds=[];
     selectionReplacementMode='default';
     for(const hit of changed.learned)recordLearning(hit.text,hit.kind);
-    notice=bulkChosenHits.length+' '+t(action==='mask'
+    notice=changedCount+' '+t(action==='mask'
       ?'Fundstellen zur Pseudonymisierung übernommen.'
       :'Fundstellen von der Pseudonymisierung ausgenommen.');
   }
@@ -1339,7 +1340,7 @@
   </dialog>
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
-    <div class:selection-popover--bulk={selectionHits.length>=2} class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
+    <div class={'selection-popover'+(selectionHits.length>=2?' selection-popover--bulk':'')} style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
       onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select,input,label'))) event.preventDefault(); }}
       role="dialog" tabindex="-1" aria-label={t("Textauswahl pseudonymisieren")}>
       <div class="selection-popover-heading">
