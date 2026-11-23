@@ -65,7 +65,7 @@ test.describe('language picker inside initial warning', () => {
     await notice.getByRole('combobox', { name: 'Sprache' }).selectOption('en');
     await notice.getByRole('checkbox', { name: 'I have read and understood this information.' }).check();
     await notice.getByRole('button', { name: 'I understand – Start Anonymat' }).click();
-    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: 'Open settings' }).click();
     await expect(page.locator('#ui-language')).toHaveValue('en');
   });
 });
