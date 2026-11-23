@@ -17,7 +17,7 @@
     value: string;
     marks: EditorMark[];
     onChange: (value: string, changes: ChangeDesc) => void;
-    onSelect: (from: number, to: number, position?: {x: number; y: number}) => void;
+    onSelect: (from: number, to: number, position?: {x: number; y: number; top: number}) => void;
     onHit: (id: string, rect: DOMRect) => void;
     onViewportChange: () => void;
   }
