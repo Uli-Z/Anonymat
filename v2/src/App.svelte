@@ -11,6 +11,7 @@
   import { splitFullName } from './lib/overrides';
   import { normalizedKey, makeRule, loadLearnedRules, saveLearnedRules, deleteLearnedRule, clearLearnedRules, type LearnedRule } from './lib/learned-rules';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
+  import { supportsSynthetic } from './lib/synthetic';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
   import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
@@ -25,6 +26,14 @@
   let ignoredTerms = $state<string[]>([]);
   let replacementRules = $state<Record<string, ReplacementRule>>({});
   let dateShiftEnabled = $state(true);
+  // The default is a preference; per-term choices stay with the current document.
+  let replacementDefault = $state<'token'|'synthetic'>('token');
+  function newSyntheticSeed():number{
+    const value=new Uint32Array(1);
+    crypto.getRandomValues(value);
+    return value[0];
+  }
+  let syntheticSeed = $state(newSyntheticSeed());
   let dateOffsetMode = $state<'random'|'manual'>('random');
   let settingsDialog: HTMLDialogElement | undefined;
   let faqDialog: HTMLDialogElement | undefined;
@@ -69,7 +78,7 @@
   let exclusionCounter = 0;
 
   let reviewed = $state<ReviewedDocument>({findings:[],active:[],pending:[],groups:[]});
-  let prepared = $state<MaskedResult>({text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[]});
+  let prepared = $state<MaskedResult>({text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[],replacementSpans:[]});
   let findings = $derived(isAnalyzing?[]:reviewed.findings);
   let active = $derived(isAnalyzing?[]:reviewed.active);
   let pending = $derived(isAnalyzing?[]:reviewed.pending);
@@ -128,6 +137,9 @@
     try{
       const value=localStorage.getItem('anonymat-learning-consent-v1');
       if(value==='on'||value==='off')pref=value;
+      const replacementPreference=localStorage.getItem('anonymat-replacement-default-v1');
+      if(replacementPreference==='token'||replacementPreference==='synthetic')
+        replacementDefault=replacementPreference;
     }catch{ /* Private browsing can restrict site storage. */ }
     consentState=pref;
     if(pref==='on'){
@@ -140,6 +152,12 @@
       window.clearTimeout(reviewPromptTimer);
     };
   });
+  function changeReplacementDefault(value:'token'|'synthetic'):void{
+    replacementDefault=value;
+    try{localStorage.setItem('anonymat-replacement-default-v1',value);}catch{
+      // A browser without storage can still use this preference for this session.
+    }
+  }
   function recordLearning(term:string,kind:Kind):void{
     const rule=makeRule(term,kind);
     if(!rule)return;
@@ -260,7 +278,7 @@
       manual:$state.snapshot(manual),learned:consentState==='on'?$state.snapshot(learnedRules):[],ignoredPlaces:$state.snapshot(ignoredPlaces),
       ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,cityLexiconEnabled,
       rules:$state.snapshot(replacementRules),
-      dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder}
+      dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder,defaultReplacementMode:replacementDefault,syntheticSeed}
     };
     void analysisVersion;
     // Never reveal an earlier preview after source, rules or settings have changed.
@@ -268,7 +286,7 @@
     if(!source.trim()){
       window.clearTimeout(reviewPromptTimer);
       reviewed={findings:[],active:[],pending:[],groups:[]};
-      prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[]};
+      prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[],reviewSpans:[],replacementSpans:[]};
       isAnalyzing=false;
       analysisProgress=0;
       analysisStatus='';
@@ -320,7 +338,7 @@
     analysisVersion++;
   }
   let hasDateOverride = $derived(Object.values(replacementRules).some(rule=>rule.mode==='shift-date'));
-  let preview = $derived(splitForPreview(prepared.text,prepared.reviewSpans));
+  let preview = $derived(splitForPreview(prepared.text,prepared.reviewSpans,prepared.replacementSpans));
   let inversePartial = $derived(restoreShiftedPartialDates(
     reply, exportSnapshot?.partialDates ?? prepared.partialDates,
     {numericOrder:replyNumericOrder}
@@ -501,17 +519,24 @@
     )?.token ?? '—';
   }
 
-  function dateRuleMode(group:TermGroup):'default'|'token'|'shift-date'{
-    const mode=replacementRules[replacementKey(group.kind,group.text)]?.mode;
-    return mode==='shift-date'||mode==='token'?mode:'default';
+  type RuleChoice = 'default'|'token'|'synthetic'|'shift-date'|'custom-token';
+  function defaultModeLabel(kind:Kind):string{
+    if(kind==='DATE')return dateShiftEnabled?'Datum verschieben':'Platzhalter';
+    if(supportsSynthetic(kind) && replacementDefault==='synthetic')return 'Pseudonym';
+    return 'Platzhalter';
   }
-
-  function setDateRuleMode(group:TermGroup,mode:'default'|'token'|'shift-date'):void{
-    const key=replacementKey(group.kind,group.text);
+  function ruleMode(kind:Kind,text:string):RuleChoice{
+    const mode=replacementRules[replacementKey(kind,text)]?.mode;
+    return mode==='shift-date'||mode==='token'||mode==='synthetic'||mode==='custom-token'?mode:'default';
+  }
+  function setRuleMode(kind:Kind,text:string,mode:RuleChoice):void{
+    const key=replacementKey(kind,text);
     const next={...replacementRules};
     if(mode==='default')delete next[key];
-    else if(mode==='shift-date')next[key]={mode,kind:'DATE'};
-    else next[key]={mode,kind:group.kind};
+    else if(mode==='shift-date' && kind==='DATE')next[key]={mode,kind:'DATE'};
+    else if(mode==='synthetic' && supportsSynthetic(kind))next[key]={mode,kind};
+    else if(mode==='token')next[key]={mode,kind};
+    else return;
     replacementRules=next;
     editingReplacement=null;
   }
@@ -597,6 +622,7 @@
     ignoredPlaces = [];
     ignoredTerms = [];
     replacementRules = {};
+    syntheticSeed = newSyntheticSeed();
     dateShiftEnabled = true;
     dateOffsetMode = 'random';
     cityLexiconEnabled = true;
@@ -786,6 +812,11 @@
           {#each preview as part}
             {#if part.review}
               <button type="button" class="preview-suggestion" title="Vorschlag – noch nicht pseudonymisiert. Zur Prüfung klicken." onclick={reviewIndividually}>{part.value}</button>
+            {:else if part.replaced}
+              <span class:placeholder-token={part.mode==='token'}
+                class:replacement-mark={part.mode!=='token'}
+                class:shifted-date-mark={part.mode==='shift-date'}
+                title={part.mode==='shift-date'?'Verschobenes Datum':part.mode==='synthetic'?'Ersetzt durch Pseudonym':'Ersetzt durch Platzhalter'}>{part.value}</span>
             {:else if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
           {/each}
         {:else}
@@ -912,15 +943,17 @@
                         Aus Gedächtnis löschen
                       </button>
                     {/if}
-                    {#if group.kind==='DATE' && group.activeCount>0}
-                      <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
-                        Ersetzen als
+                    {#if group.activeCount>0}
+                      <label class="replacement-mode-control">
+                        Ersetzen durch
                         <select aria-label={'Ersetzungsmethode für '+group.text}
-                          value={dateRuleMode(group)}
-                          onchange={event => setDateRuleMode(group,event.currentTarget.value as 'default'|'token'|'shift-date')}>
-                          <option value="default">Standard ({dateShiftEnabled?'Verschiebung':'Token'})</option>
-                          <option value="shift-date">Datum verschieben</option>
+                          value={ruleMode(group.kind,group.text)}
+                          onchange={event => setRuleMode(group.kind,group.text,event.currentTarget.value as RuleChoice)}>
+                          <option value="default">Standard ({defaultModeLabel(group.kind)})</option>
                           <option value="token">Platzhalter</option>
+                          {#if supportsSynthetic(group.kind)}<option value="synthetic">Pseudonym</option>{/if}
+                          {#if group.kind==='DATE'}<option value="shift-date">Datum verschieben</option>{/if}
+                          {#if ruleMode(group.kind,group.text)==='custom-token'}<option value="custom-token">Eigener Platzhalter</option>{/if}
                         </select>
                       </label>
                     {/if}
@@ -991,7 +1024,7 @@
     <div class="faq-body settings-body">
       <section>
         <h3>Wofür ist Anonymat da?</h3>
-        <p>Anonymat hilft dir, Texte zu pseudonymisieren: Persönliche Angaben werden durch Platzhalter ersetzt oder beispielsweise Datumsangaben verschoben. Du kannst den Text danach für die Nutzung mit einer KI vorbereiten.</p>
+        <p>Anonymat hilft dir, Texte zu pseudonymisieren: Persönliche Angaben werden durch Platzhalter oder erfundene Ersatzidentitäten ersetzt, Datumsangaben können verschoben werden. Du kannst den Text danach für die Nutzung mit einer KI vorbereiten.</p>
       </section>
       <section>
         <h3>Warum läuft Anonymat im Browser?</h3>
@@ -1007,7 +1040,7 @@
       </section>
       <section>
         <h3>Warum heißt es Anonymat, obwohl nur pseudonymisiert wird?</h3>
-        <p>„Anonymat“ ist der kurze Programmname, keine Garantie für Anonymität. Das Programm pseudonymisiert: Es ersetzt oder verändert direkte Angaben wie Namen und Daten. Durch verbleibende Informationen oder Zusammenhänge können Personen weiterhin erkennbar sein. Eine echte Anonymisierung erfordert, dass eine Identifizierung praktisch nicht mehr möglich ist.</p>
+        <p>„Anonymat“ ist der kurze Programmname, keine Garantie für Anonymität. Das Programm pseudonymisiert: Es ersetzt oder verändert direkte Angaben wie Namen und Daten. Auch neue Namen und Orte sind nur Ersatzwerte – durch verbleibende Informationen oder Zusammenhänge können Personen weiterhin erkennbar sein. Eine echte Anonymisierung erfordert, dass eine Identifizierung praktisch nicht mehr möglich ist.</p>
       </section>
       <section>
         <h3>Kann ich mich auf das Ergebnis verlassen?</h3>
@@ -1027,6 +1060,18 @@
       </form>
     </div>
     <div class="settings-body">
+      <section class="settings-section" aria-labelledby="settings-replacement">
+        <h3 id="settings-replacement">Ersetzungen</h3>
+        <div class="settings-field">
+          <label for="replacement-default">Standard für Namen und Orte</label>
+          <select id="replacement-default" value={replacementDefault}
+            onchange={event=>changeReplacementDefault(event.currentTarget.value as 'token'|'synthetic')}>
+            <option value="token">Platzhalter, z. B. [PERSON_001]</option>
+            <option value="synthetic">Pseudonyme, z. B. andere Namen oder Orte</option>
+          </select>
+          <p>Gilt für Personen, Vor- und Nachnamen, Straßen, Adressen und Orte. Andere Angaben bleiben Platzhalter. Einzelne Fundstellen können abweichend eingestellt werden.</p>
+        </div>
+      </section>
       <section class="settings-section" aria-labelledby="settings-dates">
         <h3 id="settings-dates">Datumsangaben</h3>
         <label class="settings-toggle">
@@ -1186,6 +1231,15 @@
           <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Vorschlag verwerfen</button>
         {:else}
           <p class="hit-status hit-status-active">Wird pseudonymisiert</p>
+          <label class="hit-type-label" for="hit-replacement-mode">Ersetzen durch</label>
+          <select id="hit-replacement-mode" class="hit-type-select" value={ruleMode(selectedHit.kind,selectedHit.text)}
+            onchange={event=>setRuleMode(selectedHit!.kind,selectedHit!.text,event.currentTarget.value as RuleChoice)}>
+            <option value="default">Standard ({defaultModeLabel(selectedHit.kind)})</option>
+            <option value="token">Platzhalter</option>
+            {#if supportsSynthetic(selectedHit.kind)}<option value="synthetic">Pseudonym</option>{/if}
+            {#if selectedHit.kind==='DATE'}<option value="shift-date">Datum verschieben</option>{/if}
+            {#if ruleMode(selectedHit.kind,selectedHit.text)==='custom-token'}<option value="custom-token">Eigener Platzhalter</option>{/if}
+          </select>
           <button type="button" onclick={() => suppressOne(selectedHit!)}>Nur diese Stelle nicht ersetzen</button>
           <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Begriff im ganzen Text nicht ersetzen</button>
         {/if}
