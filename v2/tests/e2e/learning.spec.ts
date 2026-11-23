@@ -41,6 +41,11 @@ test('stored rules survive reload and can be deleted without an auto-apply check
   await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
   await expect(consent).not.toBeVisible();
   await page.reload();
+  // The IndexedDB rules are loaded asynchronously on startup; wait for that
+  // state before testing detection in a new document.
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  await expect(page.getByRole('button',{name:'Gelernten Begriff Zorbel löschen'})).toBeVisible();
+  await page.getByRole('button',{name:'Schließen',exact:true}).click();
   await page.locator('.cm-content').fill('Zorbel antwortet.');
   await expect(page.locator('.cm-anonymat-active')).toHaveText('Zorbel');
   await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
