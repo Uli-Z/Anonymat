@@ -1,5 +1,5 @@
 import { scanPartialDates } from './partial-dates';
-import { scanDates, type NumericDateOrder } from './dates';
+import { scanDates, scanDateRanges, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
 import { scanNumbers } from './numbers';
@@ -58,8 +58,14 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   const add=(kind:Kind,start:number,value:string,confidence?:Finding['confidence']):void=>{
     if(value.trim())candidates.push(candidate(kind,start,value,'automatic','auto',confidence));
   };
-  for(const hit of scanStructuredPII(text))add(hit.kind,hit.start,hit.text);
+  const dateRanges=scanDateRanges(text);
+  for(const hit of scanStructuredPII(text)){
+    // A valid date interval can resemble a phone number. Date semantics win.
+    if(hit.kind==='PHONE' && dateRanges.some(range=>hit.start<range.end && range.start<hit.start+hit.text.length))continue;
+    add(hit.kind,hit.start,hit.text);
+  }
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
+  for(const hit of dateRanges)add('DATE',hit.start,hit.text);
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   // Two-digit years are century-ambiguous: protect with a DATE token, never
   // silently interpret or shift them to a guessed calendar year.

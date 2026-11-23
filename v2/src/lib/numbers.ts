@@ -16,6 +16,8 @@ export function scanNumbers(source:string):NumberHit[]{
   for(const match of source.matchAll(NUMERIC)){
     const start=match.index,end=start+match[0].length;
     if(isListNumber(source,start,end,match[0]))continue;
+    // Isolated digits are normally structural or non-identifying.
+    if(/^[-+−]?[0-9]$/u.test(match[0]))continue;
     // "AB-123" is a code, not an independent number.
     if(start>1 && source[start-1]==='-' && /[\p{L}_]/u.test(source[start-2]))continue;
     result.push({start,end,text:match[0]});

@@ -95,32 +95,45 @@ describe('partial date recognition and safety',()=>{
     expect(restored.text).toBe(source);
     expect(restored.warnings).toEqual([]);
   });
-  it('restores translated French/English/Spanish partial dates and leaves unknown entries unchanged',()=>{
+  it('restores known and newly calculated yearless dates in three languages',()=>{
     const source='10. März am Morgen.';
     const masked=maskText(source,detectPII(source),{}, {
       dateShiftEnabled:true,offsetDays:30
     });
     for(const [reply,expected] of [
-      ['9 avril, puis 2 mai','10 mars, puis 2 mai'],
-      ['April 9; June 1','March 10; June 1'],
-      ['9 de abril y 3 de mayo','10 de marzo y 3 de mayo']
+      ['9 avril, puis 2 mai','10 mars, puis 2 avril'],
+      ['April 9; June 1','March 10; May 2'],
+      ['9 de abril y 3 de mayo','10 de marzo y 3 de abril']
     ]){
-      const restored=restoreShiftedPartialDates(reply,masked.partialDates);
+      const restored=restoreShiftedPartialDates(reply,masked.partialDates,{offsetDays:30});
       expect(restored.text).toBe(expected);
-      expect(restored.warnings).toHaveLength(1);
+      expect(restored.warnings).toEqual([]);
     }
   });
-  it('detects missing or duplicated occurrences and never restores extra copies',()=>{
+  it('reverses novel yearless dates derived from full shifted input dates',()=>{
+    const source='10.03.2026';
+    const masked=maskText(source,detectPII(source),{}, {
+      dateShiftEnabled:true,offsetDays:30
+    });
+    expect(masked.partialDates).toEqual([]);
+    const reply=restoreShiftedPartialDates('2 mai',[],{
+      offsetDays:30,shiftedFullDates:masked.dates.map(date=>date.shiftedIso)
+    });
+    expect(reply.text).toBe('2 avril');
+    expect(reply.warnings).toEqual([]);
+    expect(restoreShiftedPartialDates('2 mai',[],{offsetDays:30}).text).toBe('2 mai');
+  });
+  it('does not warn about omitted or repeated partial dates',()=>{
     const source='10. März';
     const masked=maskText(source,detectPII(source),{}, {
       dateShiftEnabled:true,offsetDays:30
     });
     const repeated=restoreShiftedPartialDates('9 avril et 9 avril',masked.partialDates);
-    expect(repeated.text).toBe('10 mars et 9 avril');
-    expect(repeated.warnings).toHaveLength(1);
+    expect(repeated.text).toBe('10 mars et 10 mars');
+    expect(repeated.warnings).toEqual([]);
     const missing=restoreShiftedPartialDates('Sans date',masked.partialDates);
     expect(missing.text).toBe('Sans date');
-    expect(missing.warnings[0]).toContain('fehlt');
+    expect(missing.warnings).toEqual([]);
   });
   it('uses the nearest calendar crossing when editing yearless dates',()=>{
     const from=parsePartialDate('11. November')!;

@@ -17,6 +17,12 @@ describe('optional automatic numbers',()=>{
     expect(maskText(source,numbers).text).toContain('[NUMBER_002] Kilo');
   });
 
+  it('leaves isolated digits 0–9 unchanged but detects larger and decimal values',()=>{
+    const source='1 2 3 4 5 6 7 8 9 0, 1 kg, +2, −3, 10 kg, 1,5 kg, 0,5 €';
+    expect(scanNumbers(source).map(hit=>hit.text)).toEqual(['10','1,5','0,5']);
+    expect(scan(source).filter(hit=>hit.kind==='NUMBER').map(hit=>hit.text))
+      .toEqual(['10','1,5','0,5']);
+  });
   it('leaves numbered and indented enumerations alone',()=>{
     const source='1. Erstens\n  2) Zweitens\n- 3. Drittens\n4.) Viertens\nDie Länge beträgt 128 cm.';
     expect(scanNumbers(source).map(hit=>hit.text)).toEqual(['128']);

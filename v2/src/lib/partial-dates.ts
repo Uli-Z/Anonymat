@@ -6,7 +6,7 @@
  * and stay protected by tokens.
  */
 import {
-  MONTHS, SHORT_MONTHS, scanDates, shiftIsoDay, calendarDayDifference,
+  MONTHS, SHORT_MONTHS, scanDates, scanDateRanges, shiftIsoDay, calendarDayDifference,
   type DateLanguage, type NumericDateOrder
 } from './dates';
 
@@ -18,7 +18,7 @@ export interface PartialMatch{
   separator?:string;endDot?:boolean;dayDot?:boolean;padDay?:boolean;padMonth?:boolean;
   short?:boolean;monthDot?:boolean;reason?:string;
 }
-export interface PartialDateOptions{numericOrder?:NumericDateOrder}
+export interface PartialDateOptions{numericOrder?:NumericDateOrder;offsetDays?:number;shiftedFullDates?:readonly string[]}
 export interface ShiftedPartial{
   original:string;shifted:string;originalIso:string;shiftedIso:string;
 }
@@ -129,7 +129,8 @@ function getParsed(
   if(kind==='day-text'){
     const p=/^(\d{1,2})(\.)?\s+(?:(de)\s+)?([\p{L}]{3,}\.?)$/iu.exec(full);
     if(!p)return null;
-    const month=monthInfo(p[4],p[3]?'es':p[2]?'de':undefined);
+    const month=monthInfo(p[4],p[3]?'es':p[2]?'de':
+      /^[a-zà-ÿ]/u.test(p[4])?'fr':undefined);
     if(!month)return null;
     const day=+p[1];
     const result:PartialMatch={...base,precision:'day-month',style:'day-first',month:month.month,
@@ -151,7 +152,7 @@ function getParsed(
 /** Positions refer to the exact identified sub-expression; context words stay outside. */
 export function scanPartialDates(source:string,options:PartialDateOptions={}):PartialMatch[]{
   const full=scanDates(source,{numericOrder:options.numericOrder});
-  const protectedSpans=[...full.matches,...full.issues];
+  const protectedSpans=[...scanDateRanges(source),...full.matches,...full.issues];
   const proposals:PartialMatch[]=[];
   for(const scanner of scanners)for(const hit of source.matchAll(scanner.re)){
     const rawBody=hit.groups?.body;
@@ -230,38 +231,59 @@ export function formatPartialLike(iso:string,template:PartialMatch):string{
   return d+(template.dayDot?'.':'')+' '+word;
 }
 /**
- * Reidentify translated yearless dates by month/day and occurrence count.
- * Unknown and duplicated dates remain unchanged with warnings. Values are
- * never guessed from the system clock or the translated document's context.
+ * Reidentify known yearless dates and, when a valid session offset is supplied,
+ * derive new dates created by the AI from the same calendar displacement.
+ * Omissions and repeated dates are normal, not data-integrity errors.
  */
 export function restoreShiftedPartialDates(
-  source:string, ledger:readonly ShiftedPartial[],options:PartialDateOptions={}
+  source:string,ledger:readonly ShiftedPartial[],options:PartialDateOptions={}
 ):PartialRestoreResult{
-  if(ledger.length===0)return {text:source,warnings:[],changed:0};
-  const remaining=new Map<string,ShiftedPartial[]>();
+  const anchors=[...ledger.map(entry=>entry.shiftedIso),...(options.shiftedFullDates??[])]
+    .filter(iso=>shiftIsoDay(iso,0)!==null);
+  if(!anchors.length)return {text:source,warnings:[],changed:0};
+  const knownByDayMonth=new Map<string,ShiftedPartial>();
   const key=(iso:string)=>iso.slice(5);
-  for(const item of ledger){
-    const k=key(item.shiftedIso),entries=remaining.get(k)??[];
-    entries.push(item);remaining.set(k,entries);
+  for(const entry of ledger){
+    if(!knownByDayMonth.has(key(entry.shiftedIso)))knownByDayMonth.set(key(entry.shiftedIso),entry);
   }
+  const offset=options.offsetDays;
+  const canDerive=Number.isSafeInteger(offset)&&offset!==0&&Math.abs(offset as number)<=3650;
   let text='',pos=0,changed=0;
   const warnings:string[]=[];
   for(const match of scanPartialDates(source,options)){
     if(match.precision!=='day-month' && match.precision!=='ambiguous')continue;
     text+=source.slice(pos,match.start);
-    const k=String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
-    const saved=match.precision==='day-month'?remaining.get(k)?.shift():undefined;
-    if(saved){
-      text+=formatPartialLike(saved.originalIso,match);
+    const dayMonth=String(match.month).padStart(2,'0')+'-'+String(match.day).padStart(2,'0');
+    const known=match.precision==='day-month'?knownByDayMonth.get(dayMonth):undefined;
+    let originalIso=known?.originalIso??null;
+    if(!originalIso && match.precision==='day-month' && canDerive){
+      // Pick a valid calendar year closest to known shifted days, handling
+      // Feb 29 and New Year's crossings without a current-year assumption.
+      const years=new Set<number>();
+      for(const anchor of anchors){
+        const year=Number(anchor.slice(0,4));
+        for(const delta of [-1,0,1])years.add(year+delta);
+      }
+      let best:{iso:string;distance:number}|null=null;
+      for(const year of years){
+        const candidate=shiftIsoDay(String(year).padStart(4,'0')+'-'+dayMonth,0);
+        if(!candidate)continue;
+        const distance=Math.min(...anchors.map(anchor=>
+          Math.abs(calendarDayDifference(anchor,candidate)??Infinity)
+        ));
+        if(!best || distance<best.distance)best={iso:candidate,distance};
+      }
+      originalIso=best?shiftIsoDay(best.iso,-(offset as number)):null;
+    }
+    if(originalIso){
+      text+=formatPartialLike(originalIso,match);
       changed++;
     }else{
       text+=match.text;
-      warnings.push('Unbekannte, doppelte oder uneindeutige unvollständige Datumsangabe "'+match.text+'" nicht zurückverschoben.');
+      if(match.precision==='ambiguous')
+        warnings.push('Uneindeutige unvollständige Datumsangabe "'+match.text+'" nicht zurückverschoben.');
     }
     pos=match.end;
-  }
-  for(const entries of remaining.values())for(const missing of entries){
-    warnings.push('Verschobene Datumsangabe "'+missing.shifted+'" fehlt im KI-Ergebnis.');
   }
   return {text:text+source.slice(pos),warnings,changed};
 }
