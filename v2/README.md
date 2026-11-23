@@ -12,7 +12,7 @@ Die bisherige Version 0.9.3 bleibt im Root des Repositories erhalten. Die Svelte
 - Pro Begriff gruppierte Trefferliste (z. B. „Müller × 3“) statt doppelter Zeilen; die Checkbox schaltet alle Vorkommen um. Im Text lässt sich separat genau eine Stelle ignorieren.
 - Vorschau des pseudonymisierten Textes und Kopieren in die Zwischenablage.
 - KI-Antwort mit Platzhaltern einfügen und lokal zurückübersetzen; Warnungen bei fehlenden/unbekannten Tokens.
-- Keine Speicherung des Texts oder der Token-Zuordnung. Kein Backend.
+- Keine Speicherung vollständiger Texte oder Token-Zuordnungen. Kein Backend. Nach Zustimmung können **einzelne manuell bestätigte Begriffe und Kategorien** dauerhaft im Browser gespeichert werden.
 
 **Alpha-Hinweis:** Die Erkennung ist unvollständig. Vor der Weitergabe vertraulicher Daten ist eine gründliche menschliche Prüfung erforderlich.
 
@@ -39,7 +39,7 @@ Vor einem vollständigen Offline-Build kann das GeoNames-Lexikon generiert werde
 
 ## Datenschutz
 
-Alles bleibt im Arbeitsspeicher dieses Browser-Tabs. Keine Browser-Speicherung der Inhalte, keine Modellaufrufe, keine Analytik. Manuelle Markierungen und lokale Ausnahmen werden bei Texteingaben positionsgenau mitverschoben. Nur vollständig gelöschte Markierungen oder geänderte, bewusst ignorierte Texte werden neu bewertet.
+Vollständige Texte, Rückübersetzungsdaten und Token-Zuordnungen bleiben im Arbeitsspeicher dieses Browser-Tabs. **Optionaler lokaler Lernspeicher:** Nur nach ausdrücklicher Zustimmung speichert Anonymat manuell bestätigte Originalbegriffe mit Kategorie in IndexedDB. Diese können personenbezogene Daten sein und liegen dort unverschlüsselt im jeweiligen Browserprofil. Ohne Zustimmung wird keine solche Regel gespeichert. In den Einstellungen können Begriffe geändert, automatisch freigegeben, einzeln gelöscht oder vollständig entfernt werden. Keine Modellaufrufe, keine Analytik. Manuelle Markierungen und lokale Ausnahmen werden bei Texteingaben positionsgenau mitverschoben. Nur vollständig gelöschte Markierungen oder geänderte, bewusst ignorierte Texte werden neu bewertet.
 
 **Pseudonymisierung ist nicht gleich Anonymisierung.** Auch nach Ersetzungen können indirekte Identifikatoren im Text verbleiben.
 
@@ -71,3 +71,9 @@ Die Builds von CI und GitHub Pages ergänzen die lokal gespeicherten Lexika mit 
 Die zeitintensive Analyse läuft in einem **inline Web Worker** (keine externen Skripte). Der Editor wartet nach dem Tippen 150 ms, verarbeitet veraltete Resultate nicht, erlaubt Abbrechen/Neustarten und zeigt einen schrittbasierten Ladebalken. Solange eine aktuelle Analyse fehlt, ist die Textausgabe sicherheitshalber gesperrt. Auch eine manuelle Korrektur startet eine neue Hintergrundanalyse.
 
 Benchmark in GitHub CI (vorläufig, nur warme Indizes): 10 KB ~21 ms, 100 KB ~208 ms, 1 MB ~2.155 ms. Kalte Worker-Startzeit und DOM-Rendering sind nicht enthalten. [Herkunft, Lizenzen, Benchmark und Grenzen](docs/PERFORMANCE_AND_LEXICA.md).
+
+## Wiederkehrende manuelle Ersetzungen
+
+Manuelle Markierungen gelten weiterhin sofort für alle Vorkommen im aktuellen Text. Beim ersten manuellen Markieren wird gefragt, ob Anonymat sich die Begriffe für neue Texte merken darf. Das lässt sich später unter **Einstellungen → Gelernte Ersetzungen** ändern. Gespeicherte Begriffe werden standardmäßig blau als **Prüfvorschläge** angeboten; eine explizit als automatisch freigegebene Regel wird bei künftigen Texten direkt maskiert. Automatische Mustererkennung bleibt unabhängig davon aktiv.
+
+Wenn nach dem Einfügen eines neuen Textes **mehr als zwei noch offene Vorschlagsgruppen** bestehen, erscheint nach kurzer Eingabepause ein einmaliger Sammeldialog. Man kann alle bestätigen, jeden Vorschlag über die Ersetzungsliste einzeln prüfen oder den Dialog schließen. Automatisch sichere Treffer bleiben unabhängig davon aktiv. Beim Wechsel zu **Neuer Text** wird nur der aktuelle Arbeitsstand verworfen, nicht das lokale Gedächtnis. Bei Löschung der Browser-Website-Daten kann das Gedächtnis verloren gehen; der Lernspeicher wird nicht zwischen Geräten oder Browserprofilen synchronisiert.

@@ -5,7 +5,8 @@ import { pathToFileURL } from 'node:url';
 const html = pathToFileURL(resolve('dist/index.html')).href;
 
 test.beforeEach(async ({ page }) => {
-  // Test the actual standalone file, not only the Vite development server.
+  // Existing editor tests exercise session-only edits; consent has its own flow tests.
+  await page.addInitScript(() => localStorage.setItem('anonymat-learning-consent-v1','off'));
   await page.goto(html);
 });
 

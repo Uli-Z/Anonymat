@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ChangeDesc } from '@codemirror/state';
+  import { onMount } from 'svelte';
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect-types';
   import type { ReviewedDocument, TermGroup } from './lib/session';
@@ -8,6 +9,7 @@
   import { remapFindings } from './lib/marks';
   import { restoreText, splitForPreview, type MaskedResult } from './lib/replace';
   import { splitFullName } from './lib/overrides';
+  import { normalizedKey, makeRule, loadLearnedRules, saveLearnedRules, deleteLearnedRule, clearLearnedRules, type LearnedRule } from './lib/learned-rules';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
@@ -26,6 +28,15 @@
   let dateOffsetMode = $state<'random'|'manual'>('random');
   let settingsDialog: HTMLDialogElement | undefined;
   let faqDialog: HTMLDialogElement | undefined;
+  let consentDialog: HTMLDialogElement | undefined;
+  let reviewDialog: HTMLDialogElement | undefined;
+  let consentState = $state<'unknown'|'on'|'off'>('unknown');
+  let learnedRules = $state<LearnedRule[]>([]);
+  let pendingLearning = $state<LearnedRule[]>([]);
+  let rememberAutomatically = $state(false);
+  let learningBusy = $state(false);
+  let reviewPromptHandled = false;
+  let reviewPromptTimer: number | undefined;
   let markedEditor: MarkedEditor | undefined;
   let findingsDialog: HTMLDialogElement | undefined;
   let resultVisible = $state(false);
@@ -70,8 +81,127 @@
       ignored:!activeIds.has(hit.id) && !pendingReview,
       review:pendingReview,manual:hit.origin==='manual'};
   }));
-  let pendingNameGroups = $derived(groups.filter(group=>group.review && group.activeCount===0
+  let pendingGroups = $derived(groups.filter(group=>group.review && group.activeCount===0
     && !ignoredTerms.some(term=>sameTerm(term,group.text))));
+  let priorSuggestions = $derived(pendingGroups.filter(group=>group.learned).length);
+  let patternSuggestions = $derived(pendingGroups.length-priorSuggestions);
+
+  function mergeRemembered(existing:readonly LearnedRule[], incoming:readonly LearnedRule[]):LearnedRule[]{
+    const map=new Map(existing.map(rule=>[rule.key,rule]));
+    for(const rule of incoming)map.set(rule.key,rule);
+    return [...map.values()].sort((a,b)=>a.term.localeCompare(b.term,'de'));
+  }
+  function memoryFailure():void{
+    notice='Der lokale Regelspeicher ist nicht verfügbar. Die Markierungen gelten weiterhin für diesen Text.';
+  }
+  async function enableMemory(enabled:boolean):Promise<void>{
+    if(learningBusy)return;
+    if(!enabled){
+      pendingLearning=[];
+      consentState='off';
+      try{localStorage.setItem('anonymat-learning-consent-v1','off');}catch{memoryFailure();}
+      consentDialog?.close();
+      return;
+    }
+    learningBusy=true;
+    const queued=[...pendingLearning];
+    try{
+      const saved=await loadLearnedRules();
+      if(queued.length)await saveLearnedRules(queued);
+      learnedRules=mergeRemembered(saved,queued);
+      pendingLearning=[];
+      consentState='on';
+      try{localStorage.setItem('anonymat-learning-consent-v1','on');}catch{memoryFailure();}
+      consentDialog?.close();
+    }catch{memoryFailure();}
+    finally{learningBusy=false;}
+  }
+  onMount(()=>{
+    let cancelled=false;
+    let pref:'unknown'|'on'|'off'='unknown';
+    try{
+      const value=localStorage.getItem('anonymat-learning-consent-v1');
+      if(value==='on'||value==='off')pref=value;
+    }catch{ /* Private browsing can restrict site storage. */ }
+    consentState=pref;
+    if(pref==='on'){
+      void loadLearnedRules().then(rules=>{
+        if(!cancelled)learnedRules=rules;
+      }).catch(()=>{if(!cancelled){consentState='off';memoryFailure();}});
+    }
+    return ()=>{
+      cancelled=true;
+      window.clearTimeout(reviewPromptTimer);
+    };
+  });
+  function recordLearning(term:string,kind:Kind,auto=false):void{
+    const base=makeRule(term,kind,auto);
+    if(!base)return;
+    const previous=[...learnedRules,...pendingLearning].find(rule=>rule.key===base.key);
+    const rule={...base,autoApply:auto || (previous?.kind===kind && previous.autoApply===true)};
+    if(consentState==='on'){
+      learnedRules=mergeRemembered(learnedRules,[rule]);
+      void saveLearnedRules([rule]).catch(memoryFailure);
+    }else if(consentState==='unknown'){
+      pendingLearning=mergeRemembered(pendingLearning,[rule]);
+      if(!consentDialog?.open)consentDialog?.showModal();
+    }
+  }
+  function updateLearned(rule:LearnedRule,patch:Partial<Pick<LearnedRule,'kind'|'autoApply'>>):void{
+    const updated={...rule,...patch,updatedAt:Date.now()};
+    learnedRules=mergeRemembered(learnedRules,[updated]);
+    void saveLearnedRules([updated]).catch(memoryFailure);
+  }
+  function forgetLearned(key:string):void{
+    learnedRules=learnedRules.filter(rule=>rule.key!==key);
+    void deleteLearnedRule(key).catch(memoryFailure);
+  }
+  function clearMemory():void{
+    if(!window.confirm('Alle dauerhaft gelernten Begriffe aus diesem Browser löschen?'))return;
+    learnedRules=[];
+    pendingLearning=[];
+    void clearLearnedRules().catch(memoryFailure);
+  }
+  function scheduleReviewPrompt(jobId:number,document:ReviewedDocument):void{
+    window.clearTimeout(reviewPromptTimer);
+    if(reviewPromptHandled)return;
+    const count=document.groups.filter(group=>group.review && group.activeCount===0
+      && !ignoredTerms.some(term=>sameTerm(term,group.text))).length;
+    if(count<=2)return;
+    // Do not interrupt typing while CodeMirror is still receiving input.
+    reviewPromptTimer=window.setTimeout(()=>{
+      if(reviewPromptHandled||isAnalyzing||latestJob!==jobId||!source.trim())return;
+      if(consentDialog?.open||settingsDialog?.open||findingsDialog?.open)return;
+      reviewPromptHandled=true;
+      reviewDialog?.showModal();
+    },900);
+  }
+  function acceptAllSuggestions():void{
+    reviewDialog?.close();
+    reviewPromptHandled=true;
+    const candidates:Finding[]=[];
+    const terms=new Set<string>();
+    for(const group of pendingGroups){
+      const hit=findings.find(item=>item.kind===group.kind && sameTerm(item.text,group.text)
+        && item.confidence==='review' && !ignoredPlaces.some(place=>spansOverlap(place,item)));
+      if(!hit)continue;
+      candidates.push({
+        id:'manual-'+(++manualCounter),kind:hit.kind,text:hit.text,
+        start:hit.start,end:hit.end,origin:'manual'
+      });
+      terms.add(normalizedKey(hit.text));
+    }
+    if(!candidates.length)return;
+    manual=[...manual.filter(hit=>!candidates.some(candidate=>spansOverlap(candidate,hit))),...candidates];
+    ignoredTerms=ignoredTerms.filter(term=>!terms.has(normalizedKey(term)));
+    for(const hit of candidates)recordLearning(hit.text,hit.kind);
+    notice=candidates.length+' Vorschläge übernommen. Bitte das Ergebnis prüfen.';
+  }
+  function reviewIndividually():void{
+    reviewPromptHandled=true;
+    reviewDialog?.close();
+    findingsDialog?.showModal();
+  }
 
   function ensureScanner():void{
     if(scanner)return;
@@ -95,6 +225,7 @@
         analysisProgress=100;
         analysisStatus='Analyse abgeschlossen';
         workerBusy=false;
+        scheduleReviewPrompt(data.id,data.reviewed);
       }else if(data.type==='error'){
         analysisError='Die Analyse ist fehlgeschlagen: '+data.message;
         analysisStatus='Analyse fehlgeschlagen';
@@ -117,7 +248,7 @@
   $effect(()=>{
     const request:AnalysisRequest={
       type:'analyze',id:++latestJob,text:source,
-      manual:$state.snapshot(manual),ignoredPlaces:$state.snapshot(ignoredPlaces),
+      manual:$state.snapshot(manual),learned:consentState==='on'?$state.snapshot(learnedRules):[],ignoredPlaces:$state.snapshot(ignoredPlaces),
       ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,cityLexiconEnabled,
       rules:$state.snapshot(replacementRules),
       dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder}
@@ -126,6 +257,7 @@
     // Never reveal an earlier preview after source, rules or settings have changed.
     resultVisible=false;
     if(!source.trim()){
+      window.clearTimeout(reviewPromptTimer);
       reviewed={findings:[],active:[],groups:[]};
       prepared={text:'',mapping:[],dates:[],partialDates:[],warnings:[]};
       isAnalyzing=false;
@@ -204,6 +336,7 @@
     menu = null;
     quickAction = null;
     notice = '';
+    if(!next.trim())reviewPromptHandled=false;
   }
 
   function popoverPosition(anchor: {left:number;top:number;bottom:number}, width:number, height:number): {x:number;y:number} {
@@ -239,7 +372,7 @@
   }
 
   /** A single click converts the actual current editor selection into a learned rule. */
-  function setManualMark(start: number, end: number, kind: Kind): void {
+  function setManualMark(start: number, end: number, kind: Kind,auto=false): void {
     while (start < end && /\s/.test(source[start])) start++;
     while (end > start && /\s/.test(source[end - 1])) end--;
     if (start === end) {
@@ -253,6 +386,7 @@
       kind, text: source.slice(start, end), start, end
     };
     manual = [...manual.filter(hit => !spansOverlap(hit, added)), added];
+    recordLearning(added.text,kind,auto);
     ignoredPlaces = ignoredPlaces.filter(hit => !spansOverlap(hit, added));
     ignoredTerms = ignoredTerms.filter(term => !sameTerm(term, added.text));
     menu = null;
@@ -262,7 +396,8 @@
   }
 
   function addManual(kind: Kind): void {
-    setManualMark(selectedRange.from, selectedRange.to, kind);
+    setManualMark(selectedRange.from, selectedRange.to, kind,rememberAutomatically);
+    rememberAutomatically=false;
   }
 
   function suppressOne(hit: Finding): void {
@@ -274,7 +409,7 @@
   }
 
   function restoreOne(hit: Finding): void {
-    if(hit.confidence==='review' && hit.origin==='automatic'){
+    if(hit.confidence==='review'){
       setManualMark(hit.start,hit.end,hit.kind);
       return;
     }
@@ -316,6 +451,7 @@
 
   function removeManualRule(hit: Finding): void {
     manual = manual.filter(anchor => anchor.id !== hit.id);
+    if(learnedRules.some(rule=>rule.key===normalizedKey(hit.text)))forgetLearned(normalizedKey(hit.text));
     menu = null;
     notice = 'Manuelle Erkennungsregel entfernt.';
   }
@@ -328,6 +464,7 @@
       return;
     }
     manual = [...manual.filter(item => !spansOverlap(item, hit)), ...parts];
+    for(const part of parts)recordLearning(part.text,part.kind);
     ignoredPlaces = ignoredPlaces.filter(item => !spansOverlap(item, hit));
     menu = null;
     notice = 'Vorname und Nachname getrennt. Beide Regeln gelten auch für weitere Vorkommen.';
@@ -450,7 +587,11 @@
     exportSnapshot = null;
     resultVisible = false;
     findingsDialog?.close();
+    reviewDialog?.close();
     faqDialog?.close();
+    window.clearTimeout(reviewPromptTimer);
+    reviewPromptHandled=false;
+    rememberAutomatically=false;
     editingReplacement = null;
     replacementError = '';
     selectedRange = {from: 0, to: 0};
@@ -619,8 +760,8 @@
           <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
         {/if}
       </div>
-      {#if resultVisible && pendingNameGroups.length}
-        <div class="inline-warning">{pendingNameGroups.length} mögliche Namen sind noch nicht ersetzt. Die blau markierten Prüfvorschläge im Originaltext können per Klick oder über „Ersetzungen anzeigen“ bestätigt oder ignoriert werden.</div>
+      {#if resultVisible && pendingGroups.length}
+        <div class="inline-warning">{pendingGroups.length} mögliche Angaben sind noch nicht ersetzt. Die blau markierten Vorschläge im Originaltext können per Klick oder über „Ersetzungen anzeigen“ bestätigt oder ignoriert werden.</div>
       {/if}
       {#if resultVisible && prepared.warnings.length}
         <div class="inline-warning">{prepared.warnings.join(' ')}</div>
@@ -688,14 +829,14 @@
             <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
             <div class="findings-list">
               {#each groups as group (group.key)}
-                <div class="finding-row" class:muted-finding={group.activeCount === 0 && !pendingNameGroups.some(entry=>entry.key===group.key)}>
+                <div class="finding-row" class:muted-finding={group.activeCount === 0 && !pendingGroups.some(entry=>entry.key===group.key)}>
                   <input type="checkbox" checked={group.activeCount > 0}
                     aria-label={group.text + ' im ganzen Text anonymisieren'}
                     onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
                     <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
-                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell gelernt' : 'Automatisch erkannt'}
-                      {#if pendingNameGroups.some(entry=>entry.key===group.key)} · Prüfvorschlag (noch nicht ersetzt){:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell markiert' : group.learned ? 'Aus früheren Texten' : 'Automatisch erkannt'}
+                      {#if pendingGroups.some(entry=>entry.key===group.key)} · Prüfvorschlag (noch nicht ersetzt){:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
                     </span>
                     {#if group.activeCount > 0}
                       {#if editingReplacement === replacementKey(group.kind,group.text)}
@@ -736,6 +877,35 @@
         </div>
       </dialog>
 
+  <dialog class="review-dialog" bind:this={reviewDialog} aria-labelledby="review-title">
+    <div class="settings-header">
+      <h2 id="review-title">Anonymisierungsvorschläge</h2>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label="Vorschläge schließen">×</button></form>
+    </div>
+    <div class="settings-body">
+      <p>In diesem Text wurden {pendingGroups.length} weitere Begriffe gefunden, die noch nicht anonymisiert sind. Du kannst sie gesammelt übernehmen oder einzeln prüfen.</p>
+      <p>{priorSuggestions} aus früheren Texten · {patternSuggestions} aus der Mustererkennung</p>
+      <p class="settings-note">Bitte prüfe auch bei einer Sammelübernahme den vollständigen Ergebnistext.</p>
+    </div>
+    <div class="review-actions">
+      <button type="button" class="secondary-button" onclick={() => reviewDialog?.close()}>Später</button>
+      <button type="button" class="secondary-button" onclick={reviewIndividually}>Einzeln prüfen</button>
+      <button type="button" class="primary-button" onclick={acceptAllSuggestions}>Alle übernehmen</button>
+    </div>
+  </dialog>
+
+  <dialog class="consent-dialog" bind:this={consentDialog} aria-labelledby="consent-title">
+    <div class="settings-header"><h2 id="consent-title">Ersetzungen dauerhaft merken?</h2></div>
+    <div class="settings-body">
+      <p>Anonymat kann manuell bestätigte Begriffe samt Kategorie in diesem Browser speichern und bei neuen Texten wiedererkennen.</p>
+      <p>Auch Namen und andere personenbezogene Angaben werden dabei im Klartext im Browserprofil gespeichert. Vollständige Texte und Platzhalter-Zuordnungen werden nicht gespeichert. In den Einstellungen kannst du die Regeln einzeln oder vollständig löschen.</p>
+    </div>
+    <div class="review-actions">
+      <button type="button" class="secondary-button" disabled={learningBusy} onclick={() => {void enableMemory(false);}}>Nur diesen Text</button>
+      <button type="button" class="primary-button" disabled={learningBusy} onclick={() => {void enableMemory(true);}}>{learningBusy?'Wird gespeichert…':'Lokales Gedächtnis aktivieren'}</button>
+    </div>
+  </dialog>
+
   <dialog class="faq-dialog" bind:this={faqDialog} aria-labelledby="faq-title">
     <div class="settings-header">
       <div><h2 id="faq-title">Hilfe & FAQ</h2></div>
@@ -756,7 +926,7 @@
       </section>
       <section>
         <h3>Werden gleiche Begriffe mehrfach ersetzt?</h3>
-        <p>Ja. Manuell markierte Begriffe werden im gesamten Text wiedererkannt. Einzelne Vorkommen kannst du von der Ersetzung ausnehmen.</p>
+        <p>Ja. Manuell markierte Begriffe werden im gesamten Text wiedererkannt. Mit aktiviertem lokalem Gedächtnis erscheinen sie auch in späteren Texten als Vorschläge. Optional kannst du eine automatische Übernahme erlauben.</p>
       </section>
       <section>
         <h3>Was passiert mit Datumsangaben?</h3>
@@ -768,7 +938,7 @@
       </section>
       <section>
         <h3>Werden meine Texte hochgeladen oder gespeichert?</h3>
-        <p>Die Verarbeitung erfolgt im Browser. Der eingegebene Text wird durch Anonymat nicht an einen Server gesendet und nicht dauerhaft gespeichert. Schließe oder lade die Seite neu, um den aktuellen Text zu verwerfen.</p>
+        <p>Die Verarbeitung erfolgt im Browser. Vollständige Texte und Platzhalter-Zuordnungen werden nicht dauerhaft gespeichert. Mit deiner Zustimmung werden ausschließlich manuell bestätigte Begriffe und ihre Kategorien in IndexedDB gespeichert. Auch diese können personenbezogen sein; du kannst sie in den Einstellungen löschen. Beim Neuladen wird der aktuelle Text verworfen.</p>
       </section>
       <section>
         <h3>Ist das Ergebnis wirklich anonym?</h3>
@@ -853,6 +1023,35 @@
         </details>
       </section>
 
+      <section class="settings-section" aria-labelledby="settings-learning">
+        <h3 id="settings-learning">Gelernte Ersetzungen</h3>
+        <label class="settings-toggle">
+          <input type="checkbox" checked={consentState==='on'} onchange={event=>{void enableMemory(event.currentTarget.checked);}} />
+          <span><strong>Lokales Gedächtnis verwenden</strong><small>Manuell bestätigte Begriffe für zukünftige Texte speichern und wiedererkennen. Auch sensible Originalbegriffe bleiben dabei im Browserprofil gespeichert.</small></span>
+        </label>
+        {#if consentState==='on'}
+          <p class="settings-note">{learnedRules.length} gespeicherte Begriffe. Standardmäßig sind neue Treffer nur Vorschläge, bis du sie bestätigst.</p>
+          {#if learnedRules.length}
+            <div class="learned-list">
+              {#each learnedRules as rule (rule.key)}
+                <div class="learned-row">
+                  <strong title={rule.term}>{rule.term}</strong>
+                  <select aria-label={'Kategorie für '+rule.term} value={rule.kind}
+                    onchange={event=>updateLearned(rule,{kind:event.currentTarget.value as Kind})}>
+                    {#each kinds as kind}<option value={kind}>{KIND_LABELS[kind]}</option>{/each}
+                  </select>
+                  <label><input type="checkbox" checked={rule.autoApply} onchange={event=>updateLearned(rule,{autoApply:event.currentTarget.checked})}/> Automatisch</label>
+                  <button type="button" class="secondary-button" aria-label={'Gelernten Begriff '+rule.term+' löschen'} onclick={()=>forgetLearned(rule.key)}>Löschen</button>
+                </div>
+              {/each}
+            </div>
+            <button type="button" class="secondary-button" onclick={clearMemory}>Alle gelernten Regeln löschen</button>
+          {/if}
+        {:else}
+          <p class="settings-note">Das Gedächtnis ist deaktiviert. Der aktuelle Text wird trotzdem wie bisher im Arbeitsspeicher verarbeitet.</p>
+        {/if}
+      </section>
+
       <section class="settings-section" aria-labelledby="settings-reply">
         <h3 id="settings-reply">Rückübersetzung</h3>
         <div class="settings-field">
@@ -888,6 +1087,7 @@
           <button type="button" onclick={() => addManual(kind)}>{KIND_LABELS[kind]}</button>
         {/each}
       </div>
+      <label class="selection-remember"><input type="checkbox" bind:checked={rememberAutomatically}/> Künftig automatisch anonymisieren</label>
       <select class="selection-more" aria-label="Weitere Kategorien" value=""
         onchange={(event) => { const kind = event.currentTarget.value as Kind; if (kind) addManual(kind); }}>
         <option value="" disabled>Weitere Kategorien…</option>
