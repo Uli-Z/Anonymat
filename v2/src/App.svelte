@@ -89,8 +89,8 @@
         +' · '+KIND_LABELS[hit.kind]+' · '+origin+'. Klicken oder antippen zum Bearbeiten.'
     };
   }));
-  let pendingGroups = $derived(groups.filter(group=>group.review && group.activeCount===0
-    && !ignoredTerms.some(term=>sameTerm(term,group.text))));
+  let pendingGroupKeys = $derived(new Set(pending.map(hit=>hit.kind+':'+normalizedKey(hit.text))));
+  let pendingGroups = $derived(groups.filter(group=>pendingGroupKeys.has(group.key)));
 
   function mergeRemembered(existing:readonly LearnedRule[], incoming:readonly LearnedRule[]):LearnedRule[]{
     const map=new Map(existing.map(rule=>[rule.key,rule]));
@@ -169,8 +169,7 @@
   function scheduleReviewPrompt(jobId:number,document:ReviewedDocument):void{
     window.clearTimeout(reviewPromptTimer);
     if(reviewPromptHandled)return;
-    const count=document.groups.filter(group=>group.review && group.activeCount===0
-      && !ignoredTerms.some(term=>sameTerm(term,group.text))).length;
+    const count=new Set(document.pending.map(hit=>hit.kind+':'+normalizedKey(hit.text))).size;
     if(count<=2)return;
     // Do not interrupt typing while CodeMirror is still receiving input.
     reviewPromptTimer=window.setTimeout(()=>{
@@ -877,6 +876,12 @@
                           <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
                         </div>
                       {/if}
+                    {/if}
+                    {#if pendingGroupKeys.has(group.key) && group.activeCount>0}
+                      <button type="button" class="restore-group-button" onclick={()=>{
+                        const candidate=pending.find(hit=>hit.kind===group.kind && sameTerm(hit.text,group.text));
+                        if(candidate)setManualMark(candidate.start,candidate.end,candidate.kind);
+                      }}>Offenen Vorschlag übernehmen</button>
                     {/if}
                     {#if group.activeCount>0 && group.activeCount<group.count}
                       <button type="button" class="restore-group-button" onclick={() => toggleGroup(group,true)}>Alle Stellen wieder ersetzen</button>
