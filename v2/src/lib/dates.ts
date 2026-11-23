@@ -6,7 +6,7 @@ type Style='iso'|'numeric'|'day-first'|'month-first';
 export interface DateMatch{
   start:number;end:number;text:string;iso:string;language:DateLanguage;style:Style;
   separator?:string;padDay?:boolean;padMonth?:boolean;dayDot?:boolean;
-  monthAbbreviated?:boolean;monthDot?:boolean;weekday?:string;weekdayPrefix?:string;
+  monthAbbreviated?:boolean;monthDot?:boolean;yearDigits?:2|4;weekday?:string;weekdayPrefix?:string;
 }
 export interface DateIssue{start:number;end:number;text:string;reason:string}
 export interface DateScan{matches:DateMatch[];issues:DateIssue[]}
@@ -61,7 +61,7 @@ const prefix='(?:(?<weekday>'+weekdayPattern+')\\.?\\s*,?\\s+)?';
 const left='(?:(?<![\\p{L}\\p{N}])|(?<=\\b(?:am|vom|bis|seit|geb\\.?)))';
 const right='(?:(?![\\p{L}\\p{N}])|(?=(?:[\\p{L}]{3,}|am|um|im|ab|an|in|zu)(?![\\p{L}\\p{N}])))';
 const SCANNERS=[
-  {style:'numeric',re:new RegExp(left+prefix+'(?<body>(?:\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}))'+right,'giu')},
+  {style:'numeric',re:new RegExp(left+prefix+'(?<body>(?:\\d{4}-\\d{1,2}-\\d{1,2}|\\d{1,2}[./-]\\d{1,2}[./-](?:\\d{4}|\\d{2})))'+right,'giu')},
   {style:'day-first',re:new RegExp(left+prefix+'(?<body>\\d{1,2}\\.?\\s+(?:de\\s+)?[\\p{L}]+\\.?\\s+(?:de\\s+)?\\d{4})'+right,'giu')},
   {style:'month-first',re:new RegExp(left+prefix+'(?<body>[\\p{L}]+\\.?\\s+\\d{1,2}(?:st|nd|rd|th)?\\s*,?\\s+\\d{4})'+right,'giu')}
 ] as const;
@@ -102,13 +102,18 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
   const body=hit.groups?.body??'',weekday=hit.groups?.weekday;
   let iso:string|null=null,language:DateLanguage='de',format:Style='numeric';
   let separator:string|undefined,padDay=false,padMonth=false,dayDot=false,monthAbbreviated=false,monthDot=false;
+  let yearDigits:2|4|undefined;
   if(style==='numeric'){
     const canonical=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(body);
     if(canonical){format='iso';iso=toIso(+canonical[1],+canonical[2],+canonical[3]);}
     else{
-      const number=/^(\d{1,2})([./-])(\d{1,2})([./-])(\d{4})$/.exec(body);
+      const number=/^(\d{1,2})([./-])(\d{1,2})([./-])(\d{4}|\d{2})$/.exec(body);
       if(!number)return null;
       const [,a,sep,b,sep2,year]=number;
+      yearDigits=year.length===2?2:4;
+      // Stable century window: 00–49 => 2000–2049, 50–99 => 1950–1999.
+      // Keep the source's two-digit presentation when formatting shifted dates.
+      const fullYear=yearDigits===2?(+year<50?2000:1900)+Number(year):Number(year);
       if(sep!==sep2)return issue(hit,'Gemischte Datumstrennzeichen');
       separator=sep;
       let order:NumericDateOrder=sep==='.'?'DMY':options.numericOrder??'auto';
@@ -119,7 +124,7 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
         else return issue(hit,'Ungültiges numerisches Datum');
       }
       language=order==='MDY'?'en':'de';
-      iso=order==='MDY'?toIso(+year,+a,+b):toIso(+year,+b,+a);
+      iso=order==='MDY'?toIso(fullYear,+a,+b):toIso(fullYear,+b,+a);
       padDay=(order==='MDY'?b:a).length===2;
       padMonth=(order==='MDY'?a:b).length===2;
     }
@@ -151,7 +156,7 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
   const weekdayPrefix=weekday?hit[0].slice(0,hit[0].indexOf(body)):undefined;
   const start=hit.index??0;
   return {start,end:start+hit[0].length,text:hit[0],iso,language,
-    style:format,separator,padDay,padMonth,dayDot,monthAbbreviated,monthDot,weekday,weekdayPrefix};
+    style:format,separator,padDay,padMonth,dayDot,monthAbbreviated,monthDot,yearDigits,weekday,weekdayPrefix};
 }
 export function scanDates(source:string,options:DateOptions={}):DateScan{
   const proposals:(DateMatch|DateIssue)[]=[];
@@ -183,8 +188,9 @@ export function formatLike(iso:string,template:DateMatch):string{
   if(template.style==='iso')body=iso;
   else if(template.style==='numeric'){
     const sep=template.separator??'.';
+    const year=template.yearDigits===2?String(y%100).padStart(2,'0'):String(y);
     body=template.language==='en'&&sep!=='.'
-      ?month+sep+day+sep+y:day+sep+month+sep+y;
+      ?month+sep+day+sep+year:day+sep+month+sep+year;
   }else{
     let name=(template.monthAbbreviated?SHORT_MONTHS:MONTHS)[template.language][m-1];
     if(template.monthDot)name+='.';

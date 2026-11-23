@@ -1,7 +1,7 @@
 import type { Kind } from './detect';
 
 export interface StructuredHit {kind:Kind;start:number;text:string}
-const STREET = /(?<![\p{L}\p{N}])(?:[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{1,50}(?:[- ](?:[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{1,50}|der|den|dem|am|an|zur|zum)){0,3}[- ]?)(?:[Ss]traße|[Ss]trasse|[Ss]tr\.|[Ww]eg|[Aa]llee|[Gg]asse|[Pp]latz|[Rr]ing|[Dd]amm|[Uu]fer|[Cc]haussee|[Ss]tieg|[Pp]fad|[Pp]romenade)(?:\s+\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?|\d{1,3}[a-zA-Z]?(?!\d))?/gu;
+const STREET = /(?<![\p{L}\p{N}])(?:[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{1,50}(?:[- ](?:[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{1,50}|der|den|dem|am|an|zur|zum)){0,3}[- ]?)(?:[Ss]traße|[Ss]trasse|[Ss]tr\.|[Ww]eg|[Aa]llee|[Gg]asse|[Pp]latz|[Rr]ing|[Dd]amm|[Uu]fer|[Cc]haussee|[Ss]tieg|[Pp]fad|[Pp]romenade)(?:\s+\d{1,4}[a-zA-Z]?(?:[-/]\d{1,4}[a-zA-Z]?)?|\d{1,3}[a-zA-Z]?(?!\d))?(?![\p{L}\p{M}\p{N}])/gu;
 const NAMED_STREET = /(?<![\p{L}\p{N}])(?:Am|An|Im|Auf|Bei|Unter|Vor|Hinter|Zum|Zur)\s+(?:(?:der|den|dem|alten|neuen)\s+)?[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{2,55}(?:\s+[A-ZÄÖÜ][\p{L}\p{M}ßäöü'-]{2,55})?\s+\d{1,4}[a-zA-Z]?/gu;
 const EMAIL = /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]+@(?:[\p{L}\p{N}-]+\.)+[\p{L}]{2,24}(?![\p{L}\p{N}-])/gu;
 const PHONE = /(?<![\p{L}\p{N}])(?:\+\d{1,3}|00\d{1,3}|0[1-9])(?:[\s()./-]*\d){6,14}(?!\d)/gu;

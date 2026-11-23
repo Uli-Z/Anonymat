@@ -75,14 +75,6 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   }
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
   for(const hit of fullDates)add('DATE',hit.start,hit.text);
-  // Two-digit years are century-ambiguous: protect with a DATE token, never
-  // silently interpret or shift them to a guessed calendar year.
-  const shortYear=/(?<![\p{L}\p{N}])(\d{1,2})([./-])(\d{1,2})\2(\d{2})(?![\p{L}\p{N}])/gu;
-  for(const match of text.matchAll(shortYear)){
-    const day=Number(match[1]),month=Number(match[3]);
-    const limit=[31,29,31,30,31,30,31,31,30,31,30,31][month-1];
-    if(limit && day>=1 && day<=limit)add('DATE',match.index,match[0]);
-  }
   for(const hit of partialDates)add('DATE',hit.start,hit.text);
   for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);

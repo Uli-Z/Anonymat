@@ -41,6 +41,21 @@ describe('expanded automatic PII detection',()=>{
     const hits=scanDocument(source,[anchor]);
     expect(hits.some(hit=>hit.kind==='LAST_NAME' && hit.text==='Müllers')).toBe(true);
   });
+  it('does not mistake word-internal street suffixes for street names',()=>{
+    for(const source of [
+      'Die Bewegung war unauffällig.',
+      'Fortbewegung und Bewegungsabläufe wurden untersucht.',
+      'Die Wegbeschreibung enthält eine Bewegungsanalyse.',
+      'Eine Bewegungseinschränkung liegt vor.',
+      'Die Verwegung ist kein Straßenname.'
+    ]){
+      const falseStreets=detectPII(source).filter(hit=>hit.kind==='STREET'||hit.kind==='ADDRESS');
+      expect(falseStreets,source).toEqual([]);
+    }
+    const source='Mohnblumenweg 12a und Berliner Straße 4.';
+    const streets=detectPII(source).filter(hit=>hit.kind==='ADDRESS').map(hit=>hit.text);
+    expect(streets).toEqual(['Mohnblumenweg 12a','Berliner Straße 4']);
+  });
   it('recognizes streets, house numbers, postal codes and contextual cities',()=>{
     const input='Mohnblumenweg 12a, 28203 Bremen. Berliner Straße 4. Am Wall 7.';
     const hits=detectPII(input);

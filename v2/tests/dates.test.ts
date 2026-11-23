@@ -56,6 +56,49 @@ describe('date safety and contextual behavior',()=>{
       expect(restoreShiftedDates(expected,['2026-04-09'],30).text).toBe(input);
     }
   });
+  it('shifts dates with two-digit years and restores the exact year width',()=>{
+    expect(parseDate('10.08.25')?.iso).toBe('2025-08-10');
+    expect(parseDate('31.12.99')?.iso).toBe('1999-12-31');
+    expect(parseDate('01.01.00')?.iso).toBe('2000-01-01');
+    expect(parseDate('15.06.75')?.iso).toBe('1975-06-15');
+    const original='Die Untersuchung war am 10.08.25.';
+    const found=detectPII(original);
+    expect(found.filter(hit=>hit.kind==='DATE').map(hit=>hit.text)).toEqual(['10.08.25']);
+    const masked=maskText(original,found,{}, {dateShiftEnabled:true,offsetDays:30});
+    expect(masked.text).toBe('Die Untersuchung war am 09.09.25.');
+    expect(masked.dates).toEqual([{
+      original:'10.08.25',shifted:'09.09.25',shiftedIso:'2025-09-09'
+    }]);
+    expect(masked.replacementSpans.some(span=>span.text==='09.09.25'&&span.mode==='shift-date')).toBe(true);
+    const restored=restoreShiftedDates(masked.text,masked.dates.map(date=>date.shiftedIso),30);
+    expect(restored.text).toBe(original);
+    expect(restored.warnings).toEqual([]);
+    expect(restoreShiftedDates('Am 18.09.25.',masked.dates.map(date=>date.shiftedIso),30).text)
+      .toBe('Am 19.08.25.');
+  });
+  it('handles leap days, year boundaries and ambiguous short-year ordering',()=>{
+    const cases:[string,number,string][]=[
+      ['31.12.99',1,'01.01.00'],
+      ['31.12.25',2,'02.01.26'],
+      ['28.02.24',1,'29.02.24'],
+      ['29.02.24',1,'01.03.24'],
+      ['01/15/25',1,'01/16/25']
+    ];
+    for(const [original,offset,shifted] of cases){
+      const parsed=parseDate(original);
+      expect(parsed,original).not.toBeNull();
+      expect(formatLike(shiftIsoDay(parsed!.iso,offset)!,parsed!),original).toBe(shifted);
+      const masked=maskText(original,detectPII(original),{}, {dateShiftEnabled:true,offsetDays:offset});
+      expect(masked.text,original).toBe(shifted);
+      expect(restoreShiftedDates(shifted,masked.dates.map(date=>date.shiftedIso),offset).text)
+        .toBe(original);
+    }
+    expect(scanDates('29.02.25').matches).toEqual([]);
+    expect(scanDates('29.02.25').issues).toHaveLength(1);
+    expect(scanDates('04/05/25').matches).toEqual([]);
+    expect(scanDates('04/05/25').issues[0]?.reason).toContain('Mehrdeutiges');
+    expect(parseDate('04/05/25',{numericOrder:'DMY'})?.iso).toBe('2025-05-04');
+  });
   it('rejects contradictory weekdays and invalid dates with warnings',()=>{
     expect(scanDates('Montag, 10.03.2026').issues[0]?.reason).toContain('Wochentag');
     expect(scanDates('31.02.2026').issues[0]?.reason).toContain('Ungültiger');
