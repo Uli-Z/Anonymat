@@ -721,7 +721,7 @@
               <h3 id="source-title">Originaltext</h3>
               <details class="legend-help">
                 <summary title="Markierungsfarben erklären" aria-label="Bedeutung der Markierungsfarben">?</summary>
-                <div class="legend-tooltip">Gelb: automatisch erkannt · Blau: bitte prüfen · Grün: manuell ergänzt · Grau: ignoriert</div>
+                <div class="legend-tooltip">Grün: wird pseudonymisiert. Orange mit gestrichelter Linie: Vorschlag, bisher nicht ersetzt. Klicken oder antippen zeigt Details.</div>
               </details>
             </div>
           </div>
@@ -758,7 +758,7 @@
       <div class="preview" aria-live="polite">
         {#if !resultVisible}
           <div class="preview-gate">
-            <button type="button" class="secondary-button" onclick={() => resultVisible=true} disabled={!source.trim() || isAnalyzing || !!analysisError}>Anonymisierten Text anzeigen</button>
+            <button type="button" class="secondary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>Pseudonymisierten Text anzeigen</button>
           </div>
         {:else if isAnalyzing}
           <span class="preview-empty">Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.</span>
@@ -766,14 +766,22 @@
           <span class="preview-empty">Analyse nicht abgeschlossen. Bitte erneut analysieren.</span>
         {:else if source.trim()}
           {#each preview as part}
-            {#if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
+            {#if part.review}
+              <button type="button" class="preview-suggestion" title="Vorschlag – noch nicht pseudonymisiert. Zur Prüfung klicken." onclick={reviewIndividually}>{part.value}</button>
+            {:else if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
           {/each}
         {:else}
           <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
         {/if}
       </div>
-      {#if resultVisible && pendingGroups.length}
-        <div class="inline-warning">{pendingGroups.length} mögliche Angaben sind noch nicht ersetzt. Die blau markierten Vorschläge im Originaltext können per Klick oder über „Ersetzungen anzeigen“ bestätigt oder ignoriert werden.</div>
+      {#if resultVisible && pending.length}
+        <div class="proposal-review-banner" role="status">
+          <div class="proposal-review-copy">
+            <strong>{pendingGroups.length} {pendingGroups.length===1?'Vorschlag ist':'Vorschläge sind'} noch ungeprüft</strong>
+            <p>Orange markierte Angaben stehen weiterhin unverändert im Text und können Personen identifizierbar machen.</p>
+          </div>
+          <button type="button" class="secondary-button" onclick={reviewIndividually}>Vorschläge prüfen</button>
+        </div>
       {/if}
       {#if resultVisible && prepared.warnings.length}
         <div class="inline-warning">{prepared.warnings.join(' ')}</div>
@@ -843,12 +851,12 @@
               {#each groups as group (group.key)}
                 <div class="finding-row" class:muted-finding={group.activeCount === 0 && !pendingGroups.some(entry=>entry.key===group.key)}>
                   <input type="checkbox" checked={group.activeCount > 0}
-                    aria-label={group.text + ' im ganzen Text anonymisieren'}
+                    aria-label={group.text + ' im ganzen Text pseudonymisieren'}
                     onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
                     <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
-                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell markiert' : group.learned ? 'Aus früheren Texten' : 'Automatisch erkannt'}
-                      {#if pendingGroups.some(entry=>entry.key===group.key)} · Prüfvorschlag (noch nicht ersetzt){:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell bestätigt' : group.learned ? 'Lokal gelernt' : 'Mustererkennung'}
+                      {#if pendingGroups.some(entry=>entry.key===group.key)} · Vorschlag – nicht pseudonymisiert{:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
                     </span>
                     {#if group.activeCount > 0}
                       {#if editingReplacement === replacementKey(group.kind,group.text)}
@@ -889,14 +897,36 @@
         </div>
       </dialog>
 
+  <dialog class="copy-warning-dialog" bind:this={copyWarningDialog} aria-labelledby="copy-warning-title">
+    <div class="settings-header">
+      <h2 id="copy-warning-title">Ungeprüfte Vorschläge im Text</h2>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label="Kopierwarnung schließen">×</button></form>
+    </div>
+    <div class="settings-body">
+      <p>Es gibt noch {pendingGroups.length} {pendingGroups.length===1?'ungeprüften Vorschlag':'ungeprüfte Vorschläge'}, die im pseudonymisierten Text unverändert stehen.</p>
+      <p>Der Text kann dadurch identifizierende Angaben enthalten. Bitte prüfe ihn, bevor du ihn weitergibst.</p>
+      <div class="copy-warning-terms" aria-label="Ungeprüfte Begriffe">
+        {#each pendingGroups.slice(0,5) as group}
+          <span>{group.text}</span>
+        {/each}
+        {#if pendingGroups.length>5}<span>und {pendingGroups.length-5} weitere</span>{/if}
+      </div>
+    </div>
+    <div class="review-actions">
+      <button type="button" class="secondary-button" onclick={() => copyWarningDialog?.close()}>Abbrechen</button>
+      <button type="button" class="secondary-button" onclick={() => {copyWarningDialog?.close();reviewIndividually();}}>Vorschläge prüfen</button>
+      <button type="button" class="primary-button" onclick={() => {void copyDespiteSuggestions();}}>Trotzdem kopieren</button>
+    </div>
+  </dialog>
+
   <dialog class="review-dialog" bind:this={reviewDialog} aria-labelledby="review-title">
     <div class="settings-header">
-      <h2 id="review-title">Anonymisierungsvorschläge</h2>
+      <h2 id="review-title">Vorschläge zur Pseudonymisierung</h2>
       <form method="dialog"><button type="submit" class="settings-close" aria-label="Vorschläge schließen">×</button></form>
     </div>
     <div class="settings-body">
-      <p>In diesem Text wurden {pendingGroups.length} weitere Begriffe gefunden, die noch nicht anonymisiert sind. Du kannst sie gesammelt übernehmen oder einzeln prüfen.</p>
-      <p>{priorSuggestions} aus früheren Texten · {patternSuggestions} aus der Mustererkennung</p>
+      <p>Die Mustererkennung hat {pendingGroups.length} mögliche personenbezogene Begriffe gefunden. Sie wurden noch nicht pseudonymisiert.</p>
+      <p>Du kannst alle übernehmen oder die Vorschläge einzeln prüfen.</p>
       <p class="settings-note">Bitte prüfe auch bei einer Sammelübernahme den vollständigen Ergebnistext.</p>
     </div>
     <div class="review-actions">
@@ -909,7 +939,7 @@
   <dialog class="consent-dialog" bind:this={consentDialog} aria-labelledby="consent-title">
     <div class="settings-header"><h2 id="consent-title">Ersetzungen dauerhaft merken?</h2></div>
     <div class="settings-body">
-      <p>Anonymat kann manuell bestätigte Begriffe samt Kategorie in diesem Browser speichern und bei neuen Texten wiedererkennen.</p>
+      <p>Anonymat kann manuell bestätigte Begriffe samt Kategorie in diesem Browser speichern. In zukünftigen Texten werden diese Begriffe dann automatisch pseudonymisiert, ohne erneut nachzufragen.</p>
       <p>Auch Namen und andere personenbezogene Angaben werden dabei im Klartext im Browserprofil gespeichert. Vollständige Texte und Platzhalter-Zuordnungen werden nicht gespeichert. In den Einstellungen kannst du die Regeln einzeln oder vollständig löschen.</p>
     </div>
     <div class="review-actions">
@@ -1031,10 +1061,10 @@
         <h3 id="settings-learning">Gelernte Ersetzungen</h3>
         <label class="settings-toggle">
           <input type="checkbox" checked={consentState==='on'} onchange={event=>{void enableMemory(event.currentTarget.checked);}} />
-          <span><strong>Lokales Gedächtnis verwenden</strong><small>Manuell bestätigte Begriffe für zukünftige Texte speichern und wiedererkennen. Auch sensible Originalbegriffe bleiben dabei im Browserprofil gespeichert.</small></span>
+          <span><strong>Manuelle Ersetzungen merken</strong><small>Bestätigte Begriffe werden künftig automatisch pseudonymisiert. Die Originalbegriffe bleiben lokal im Browserprofil gespeichert.</small></span>
         </label>
         {#if consentState==='on'}
-          <p class="settings-note">{learnedRules.length} gespeicherte Begriffe. Standardmäßig sind neue Treffer nur Vorschläge, bis du sie bestätigst.</p>
+          <p class="settings-note">{learnedRules.length} gespeicherte Begriffe. Sie werden in zukünftigen Texten automatisch pseudonymisiert.</p>
           {#if learnedRules.length}
             <div class="learned-list">
               {#each learnedRules as rule (rule.key)}
@@ -1044,7 +1074,6 @@
                     onchange={event=>updateLearned(rule,{kind:event.currentTarget.value as Kind})}>
                     {#each kinds as kind}<option value={kind}>{KIND_LABELS[kind]}</option>{/each}
                   </select>
-                  <label><input type="checkbox" checked={rule.autoApply} onchange={event=>updateLearned(rule,{autoApply:event.currentTarget.checked})}/> Automatisch</label>
                   <button type="button" class="secondary-button" aria-label={'Gelernten Begriff '+rule.term+' löschen'} onclick={()=>forgetLearned(rule.key)}>Löschen</button>
                 </div>
               {/each}
@@ -1078,9 +1107,9 @@
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
       onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select'))) event.preventDefault(); }}
-      role="dialog" tabindex="-1" aria-label="Textauswahl anonymisieren">
+      role="dialog" tabindex="-1" aria-label="Textauswahl pseudonymisieren">
       <div class="selection-popover-heading">
-        <strong>Auswahl anonymisieren</strong>
+        <strong>Auswahl pseudonymisieren</strong>
         <button class="popover-close" type="button" aria-label="Auswahlmenü schließen" onclick={() => quickAction = null}>×</button>
       </div>
       <button class="selection-default" type="button" onclick={() => addManual('OTHER')}>
@@ -1091,7 +1120,6 @@
           <button type="button" onclick={() => addManual(kind)}>{KIND_LABELS[kind]}</button>
         {/each}
       </div>
-      <label class="selection-remember"><input type="checkbox" bind:checked={rememberAutomatically}/> Künftig automatisch anonymisieren</label>
       <select class="selection-more" aria-label="Weitere Kategorien" value=""
         onchange={(event) => { const kind = event.currentTarget.value as Kind; if (kind) addManual(kind); }}>
         <option value="" disabled>Weitere Kategorien…</option>
@@ -1103,6 +1131,7 @@
   {/if}
 
   {#if menu && selectedHit}
+    <button class="hit-sheet-backdrop" type="button" aria-label="Bearbeitungsmenü schließen" onclick={() => menu=null}></button>
     <div class="hit-popover" role="dialog" aria-label="Markierung bearbeiten" style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
       <div class="hit-popover-heading">
         <span class="hit-popover-title">{selectedHit.text}</span>
@@ -1117,10 +1146,13 @@
       </select>
       <div class="hit-actions">
         {#if !isActive(selectedHit)}
-          <button type="button" onclick={() => restoreOne(selectedHit!)}>{selectedHit.confidence==='review'?'✓ Als Namen bestätigen':'✓ Wieder anonymisieren'}</button>
+          <p class="hit-status hit-status-review">Vorschlag – noch nicht pseudonymisiert</p>
+          <button type="button" onclick={() => restoreOne(selectedHit!)}>Vorschlag übernehmen</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Vorschlag verwerfen</button>
         {:else}
-          <button type="button" onclick={() => suppressOne(selectedHit!)}>✕ Nur diese Stelle ignorieren</button>
-          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>⊘ Begriff im ganzen Text ignorieren</button>
+          <p class="hit-status hit-status-active">Wird pseudonymisiert</p>
+          <button type="button" onclick={() => suppressOne(selectedHit!)}>Nur diese Stelle nicht ersetzen</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Begriff im ganzen Text nicht ersetzen</button>
         {/if}
         {#if splitFullName(selectedHit)}
           <button type="button" onclick={() => splitName(selectedHit!)}>↳ In Vorname und Nachname aufteilen</button>
