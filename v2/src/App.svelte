@@ -396,7 +396,8 @@
   let preview = $derived(splitForPreview(prepared.text,prepared.reviewSpans,prepared.replacementSpans));
   let inversePartial = $derived(restoreShiftedPartialDates(
     reply, exportSnapshot?.partialDates ?? prepared.partialDates,
-    {numericOrder:replyNumericOrder,offsetDays:exportSnapshot?.offset ?? dateOffset}
+    {numericOrder:replyNumericOrder,offsetDays:exportSnapshot?.offset ?? dateOffset,
+      shiftedFullDates:exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso)}
   ));
   let inverseDates = $derived(restoreShiftedDates(
     inversePartial.text,exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso),

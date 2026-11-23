@@ -110,6 +110,19 @@ describe('partial date recognition and safety',()=>{
       expect(restored.warnings).toEqual([]);
     }
   });
+  it('reverses novel yearless dates derived from full shifted input dates',()=>{
+    const source='10.03.2026';
+    const masked=maskText(source,detectPII(source),{}, {
+      dateShiftEnabled:true,offsetDays:30
+    });
+    expect(masked.partialDates).toEqual([]);
+    const reply=restoreShiftedPartialDates('2 mai',[],{
+      offsetDays:30,shiftedFullDates:masked.dates.map(date=>date.shiftedIso)
+    });
+    expect(reply.text).toBe('2 avril');
+    expect(reply.warnings).toEqual([]);
+    expect(restoreShiftedPartialDates('2 mai',[],{offsetDays:30}).text).toBe('2 mai');
+  });
   it('does not warn about omitted or repeated partial dates',()=>{
     const source='10. März';
     const masked=maskText(source,detectPII(source),{}, {

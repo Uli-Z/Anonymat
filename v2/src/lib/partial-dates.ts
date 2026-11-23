@@ -18,7 +18,7 @@ export interface PartialMatch{
   separator?:string;endDot?:boolean;dayDot?:boolean;padDay?:boolean;padMonth?:boolean;
   short?:boolean;monthDot?:boolean;reason?:string;
 }
-export interface PartialDateOptions{numericOrder?:NumericDateOrder;offsetDays?:number}
+export interface PartialDateOptions{numericOrder?:NumericDateOrder;offsetDays?:number;shiftedFullDates?:readonly string[]}
 export interface ShiftedPartial{
   original:string;shifted:string;originalIso:string;shiftedIso:string;
 }
@@ -238,7 +238,9 @@ export function formatPartialLike(iso:string,template:PartialMatch):string{
 export function restoreShiftedPartialDates(
   source:string,ledger:readonly ShiftedPartial[],options:PartialDateOptions={}
 ):PartialRestoreResult{
-  if(!ledger.length)return {text:source,warnings:[],changed:0};
+  const anchors=[...ledger.map(entry=>entry.shiftedIso),...(options.shiftedFullDates??[])]
+    .filter(iso=>shiftIsoDay(iso,0)!==null);
+  if(!anchors.length)return {text:source,warnings:[],changed:0};
   const knownByDayMonth=new Map<string,ShiftedPartial>();
   const key=(iso:string)=>iso.slice(5);
   for(const entry of ledger){
@@ -258,16 +260,16 @@ export function restoreShiftedPartialDates(
       // Pick a valid calendar year closest to known shifted days, handling
       // Feb 29 and New Year's crossings without a current-year assumption.
       const years=new Set<number>();
-      for(const entry of ledger){
-        const year=Number(entry.shiftedIso.slice(0,4));
+      for(const anchor of anchors){
+        const year=Number(anchor.slice(0,4));
         for(const delta of [-1,0,1])years.add(year+delta);
       }
       let best:{iso:string;distance:number}|null=null;
       for(const year of years){
         const candidate=shiftIsoDay(String(year).padStart(4,'0')+'-'+dayMonth,0);
         if(!candidate)continue;
-        const distance=Math.min(...ledger.map(entry=>
-          Math.abs(calendarDayDifference(entry.shiftedIso,candidate)??Infinity)
+        const distance=Math.min(...anchors.map(anchor=>
+          Math.abs(calendarDayDifference(anchor,candidate)??Infinity)
         ));
         if(!best || distance<best.distance)best={iso:candidate,distance};
       }
