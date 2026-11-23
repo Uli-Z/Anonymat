@@ -736,7 +736,7 @@
         </div>
       </dialog>
 
-  <dialog class="faq-dialog settings-dialog" bind:this={faqDialog} aria-labelledby="faq-title">
+  <dialog class="faq-dialog" bind:this={faqDialog} aria-labelledby="faq-title">
     <div class="settings-header">
       <div><h2 id="faq-title">Hilfe & FAQ</h2></div>
       <form method="dialog"><button type="submit" class="settings-close" aria-label="Hilfe schließen">×</button></form>
@@ -875,7 +875,7 @@
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
       onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select'))) event.preventDefault(); }}
-      role="dialog" aria-label="Textauswahl anonymisieren">
+      role="dialog" tabindex="-1" aria-label="Textauswahl anonymisieren">
       <div class="selection-popover-heading">
         <strong>Auswahl anonymisieren</strong>
         <button class="popover-close" type="button" aria-label="Auswahlmenü schließen" onclick={() => quickAction = null}>×</button>
