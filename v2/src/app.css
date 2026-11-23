@@ -55,7 +55,9 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .secondary-button:hover:not(:disabled){background:#edf5f5}
 .preview,.restore-preview{min-height:119px;padding:22px 20px;font-size:14px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;color:#273749}
 .preview-empty{color:#9aaaB9}
-.placeholder-token{display:inline;background:#e2f4f0;color:#075f63;border-radius:4px;padding:2px 4px;box-decoration-break:clone;font-weight:700}
+.placeholder-token,.replacement-mark{display:inline;background:#e2f4f0;color:#075f63;border-radius:4px;padding:2px 4px;box-decoration-break:clone;font-weight:700}
+.replacement-mark{font-weight:650;border-bottom:2px solid #36907f}
+.shifted-date-mark{background:#eaf4ef;border-bottom-color:#6c997c}
 .inline-warning{background:#fff9e9;color:#855c19;border-top:1px solid #f7e5b2;padding:10px 19px;font-size:12px;line-height:1.5}
 .second-step{margin-top:35px}
 .restore-grid{display:grid;grid-template-columns:1fr 1fr;gap:17px}
@@ -107,6 +109,8 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   padding:12px;box-shadow:0 12px 38px rgba(17,47,61,.22);
 }
 .selection-popover-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.selection-mode-control{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;color:#526b78;font-size:11px}
+.selection-mode-control select{min-width:0;max-width:76%;padding:7px;border:1px solid #d6e1e7;border-radius:7px;background:#fff;color:#253548;font-size:12px}
 .selection-popover-heading strong{font-size:12px;font-weight:750;color:#2c4251}
 .selection-popover .popover-close{border:0;background:transparent;color:#788c98;font-size:21px;padding:0 3px;line-height:1}
 .selection-default{
@@ -159,6 +163,9 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .replacement-editor button{border:1px solid #d9e4e9;border-radius:6px;background:#f7fafb;color:#31515e;font-size:11px;padding:6px}
 .replacement-editor button[type=submit]{background:#0b6570;border-color:#0b6570;color:#fff}
 .replacement-error{color:#a12929;font-size:11px;width:100%;line-height:1.4}
+.replacement-mode-control{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;color:#52697a;font-size:11px}
+.replacement-mode-control select{min-width:0;max-width:100%;padding:6px 8px;border:1px solid #d6e1e7;border-radius:7px;background:#fff;color:#253548;font-size:12px}
+.hit-actions .hit-type-select{margin:0 0 7px}
 
 /* Quiet, responsive settings access and native modal. */
 .topbar-actions{gap:17px}
