@@ -205,8 +205,10 @@ test('help opens a concise FAQ without repeating privacy badges', async ({page})
   await page.getByRole('button',{name:'Hilfe & FAQ'}).click();
   const faq = page.getByRole('dialog',{name:'Hilfe & FAQ'});
   await expect(faq).toBeVisible();
-  await expect(faq).toContainText('Was bedeuten die Markierungsfarben?');
-  await expect(faq).toContainText('Ist das Ergebnis wirklich anonym?');
+  await expect(faq).toContainText('Warum läuft Anonymat im Browser?');
+  await expect(faq).toContainText('Werden meine Texte oder Änderungen übertragen?');
+  await expect(faq).toContainText('Du bist selbst dafür verantwortlich');
+  await expect(faq.locator('section')).toHaveCount(6);
   await page.getByRole('button',{name:'Hilfe schließen'}).click();
   await expect(faq).not.toBeVisible();
 });
