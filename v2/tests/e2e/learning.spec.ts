@@ -4,6 +4,8 @@ import { pathToFileURL } from 'node:url';
 
 const html=pathToFileURL(resolve('dist/index.html')).href;
 
+test.use({ locale: 'de-DE' });
+
 async function markLastWord(page:import('@playwright/test').Page,word:string):Promise<void>{
   const editor=page.locator('.cm-content');
   await editor.click();
@@ -11,7 +13,10 @@ async function markLastWord(page:import('@playwright/test').Page,word:string):Pr
   for(let i=0;i<word.length;i++)await page.keyboard.press('Shift+ArrowLeft');
   await page.locator('.selection-popover').getByRole('button',{name:'Name',exact:true}).click();
 }
-test.beforeEach(async({page})=>{await page.goto(html);});
+test.beforeEach(async({page})=>{
+  await page.addInitScript(() => localStorage.setItem('anonymat-first-run-ack-v2','accepted'));
+  await page.goto(html);
+});
 
 test('local consent makes every learned term active in the next document',async({page})=>{
   await page.locator('.cm-content').fill('Bitte Zorbel');
