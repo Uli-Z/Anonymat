@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ChangeDesc } from '@codemirror/state';
   import { onMount } from 'svelte';
+  import { browserLanguages, loadLanguagePreference, resolveLanguage, saveLanguagePreference, translate, translateDiagnostic, type LanguagePreference } from './lib/ui-i18n';
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind, type DetectionSettings } from './lib/detect-types';
   import type { ReviewedDocument, TermGroup } from './lib/session';
@@ -15,6 +16,15 @@
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
   import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
+
+  let languagePreference = $state<LanguagePreference>(loadLanguagePreference());
+  let language = $derived(resolveLanguage(languagePreference, browserLanguages()));
+  const t = (value:string):string => translate(language,value);
+  function setLanguagePreference(value:LanguagePreference):void{
+    languagePreference=value;
+    saveLanguagePreference(value);
+  }
+  $effect(()=>{ document.documentElement.lang=language; });
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'NUMBER', 'OTHER'];
   const quickKinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'DATE', 'CITY'];
@@ -92,13 +102,13 @@
   // Ignored findings remain manageable in the list, but are not decorated.
   let editorMarks = $derived(findings.filter(hit=>activeIds.has(hit.id)||pendingIds.has(hit.id)).map(hit => {
     const review=pendingIds.has(hit.id);
-    const origin=hit.origin==='learned'?'aus dem lokalen Gedächtnis':
-      hit.origin==='manual'?'manuell bestätigt':'durch Mustererkennung';
+    const origin=hit.origin==='learned'?t("aus dem lokalen Gedächtnis"):
+      hit.origin==='manual'?t("manuell bestätigt"):t("durch Mustererkennung");
     return {
       id:hit.id,start:hit.start,end:hit.end,review,
       ignored:false,manual:hit.origin==='manual',
-      tooltip:(review?'Vorschlag – noch nicht pseudonymisiert':'Wird pseudonymisiert')
-        +' · '+KIND_LABELS[hit.kind]+' · '+origin+'. Klicken oder antippen zum Bearbeiten.'
+      tooltip:(review?t("Vorschlag – noch nicht pseudonymisiert"):t("Wird pseudonymisiert"))
+        +' · '+t(KIND_LABELS[hit.kind])+' · '+origin+t('. Klicken oder antippen zum Bearbeiten.')
     };
   }));
   let pendingGroupKeys = $derived(new Set(pending.map(hit=>hit.kind+':'+normalizedKey(hit.text))));
@@ -110,7 +120,7 @@
     return [...map.values()].sort((a,b)=>a.term.localeCompare(b.term,'de'));
   }
   function memoryFailure():void{
-    notice='Der lokale Regelspeicher ist nicht verfügbar. Die Markierungen gelten weiterhin für diesen Text.';
+    notice=t("Der lokale Regelspeicher ist nicht verfügbar. Die Markierungen gelten weiterhin für diesen Text.");
   }
   async function enableMemory(enabled:boolean):Promise<void>{
     if(learningBusy)return;
@@ -202,11 +212,11 @@
       await deleteLearnedRule(key);
       learnedRules=learnedRules.filter(rule=>rule.key!==key);
       menu=null;
-      notice='Regel aus dem lokalen Gedächtnis gelöscht. Markierungen im aktuellen Text können durch andere Regeln bestehen bleiben.';
+      notice=t("Regel aus dem lokalen Gedächtnis gelöscht. Markierungen im aktuellen Text können durch andere Regeln bestehen bleiben.");
     }catch{memoryFailure();}
   }
   function clearMemory():void{
-    if(!window.confirm('Alle dauerhaft gelernten Begriffe aus diesem Browser löschen?'))return;
+    if(!window.confirm(t("Alle dauerhaft gelernten Begriffe aus diesem Browser löschen?")))return;
     learnedRules=[];
     pendingLearning=[];
     void clearLearnedRules().catch(memoryFailure);
@@ -243,7 +253,7 @@
     manual=[...manual.filter(hit=>!candidates.some(candidate=>spansOverlap(candidate,hit))),...candidates];
     ignoredTerms=ignoredTerms.filter(term=>!terms.has(normalizedKey(term)));
     for(const hit of candidates)recordLearning(hit.text,hit.kind);
-    notice=candidates.length+' Vorschläge übernommen. Bitte das Ergebnis prüfen.';
+    notice=candidates.length+' '+t('Vorschläge übernommen. Bitte das Ergebnis prüfen.');
   }
   function reviewIndividually():void{
     reviewPromptHandled=true;
@@ -263,7 +273,7 @@
       if(data.id!==latestJob)return; // Never display outdated results.
       if(data.type==='stage'){
         analysisProgress=data.completed;
-        analysisStatus=data.stage==='detect'?'Personen, Orte und Kennnummern erkennen':'Treffer prüfen und Platzhalter vorbereiten';
+        analysisStatus=data.stage==='detect'?t("Personen, Orte und Kennnummern erkennen"):t("Treffer prüfen und Platzhalter vorbereiten");
       }else if(data.type==='result'){
         reviewed=data.reviewed;
         prepared=data.prepared;
@@ -271,19 +281,19 @@
         isAnalyzing=false;
         analysisError='';
         analysisProgress=100;
-        analysisStatus='Analyse abgeschlossen';
+        analysisStatus=t("Analyse abgeschlossen");
         workerBusy=false;
         scheduleReviewPrompt(data.id,data.reviewed);
       }else if(data.type==='error'){
-        analysisError='Die Analyse ist fehlgeschlagen: '+data.message;
-        analysisStatus='Analyse fehlgeschlagen';
+        analysisError=t("Die Analyse ist fehlgeschlagen: ")+data.message;
+        analysisStatus=t("Analyse fehlgeschlagen");
         isAnalyzing=false;
         workerBusy=false;
       }
     };
     scanner.onerror=()=>{
-      analysisError='Die Hintergrundanalyse ist fehlgeschlagen. Bitte erneut starten.';
-      analysisStatus='Analyse fehlgeschlagen';
+      analysisError=t("Die Hintergrundanalyse ist fehlgeschlagen. Bitte erneut starten.");
+      analysisStatus=t("Analyse fehlgeschlagen");
       isAnalyzing=false;
       workerBusy=false;
       scanner?.terminate();
@@ -319,7 +329,7 @@
     isAnalyzing=true;
     analysisProgress=5;
     analysisError='';
-    analysisStatus='Analyse wird vorbereitet';
+    analysisStatus=t("Analyse wird vorbereitet");
     const timer=window.setTimeout(()=>{
       if(workerBusy){
         scanner?.terminate();
@@ -331,8 +341,8 @@
         workerBusy=true;
         scanner!.postMessage(request);
       }catch{
-        analysisError='Hintergrundanalyse nicht verfügbar. Es wurde kein Text freigegeben.';
-        analysisStatus='Analyse fehlgeschlagen';
+        analysisError=t("Hintergrundanalyse nicht verfügbar. Es wurde kein Text freigegeben.");
+        analysisStatus=t("Analyse fehlgeschlagen");
         isAnalyzing=false;
         workerBusy=false;
       }
@@ -353,8 +363,8 @@
     workerBusy=false;
     isAnalyzing=false;
     analysisProgress=0;
-    analysisStatus='Abgebrochen';
-    analysisError='Analyse abgebrochen. Zum Schutz deiner Daten ist die Ausgabe gesperrt, bis neu analysiert wurde.';
+    analysisStatus=t("Abgebrochen");
+    analysisError=t("Analyse abgebrochen. Zum Schutz deiner Daten ist die Ausgabe gesperrt, bis neu analysiert wurde.");
   }
   function retryAnalysis():void{
     analysisVersion++;
@@ -439,7 +449,7 @@
     while (start < end && /\s/.test(source[start])) start++;
     while (end > start && /\s/.test(source[end - 1])) end--;
     if (start === end) {
-      notice = 'Bitte zuerst einen Textbereich markieren.';
+      notice = t("Bitte zuerst einen Textbereich markieren.");
       return;
     }
     manualCounter++;
@@ -455,7 +465,7 @@
     menu = null;
     quickAction = null;
     selectedRange = {from: 0, to: 0};
-    notice = 'Auswahl wird pseudonymisiert. Bei aktiviertem Gedächtnis gilt die Regel auch für spätere Texte.';
+    notice = t("Auswahl wird pseudonymisiert. Bei aktiviertem Gedächtnis gilt die Regel auch für spätere Texte.");
   }
 
   function addManual(kind: Kind): void {
@@ -465,7 +475,7 @@
     setManualMark(from,to,kind);
     if(term && mode!=='default'){
       if(mode==='token' || supportsSynthetic(kind))setRuleMode(kind,term,mode);
-      else notice='Für diese Kategorie ist nur ein Platzhalter möglich.';
+      else notice=t("Für diese Kategorie ist nur ein Platzhalter möglich.");
     }
     selectionReplacementMode='default';
   }
@@ -522,25 +532,25 @@
   function removeManualRule(hit: Finding): void {
     manual = manual.filter(anchor => anchor.id !== hit.id);
     menu = null;
-    notice = 'Manuelle Markierung für diesen Text entfernt. Gespeicherte Regeln bleiben bestehen.';
+    notice = t("Manuelle Markierung für diesen Text entfernt. Gespeicherte Regeln bleiben bestehen.");
   }
 
   /** Refine an automatic full-name proposal with two anchored override rules. */
   function splitName(hit: Finding): void {
     const parts = splitFullName(hit);
     if (!parts) {
-      notice = 'Vor-/Nachname kann hier nicht eindeutig getrennt werden. Bitte beide Teile einzeln markieren.';
+      notice = t("Vor-/Nachname kann hier nicht eindeutig getrennt werden. Bitte beide Teile einzeln markieren.");
       return;
     }
     manual = [...manual.filter(item => !spansOverlap(item, hit)), ...parts];
     for(const part of parts)recordLearning(part.text,part.kind);
     ignoredPlaces = ignoredPlaces.filter(item => !spansOverlap(item, hit));
     menu = null;
-    notice = 'Vorname und Nachname getrennt. Beide Regeln gelten auch für weitere Vorkommen.';
+    notice = t("Vorname und Nachname getrennt. Beide Regeln gelten auch für weitere Vorkommen.");
   }
 
   function replacementFor(group: TermGroup): string {
-    if (group.activeCount === 0) return 'Nicht ersetzt';
+    if (group.activeCount === 0) return t("Nicht ersetzt");
     const shifted = prepared.dates.find(entry=>group.kind==='DATE' && sameTerm(entry.original,group.text));
     if(shifted)return shifted.shifted;
     const partial = prepared.partialDates.find(entry=>group.kind==='DATE' && sameTerm(entry.original,group.text));
@@ -552,9 +562,9 @@
 
   type RuleChoice = 'default'|'token'|'synthetic'|'shift-date'|'custom-token';
   function defaultModeLabel(kind:Kind):string{
-    if(kind==='DATE')return dateShiftEnabled?'Datum verschieben':'Platzhalter';
-    if(supportsSynthetic(kind) && replacementDefault==='synthetic')return 'Pseudonym';
-    return 'Platzhalter';
+    if(kind==='DATE')return dateShiftEnabled?t("Datum verschieben"):t("Platzhalter");
+    if(supportsSynthetic(kind) && replacementDefault==='synthetic')return t("Pseudonym");
+    return t("Platzhalter");
   }
   function ruleMode(kind:Kind,text:string):RuleChoice{
     const mode=replacementRules[replacementKey(kind,text)]?.mode;
@@ -597,14 +607,14 @@
         ?nearestPartialDateOffset(partialOriginal,partialTarget)
         :origIso && targetIso?calendarDayDifference(origIso,targetIso):null;
       if(offset===null || !Number.isSafeInteger(offset) || offset===0 || Math.abs(offset)>3650){
-        replacementError='Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).';
+        replacementError=t("Bitte ein gültiges vollständiges Kalenderdatum wählen (maximal ±3650 Tage, nicht 0).");
         return;
       }
       dateOffset=offset;
       dateOffsetMode='manual';
       editingReplacement=null;
       replacementError='';
-      notice='Tagesoffset für alle verschobenen Kalenderdaten angepasst.';
+      notice=t("Tagesoffset für alle verschobenen Kalenderdaten angepasst.");
       return;
     }
     if (!token) {
@@ -615,21 +625,21 @@
       const error = validateCustomToken(token);
       if (error) { replacementError = error; return; }
       if (source.includes(token)) {
-        replacementError = 'Der Token kommt bereits im Originaltext vor.';
+        replacementError = t("Der Token kommt bereits im Originaltext vor.");
         return;
       }
       const duplicate = Object.entries(replacementRules).some(([otherKey, rule]) =>
         otherKey !== key && rule.mode === 'custom-token' && rule.token === token
       );
       if (duplicate) {
-        replacementError = 'Dieser Ersatzwert wird bereits für eine andere Angabe verwendet.';
+        replacementError = t("Dieser Ersatzwert wird bereits für eine andere Angabe verwendet.");
         return;
       }
       replacementRules = {...replacementRules, [key]:{mode:'custom-token',kind:group.kind,token}};
     }
     editingReplacement = null;
     replacementError = '';
-    notice = 'Ersatzwert aktualisiert. Rückübersetzung bleibt möglich.';
+    notice = t("Ersatzwert aktualisiert. Rückübersetzung bleibt möglich.");
   }
 
   function onHit(id: string, rect: DOMRect): void {
@@ -719,13 +729,14 @@
       }
       notice = label + ' kopiert.';
     } catch {
-      notice = 'Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.';
+      notice = t("Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.");
     }
   }
 </script>
 
 <svelte:head>
-  <title>Anonymat 2.0 · Lokale Pseudonymisierung</title>
+  <title>{t('Anonymat 2.0 · Lokale Pseudonymisierung')}</title>
+  <meta name="description" content={t('Anonymat 2.0 – Texte lokal pseudonymisieren und wiederherstellen. Offline und ohne Datenübertragung.')} />
 </svelte:head>
 
 <svelte:window onclick={closeMenuOutside} onkeydown={(event) => { if (event.key === 'Escape') menu = null; quickAction = null; }} />
@@ -741,14 +752,14 @@
       </div>
       <div>
         <div class="brand-name">Anonymat</div>
-        <div class="brand-subtitle">Lokal im Browser · ohne Textübertragung</div>
+        <div class="brand-subtitle">{t("Lokal im Browser · ohne Textübertragung")}</div>
       </div>
     </div>
     <div class="topbar-actions">
-      <button class="faq-trigger" type="button" onclick={() => {quickAction=null;menu=null;faqDialog?.showModal();}}>Hilfe & FAQ</button>
-      <button class="settings-trigger" type="button" onclick={() => settingsDialog?.showModal()} aria-label="Einstellungen öffnen">
+      <button class="faq-trigger" type="button" onclick={() => {quickAction=null;menu=null;faqDialog?.showModal();}}>{t("Hilfe & FAQ")}</button>
+      <button class="settings-trigger" type="button" onclick={() => settingsDialog?.showModal()} aria-label={t("Einstellungen öffnen")}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
-        <span>Einstellungen</span>
+        <span>{t("Einstellungen")}</span>
       </button>
       <a class="github-link" href="https://github.com/Uli-Z/Anonymat" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
     </div>
@@ -757,33 +768,33 @@
   <main class="main-content">
     <div class="page-heading">
       <div>
-        <h1>Texte pseudonymisieren</h1>
+        <h1>{t("Texte pseudonymisieren")}</h1>
       </div>
-      <button class="reset-button" type="button" onclick={resetAll} disabled={!source && !reply}>↺ <span>Neuer Text</span></button>
+      <button class="reset-button" type="button" onclick={resetAll} disabled={!source && !reply}>↺ <span>{t("Neuer Text")}</span></button>
     </div>
 
     <div class="step-heading">
       <div class="step-number">1</div>
       <div>
-        <h2>Text vorbereiten</h2>
+        <h2>{t("Text vorbereiten")}</h2>
       </div>
     </div>
 
     {#if isAnalyzing || analysisError}
-      <section class="analysis-banner" aria-label="Analysefortschritt" role="status">
+      <section class="analysis-banner" aria-label={t("Analysefortschritt")} role="status">
         <div class="analysis-banner-content">
           <div>
-            <strong>{analysisError ? 'Analyse unterbrochen' : 'Text wird geprüft…'}</strong>
-            <p>{analysisError || analysisStatus}</p>
+            <strong>{analysisError ? t("Analyse unterbrochen") : t("Text wird geprüft…")}</strong>
+            <p>{t(analysisError || analysisStatus)}</p>
           </div>
           {#if isAnalyzing}
-            <button type="button" class="secondary-button" onclick={cancelAnalysis}>Abbrechen</button>
+            <button type="button" class="secondary-button" onclick={cancelAnalysis}>{t("Abbrechen")}</button>
           {:else}
-            <button type="button" class="secondary-button" onclick={retryAnalysis}>Erneut analysieren</button>
+            <button type="button" class="secondary-button" onclick={retryAnalysis}>{t("Erneut analysieren")}</button>
           {/if}
         </div>
         {#if isAnalyzing}
-          <progress value={analysisProgress} max="100" aria-label="Analysefortschritt"></progress>
+          <progress value={analysisProgress} max="100" aria-label={t("Analysefortschritt")}></progress>
         {/if}
       </section>
     {/if}
@@ -793,22 +804,22 @@
         <div class="panel-heading">
           <div>
             <div class="panel-title-row">
-              <h3 id="source-title">Originaltext</h3>
+              <h3 id="source-title">{t("Originaltext")}</h3>
               <details class="legend-help">
-                <summary title="Markierungsfarben erklären" aria-label="Bedeutung der Markierungsfarben">?</summary>
-                <div class="legend-tooltip">Grün: wird pseudonymisiert. Orange mit gestrichelter Linie: Vorschlag, bisher nicht ersetzt. Klicken oder antippen zeigt Details.</div>
+                <summary title={t("Markierungsfarben erklären")} aria-label={t("Bedeutung der Markierungsfarben")}>?</summary>
+                <div class="legend-tooltip">{t("Grün: wird pseudonymisiert. Orange mit gestrichelter Linie: Vorschlag, bisher nicht ersetzt. Klicken oder antippen zeigt Details.")}</div>
               </details>
             </div>
           </div>
-          <span class="quiet-count">{source.length.toLocaleString('de-DE')} Zeichen</span>
+          <span class="quiet-count">{source.length.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Zeichen')}</span>
         </div>
-        <MarkedEditor bind:this={markedEditor} value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} onViewportChange={onEditorViewportChange} />
+        <MarkedEditor bind:this={markedEditor} language={language} value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} onViewportChange={onEditorViewportChange} />
         <div class="editor-actions">
           <button type="button" class="secondary-button" onclick={() => { quickAction=null; menu=null; findingsDialog?.showModal(); }}>
-            {#if pendingGroups.length}Vorschläge prüfen ({pendingGroups.length}){:else}Ersetzungen anzeigen ({groups.length}){/if}
+            {#if pendingGroups.length}{t('Vorschläge prüfen')} ({pendingGroups.length}){:else}{t('Ersetzungen anzeigen')} ({groups.length}){/if}
           </button>
           <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
-            Ergebnis prüfen <span aria-hidden="true">↓</span>
+            {t("Ergebnis prüfen")} <span aria-hidden="true">↓</span>
           </button>
         </div>
       </section>
@@ -817,135 +828,135 @@
     <div class="step-heading second-step">
       <div class="step-number">2</div>
       <div>
-        <h2>Ergebnis prüfen</h2>
+        <h2>{t("Ergebnis prüfen")}</h2>
       </div>
     </div>
 
     <section class="panel output-panel" aria-labelledby="result-title">
       <div class="panel-heading">
         <div>
-          <h3 id="result-title">Pseudonymisierter Text</h3>
+          <h3 id="result-title">{t("Pseudonymisierter Text")}</h3>
         </div>
         <button class="primary-button" type="button" onclick={copyMasked} disabled={!resultVisible || !source.trim() || isAnalyzing || !!analysisError}>
-          <span aria-hidden="true">⧉</span> Text kopieren
+          <span aria-hidden="true">⧉</span> {t("Text kopieren")}
         </button>
       </div>
       <div class="preview" aria-live="polite">
         {#if !resultVisible}
           <div class="preview-gate">
-            <button type="button" class="secondary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>Pseudonymisierten Text anzeigen</button>
+            <button type="button" class="secondary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>{t("Pseudonymisierten Text anzeigen")}</button>
           </div>
         {:else if isAnalyzing}
-          <span class="preview-empty">Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.</span>
+          <span class="preview-empty">{t("Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.")}</span>
         {:else if analysisError}
-          <span class="preview-empty">Analyse nicht abgeschlossen. Bitte erneut analysieren.</span>
+          <span class="preview-empty">{t("Analyse nicht abgeschlossen. Bitte erneut analysieren.")}</span>
         {:else if source.trim()}
           {#each preview as part}
             {#if part.review}
-              <button type="button" class="preview-suggestion" title="Vorschlag – noch nicht pseudonymisiert. Zur Prüfung klicken." onclick={reviewIndividually}>{part.value}</button>
+              <button type="button" class="preview-suggestion" title={t("Vorschlag – noch nicht pseudonymisiert. Zur Prüfung klicken.")} onclick={reviewIndividually}>{part.value}</button>
             {:else if part.replaced}
               <span class:placeholder-token={part.mode==='token'}
                 class:replacement-mark={part.mode!=='token'}
                 class:shifted-date-mark={part.mode==='shift-date'}
-                title={part.mode==='shift-date'?'Verschobenes Datum':part.mode==='synthetic'?'Ersetzt durch Pseudonym':'Ersetzt durch Platzhalter'}>{part.value}</span>
+                title={part.mode==='shift-date'?t("Verschobenes Datum"):part.mode==='synthetic'?t("Ersetzt durch Pseudonym"):t("Ersetzt durch Platzhalter")}>{part.value}</span>
             {:else if part.token}<span class="placeholder-token">{part.value}</span>{:else}{part.value}{/if}
           {/each}
         {:else}
-          <span class="preview-empty">Hier erscheint die Vorschau mit den ersetzten Angaben.</span>
+          <span class="preview-empty">{t("Hier erscheint die Vorschau mit den ersetzten Angaben.")}</span>
         {/if}
       </div>
       {#if resultVisible && pending.length}
         <div class="proposal-review-banner" role="status">
           <div class="proposal-review-copy">
-            <strong>{pendingGroups.length} {pendingGroups.length===1?'Vorschlag ist':'Vorschläge sind'} noch ungeprüft</strong>
-            <p>Orange markierte Angaben stehen weiterhin unverändert im Text und können Personen identifizierbar machen.</p>
+            <strong>{pendingGroups.length} {pendingGroups.length===1?t("Vorschlag ist"):t("Vorschläge sind")} noch ungeprüft</strong>
+            <p>{t("Orange markierte Angaben stehen weiterhin unverändert im Text und können Personen identifizierbar machen.")}</p>
           </div>
-          <button type="button" class="secondary-button" onclick={reviewIndividually}>Vorschläge prüfen</button>
+          <button type="button" class="secondary-button" onclick={reviewIndividually}>{t("Vorschläge prüfen")}</button>
         </div>
       {/if}
       {#if resultVisible && prepared.warnings.length}
-        <div class="inline-warning">{prepared.warnings.join(' ')}</div>
+        <div class="inline-warning">{prepared.warnings.map(message=>translateDiagnostic(language,message)).join(' ')}</div>
       {/if}
       {#if resultVisible && source.trim() && !isAnalyzing && !analysisError && prepared.mapping.length === 0 && prepared.dates.length === 0 && prepared.partialDates.length === 0}
-        <div class="inline-warning">Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.</div>
+        <div class="inline-warning">{t("Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.")}</div>
       {/if}
     </section>
 
     <div class="step-heading third-step">
       <div class="step-number">3</div>
       <div>
-        <h2>KI-Ergebnis zurückübersetzen</h2>
+        <h2>{t("KI-Ergebnis zurückübersetzen")}</h2>
       </div>
     </div>
 
     <div class="restore-grid">
       <section class="panel" aria-labelledby="reply-title">
         <div class="panel-heading">
-          <div><h3 id="reply-title">Antwort der KI</h3></div>
+          <div><h3 id="reply-title">{t("Antwort der KI")}</h3></div>
         </div>
         <textarea class="reply-editor" bind:value={reply} spellcheck="false"
-          placeholder="Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ..."
-          aria-label="KI-Antwort mit Platzhaltern"></textarea>
+          placeholder={t("Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ...")}
+          aria-label={t("KI-Antwort mit Platzhaltern")}></textarea>
       </section>
       <section class="panel" aria-labelledby="restored-title">
         <div class="panel-heading">
-          <div><h3 id="restored-title">Wiederhergestellter Text</h3></div>
-          <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
+          <div><h3 id="restored-title">{t("Wiederhergestellter Text")}</h3></div>
+          <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ {t('Kopieren')}</button>
         </div>
-        <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
+        <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">{t("Die Rückübersetzung wird hier angezeigt.")}</span>{/if}</div>
         {#if reply.trim() && (inverseDates.warnings.length || inversePartial.warnings.length)}
-          <div class="inline-warning">{[...inversePartial.warnings,...inverseDates.warnings].join(' ')}</div>
+          <div class="inline-warning">{[...inversePartial.warnings,...inverseDates.warnings].map(message=>translateDiagnostic(language,message)).join(' ')}</div>
         {/if}
         {#if reply.trim() && (restored.missing.length || restored.unknown.length)}
           <div class="inline-warning">
-            {#if restored.missing.length}Nicht wiedergefunden: {restored.missing.join(', ')}. {/if}
-            {#if restored.unknown.length}Unbekannte Tokens: {restored.unknown.join(', ')}.{/if}
+            {#if restored.missing.length}{t('Nicht wiedergefunden:')} {restored.missing.join(', ')}. {/if}
+            {#if restored.unknown.length}{t('Unbekannte Tokens:')} {restored.unknown.join(', ')}.{/if}
             Bitte das Ergebnis prüfen.
           </div>
         {/if}
       </section>
     </div>
 
-    {#if notice}<div class="toast" role="status">{notice}</div>{/if}
+    {#if notice}<div class="toast" role="status">{t(notice)}</div>{/if}
   </main>
 
-  <footer class="site-footer"><span>Anonymat 2.0 Alpha · Open Source</span><span>Automatische Erkennung ist nicht vollständig – vor Weitergabe prüfen.</span></footer>
+  <footer class="site-footer"><span>Anonymat 2.0 Alpha · Open Source</span><span>{t("Automatische Erkennung ist nicht vollständig – vor Weitergabe prüfen.")}</span></footer>
 
       <dialog class="findings-dialog" bind:this={findingsDialog} aria-labelledby="findings-title">
         <div class="panel-heading">
           <div>
-            <h3 id="findings-title">Erkannte Angaben</h3>
+            <h3 id="findings-title">{t("Erkannte Angaben")}</h3>
           </div>
-          <div class="findings-dialog-actions"><form method="dialog"><button class="settings-close" type="submit" aria-label="Ersetzungen schließen">×</button></form></div>
+          <div class="findings-dialog-actions"><form method="dialog"><button class="settings-close" type="submit" aria-label={t("Ersetzungen schließen")}>×</button></form></div>
         </div>
         <div class="findings-body">
           {#if groups.length === 0}
             <div class="empty-state">
               <div class="empty-symbol" aria-hidden="true">⌕</div>
-              <strong>Noch keine Treffer</strong>
-              <p>Markiere Textstellen direkt im Originaltext.</p>
+              <strong>{t("Noch keine Treffer")}</strong>
+              <p>{t("Markiere Textstellen direkt im Originaltext.")}</p>
             </div>
           {:else}
-            <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
+            <div class="list-caption">{active.length} {t('von')} {findings.length} {t('Textstellen aktiv')} · {groups.length} {t('unterschiedliche Begriffe')}</div>
             <div class="findings-list">
               {#each groups as group (group.key)}
                 <div class="finding-row" class:muted-finding={group.activeCount === 0 && !pendingGroups.some(entry=>entry.key===group.key)}>
                   <input type="checkbox" checked={group.activeCount > 0}
-                    aria-label={group.text + ' im ganzen Text pseudonymisieren'}
+                    aria-label={group.text + ' '+t('im ganzen Text pseudonymisieren')}
                     onchange={event => toggleGroup(group, event.currentTarget.checked)} />
                   <span class="finding-details">
                     <span class="finding-value">{group.text} {#if group.count > 1}<span class="count-inline">× {group.count}</span>{/if}</span>
-                    <span class="finding-meta">{KIND_LABELS[group.kind]} · {group.manual ? 'Manuell bestätigt' : group.learned ? 'Lokal gelernt' : 'Mustererkennung'}
-                      {#if pendingGroups.some(entry=>entry.key===group.key)} · Vorschlag – nicht pseudonymisiert{:else if group.activeCount === 0} · Ignoriert{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} aktiv{/if}
+                    <span class="finding-meta">{t(KIND_LABELS[group.kind])} · {group.manual ? t("Manuell bestätigt") : group.learned ? t("Lokal gelernt") : t("Mustererkennung")}
+                      {#if pendingGroups.some(entry=>entry.key===group.key)} · {t('Vorschlag – nicht pseudonymisiert')}{:else if group.activeCount === 0} · {t('Ignoriert')}{:else if group.activeCount < group.count} · {group.activeCount}/{group.count} {t('aktiv')}{/if}
                     </span>
                     {#if group.activeCount > 0}
                       {#if editingReplacement === replacementKey(group.kind,group.text)}
                         <form class="replacement-editor" onsubmit={(event) => { event.preventDefault(); saveReplacement(group); }}>
-                          <input type="text" aria-label={'Ersatzwert für '+group.text} bind:value={replacementDraft} spellcheck="false" />
-                          <button type="submit">Speichern</button>
-                          <button type="button" onclick={() => editingReplacement = null}>Abbrechen</button>
+                          <input type="text" aria-label={t('Ersatzwert für ')+group.text} bind:value={replacementDraft} spellcheck="false" />
+                          <button type="submit">{t("Speichern")}</button>
+                          <button type="button" onclick={() => editingReplacement = null}>{t("Abbrechen")}</button>
                           {#if group.kind==='DATE' && prepared.dates.some(item=>sameTerm(item.original,group.text))}
-                            <div>Ändert den gemeinsamen Tagesoffset für alle verschobenen Daten.</div>
+                            <div>{t("Ändert den gemeinsamen Tagesoffset für alle verschobenen Daten.")}</div>
                           {/if}
                           {#if replacementError}<div class="replacement-error">{replacementError}</div>{/if}
                         </form>
@@ -953,7 +964,7 @@
                         <div class="replacement-inline">
                           <span class="replacement-arrow" aria-hidden="true">→</span>
                           <code>{replacementFor(group)}</code>
-                          <button type="button" aria-label={'Ersatzwert für '+group.text+' bearbeiten'} onclick={() => editReplacement(group)}>Ändern</button>
+                          <button type="button" aria-label={t('Ersatzwert für ')+group.text+t(' bearbeiten')} onclick={() => editReplacement(group)}>{t("Ändern")}</button>
                         </div>
                       {/if}
                     {/if}
@@ -961,30 +972,30 @@
                       <button type="button" class="restore-group-button" onclick={()=>{
                         const candidate=pending.find(hit=>hit.kind===group.kind && sameTerm(hit.text,group.text));
                         if(candidate)setManualMark(candidate.start,candidate.end,candidate.kind);
-                      }}>Offenen Vorschlag übernehmen</button>
+                      }}>{t("Offenen Vorschlag übernehmen")}</button>
                     {/if}
                     {#if group.activeCount>0 && group.activeCount<group.count}
-                      <button type="button" class="restore-group-button" onclick={() => toggleGroup(group,true)}>Alle Stellen wieder ersetzen</button>
+                      <button type="button" class="restore-group-button" onclick={() => toggleGroup(group,true)}>{t("Alle Stellen wieder ersetzen")}</button>
                     {/if}
                     {#if learnedKeyForGroup(group)}
                       <button type="button" class="forget-learned-button"
-                        aria-label={'Aus lokalem Gedächtnis löschen: '+group.text}
-                        title="Dauerhafte Regel für zukünftige Texte löschen"
+                        aria-label={t('Aus lokalem Gedächtnis löschen: ')+group.text}
+                        title={t("Dauerhafte Regel für zukünftige Texte löschen")}
                         onclick={() => {const key=learnedKeyForGroup(group);if(key)void forgetLearned(key);}}>
-                        Aus Gedächtnis löschen
+                        {t("Aus Gedächtnis löschen")}
                       </button>
                     {/if}
                     {#if group.activeCount>0}
                       <label class="replacement-mode-control">
-                        Ersetzen durch
-                        <select aria-label={'Ersetzungsmethode für '+group.text}
+                        {t("Ersetzen durch")}
+                        <select aria-label={t('Ersetzungsmethode für ')+group.text}
                           value={ruleMode(group.kind,group.text)}
                           onchange={event => setRuleMode(group.kind,group.text,event.currentTarget.value as RuleChoice)}>
-                          <option value="default">Standard ({defaultModeLabel(group.kind)})</option>
-                          <option value="token">Platzhalter</option>
-                          {#if supportsSynthetic(group.kind)}<option value="synthetic">Pseudonym</option>{/if}
-                          {#if group.kind==='DATE'}<option value="shift-date">Datum verschieben</option>{/if}
-                          {#if ruleMode(group.kind,group.text)==='custom-token'}<option value="custom-token">Eigener Platzhalter</option>{/if}
+                          <option value="default">{t('Standard')} ({defaultModeLabel(group.kind)})</option>
+                          <option value="token">{t("Platzhalter")}</option>
+                          {#if supportsSynthetic(group.kind)}<option value="synthetic">{t("Pseudonym")}</option>{/if}
+                          {#if group.kind==='DATE'}<option value="shift-date">{t("Datum verschieben")}</option>{/if}
+                          {#if ruleMode(group.kind,group.text)==='custom-token'}<option value="custom-token">{t("Eigener Platzhalter")}</option>{/if}
                         </select>
                       </label>
                     {/if}
@@ -998,84 +1009,84 @@
 
   <dialog class="copy-warning-dialog" bind:this={copyWarningDialog} aria-labelledby="copy-warning-title">
     <div class="settings-header">
-      <h2 id="copy-warning-title">Ungeprüfte Vorschläge im Text</h2>
-      <form method="dialog"><button type="submit" class="settings-close" aria-label="Kopierwarnung schließen">×</button></form>
+      <h2 id="copy-warning-title">{t("Ungeprüfte Vorschläge im Text")}</h2>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label={t("Kopierwarnung schließen")}>×</button></form>
     </div>
     <div class="settings-body">
-      <p>Es gibt noch {pendingGroups.length} {pendingGroups.length===1?'ungeprüften Vorschlag':'ungeprüfte Vorschläge'}, die im pseudonymisierten Text unverändert stehen.</p>
-      <p>Der Text kann dadurch identifizierende Angaben enthalten. Bitte prüfe ihn, bevor du ihn weitergibst.</p>
-      <div class="copy-warning-terms" aria-label="Ungeprüfte Begriffe">
+      <p>Es gibt noch {pendingGroups.length} {pendingGroups.length===1?t("ungeprüften Vorschlag"):t("ungeprüfte Vorschläge")}, die im pseudonymisierten Text unverändert stehen.</p>
+      <p>{t("Der Text kann dadurch identifizierende Angaben enthalten. Bitte prüfe ihn, bevor du ihn weitergibst.")}</p>
+      <div class="copy-warning-terms" aria-label={t("Ungeprüfte Begriffe")}>
         {#each pendingGroups.slice(0,5) as group}
           <span>{group.text}</span>
         {/each}
-        {#if pendingGroups.length>5}<span>und {pendingGroups.length-5} weitere</span>{/if}
+        {#if pendingGroups.length>5}<span>{t('und')} {pendingGroups.length-5} {t('weitere')}</span>{/if}
       </div>
     </div>
     <div class="review-actions">
-      <button type="button" class="secondary-button" onclick={() => copyWarningDialog?.close()}>Abbrechen</button>
-      <button type="button" class="secondary-button" onclick={() => {copyWarningDialog?.close();reviewIndividually();}}>Vorschläge prüfen</button>
-      <button type="button" class="primary-button" onclick={() => {void copyDespiteSuggestions();}}>Trotzdem kopieren</button>
+      <button type="button" class="secondary-button" onclick={() => copyWarningDialog?.close()}>{t("Abbrechen")}</button>
+      <button type="button" class="secondary-button" onclick={() => {copyWarningDialog?.close();reviewIndividually();}}>{t("Vorschläge prüfen")}</button>
+      <button type="button" class="primary-button" onclick={() => {void copyDespiteSuggestions();}}>{t("Trotzdem kopieren")}</button>
     </div>
   </dialog>
 
   <dialog class="review-dialog" bind:this={reviewDialog} aria-labelledby="review-title">
     <div class="settings-header">
-      <h2 id="review-title">Vorschläge zur Pseudonymisierung</h2>
-      <form method="dialog"><button type="submit" class="settings-close" aria-label="Vorschläge schließen">×</button></form>
+      <h2 id="review-title">{t("Vorschläge zur Pseudonymisierung")}</h2>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label={t("Vorschläge schließen")}>×</button></form>
     </div>
     <div class="settings-body">
-      <p>Die Mustererkennung hat {pendingGroups.length} mögliche personenbezogene Begriffe gefunden. Sie wurden noch nicht pseudonymisiert.</p>
-      <p>Du kannst alle übernehmen oder die Vorschläge einzeln prüfen.</p>
-      <p class="settings-note">Bitte prüfe auch bei einer Sammelübernahme den vollständigen Ergebnistext.</p>
+      <p>{t('Die Mustererkennung hat')} {pendingGroups.length} {t('mögliche personenbezogene Begriffe gefunden. Sie wurden noch nicht pseudonymisiert.')}</p>
+      <p>{t("Du kannst alle übernehmen oder die Vorschläge einzeln prüfen.")}</p>
+      <p class="settings-note">{t("Bitte prüfe auch bei einer Sammelübernahme den vollständigen Ergebnistext.")}</p>
     </div>
     <div class="review-actions">
-      <button type="button" class="secondary-button" onclick={() => reviewDialog?.close()}>Später</button>
-      <button type="button" class="secondary-button" onclick={reviewIndividually}>Einzeln prüfen</button>
-      <button type="button" class="primary-button" onclick={acceptAllSuggestions}>Alle übernehmen</button>
+      <button type="button" class="secondary-button" onclick={() => reviewDialog?.close()}>{t("Später")}</button>
+      <button type="button" class="secondary-button" onclick={reviewIndividually}>{t("Einzeln prüfen")}</button>
+      <button type="button" class="primary-button" onclick={acceptAllSuggestions}>{t("Alle übernehmen")}</button>
     </div>
   </dialog>
 
   <dialog class="consent-dialog" bind:this={consentDialog} aria-labelledby="consent-title">
-    <div class="settings-header"><h2 id="consent-title">Ersetzungen dauerhaft merken?</h2></div>
+    <div class="settings-header"><h2 id="consent-title">{t("Ersetzungen dauerhaft merken?")}</h2></div>
     <div class="settings-body">
-      <p>Anonymat kann manuell bestätigte Begriffe samt Kategorie in diesem Browser speichern. In zukünftigen Texten werden diese Begriffe dann automatisch pseudonymisiert, ohne erneut nachzufragen.</p>
-      <p>Auch Namen und andere personenbezogene Angaben werden dabei im Klartext im Browserprofil gespeichert. Vollständige Texte und Platzhalter-Zuordnungen werden nicht gespeichert. In den Einstellungen kannst du die Regeln einzeln oder vollständig löschen.</p>
+      <p>{t("Anonymat kann manuell bestätigte Begriffe samt Kategorie in diesem Browser speichern. In zukünftigen Texten werden diese Begriffe dann automatisch pseudonymisiert, ohne erneut nachzufragen.")}</p>
+      <p>{t("Auch Namen und andere personenbezogene Angaben werden dabei im Klartext im Browserprofil gespeichert. Vollständige Texte und Platzhalter-Zuordnungen werden nicht gespeichert. In den Einstellungen kannst du die Regeln einzeln oder vollständig löschen.")}</p>
     </div>
     <div class="review-actions">
-      <button type="button" class="secondary-button" disabled={learningBusy} onclick={() => {void enableMemory(false);}}>Nur diesen Text</button>
-      <button type="button" class="primary-button" disabled={learningBusy} onclick={() => {void enableMemory(true);}}>{learningBusy?'Wird gespeichert…':'Lokales Gedächtnis aktivieren'}</button>
+      <button type="button" class="secondary-button" disabled={learningBusy} onclick={() => {void enableMemory(false);}}>{t("Nur diesen Text")}</button>
+      <button type="button" class="primary-button" disabled={learningBusy} onclick={() => {void enableMemory(true);}}>{learningBusy?t("Wird gespeichert…"):t("Lokales Gedächtnis aktivieren")}</button>
     </div>
   </dialog>
 
   <dialog class="faq-dialog" bind:this={faqDialog} aria-labelledby="faq-title">
     <div class="settings-header">
-      <div><h2 id="faq-title">Hilfe & FAQ</h2></div>
-      <form method="dialog"><button type="submit" class="settings-close" aria-label="Hilfe schließen">×</button></form>
+      <div><h2 id="faq-title">{t("Hilfe & FAQ")}</h2></div>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label={t("Hilfe schließen")}>×</button></form>
     </div>
     <div class="faq-body settings-body">
       <section>
-        <h3>Wofür ist Anonymat da?</h3>
-        <p>Anonymat hilft dir, Texte zu pseudonymisieren: Persönliche Angaben werden durch Platzhalter oder erfundene Ersatzidentitäten ersetzt, Datumsangaben können verschoben werden. Du kannst den Text danach für die Nutzung mit einer KI vorbereiten.</p>
+        <h3>{t("Wofür ist Anonymat da?")}</h3>
+        <p>{t("Anonymat hilft dir, Texte zu pseudonymisieren: Persönliche Angaben werden durch Platzhalter oder erfundene Ersatzidentitäten ersetzt, Datumsangaben können verschoben werden. Du kannst den Text danach für die Nutzung mit einer KI vorbereiten.")}</p>
       </section>
       <section>
-        <h3>Warum läuft Anonymat im Browser?</h3>
-        <p>Dein Browser lädt das Programm wie eine Webseite und führt es dann auf deinem eigenen Gerät aus. Du musst nichts installieren.</p>
+        <h3>{t("Warum läuft Anonymat im Browser?")}</h3>
+        <p>{t("Dein Browser lädt das Programm wie eine Webseite und führt es dann auf deinem eigenen Gerät aus. Du musst nichts installieren.")}</p>
       </section>
       <section>
-        <h3>Werden meine Texte oder Änderungen übertragen?</h3>
-        <p>Nein. Anonymat verarbeitet deine Eingaben auf deinem Gerät und sendet sie nicht an den Server. Erst wenn du einen Text selbst an einen anderen Dienst weitergibst, verlässt er diesen geschützten Bereich.</p>
+        <h3>{t("Werden meine Texte oder Änderungen übertragen?")}</h3>
+        <p>{t("Nein. Anonymat verarbeitet deine Eingaben auf deinem Gerät und sendet sie nicht an den Server. Erst wenn du einen Text selbst an einen anderen Dienst weitergibst, verlässt er diesen geschützten Bereich.")}</p>
       </section>
       <section>
-        <h3>Wird etwas gespeichert?</h3>
-        <p>Dein aktueller Text und die Zuordnungen zu Platzhaltern werden nicht dauerhaft gespeichert. Mit deiner Zustimmung speichert das lokale Gedächtnis einzelne bestätigte Originalbegriffe im Browser und pseudonymisiert sie bei neuen Texten automatisch. Diese Begriffe kannst du jederzeit löschen.</p>
+        <h3>{t("Wird etwas gespeichert?")}</h3>
+        <p>{t("Dein aktueller Text und die Zuordnungen zu Platzhaltern werden nicht dauerhaft gespeichert. Mit deiner Zustimmung speichert das lokale Gedächtnis einzelne bestätigte Originalbegriffe im Browser und pseudonymisiert sie bei neuen Texten automatisch. Diese Begriffe kannst du jederzeit löschen.")}</p>
       </section>
       <section>
-        <h3>Warum heißt es Anonymat, obwohl nur pseudonymisiert wird?</h3>
-        <p>„Anonymat“ ist der kurze Programmname, keine Garantie für Anonymität. Das Programm pseudonymisiert: Es ersetzt oder verändert direkte Angaben wie Namen und Daten. Auch neue Namen und Orte sind nur Ersatzwerte – durch verbleibende Informationen oder Zusammenhänge können Personen weiterhin erkennbar sein. Eine echte Anonymisierung erfordert, dass eine Identifizierung praktisch nicht mehr möglich ist.</p>
+        <h3>{t("Warum heißt es Anonymat, obwohl nur pseudonymisiert wird?")}</h3>
+        <p>{t("„Anonymat“ ist der kurze Programmname, keine Garantie für Anonymität. Das Programm pseudonymisiert: Es ersetzt oder verändert direkte Angaben wie Namen und Daten. Auch neue Namen und Orte sind nur Ersatzwerte – durch verbleibende Informationen oder Zusammenhänge können Personen weiterhin erkennbar sein. Eine echte Anonymisierung erfordert, dass eine Identifizierung praktisch nicht mehr möglich ist.")}</p>
       </section>
       <section>
-        <h3>Kann ich mich auf das Ergebnis verlassen?</h3>
-        <p>Nein, nicht ohne eigene Prüfung. Anonymat kann Angaben übersehen, Vorschläge unbestätigt lassen oder Zusammenhänge übersehen, durch die Personen erkennbar bleiben. Das Programm ist nur ein Hilfsmittel zur Pseudonymisierung. Du bist selbst dafür verantwortlich, den gesamten Text zu prüfen, bevor du ihn weitergibst.</p>
+        <h3>{t("Kann ich mich auf das Ergebnis verlassen?")}</h3>
+        <p>{t("Nein, nicht ohne eigene Prüfung. Anonymat kann Angaben übersehen, Vorschläge unbestätigt lassen oder Zusammenhänge übersehen, durch die Personen erkennbar bleiben. Das Programm ist nur ein Hilfsmittel zur Pseudonymisierung. Du bist selbst dafür verantwortlich, den gesamten Text zu prüfen, bevor du ihn weitergibst.")}</p>
       </section>
     </div>
   </dialog>
@@ -1083,231 +1094,243 @@
   <dialog class="settings-dialog" bind:this={settingsDialog} aria-labelledby="settings-title">
     <div class="settings-header">
       <div>
-        <h2 id="settings-title">Einstellungen</h2>
-        <p>Erkennung, Datumsangaben und Rückübersetzung</p>
+        <h2 id="settings-title">{t("Einstellungen")}</h2>
+        <p>{t("Erkennung, Datumsangaben und Rückübersetzung")}</p>
       </div>
       <form method="dialog">
-        <button type="submit" class="settings-close" aria-label="Einstellungen schließen">×</button>
+        <button type="submit" class="settings-close" aria-label={t("Einstellungen schließen")}>×</button>
       </form>
     </div>
     <div class="settings-body">
-      <section class="settings-section" aria-labelledby="settings-replacement">
-        <h3 id="settings-replacement">Ersetzungen</h3>
+      <section class="settings-section" aria-labelledby="settings-language">
+        <h3 id="settings-language">{t('Sprache')}</h3>
         <div class="settings-field">
-          <label for="replacement-default">Standard für Namen und Orte</label>
+          <label for="ui-language">{t('Benutzerschnittstelle')}</label>
+          <select id="ui-language" value={languagePreference}
+            onchange={event=>setLanguagePreference(event.currentTarget.value as LanguagePreference)}>
+            <option value="auto">{t('Automatisch (Browsersprache)')}</option>
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </section>
+      <section class="settings-section" aria-labelledby="settings-replacement">
+        <h3 id="settings-replacement">{t("Ersetzungen")}</h3>
+        <div class="settings-field">
+          <label for="replacement-default">{t("Standard für Namen und Orte")}</label>
           <select id="replacement-default" value={replacementDefault}
             onchange={event=>changeReplacementDefault(event.currentTarget.value as 'token'|'synthetic')}>
-            <option value="token">Platzhalter, z. B. [PERSON_001]</option>
-            <option value="synthetic">Pseudonyme, z. B. andere Namen oder Orte</option>
+            <option value="token">{t("Platzhalter, z. B. [PERSON_001]")}</option>
+            <option value="synthetic">{t("Pseudonyme, z. B. andere Namen oder Orte")}</option>
           </select>
-          <p>Gilt für Personen, Vor- und Nachnamen, Straßen, Adressen und Orte. Andere Angaben bleiben Platzhalter. Einzelne Fundstellen können abweichend eingestellt werden.</p>
+          <p>{t("Gilt für Personen, Vor- und Nachnamen, Straßen, Adressen und Orte. Andere Angaben bleiben Platzhalter. Einzelne Fundstellen können abweichend eingestellt werden.")}</p>
         </div>
       </section>
       <section class="settings-section" aria-labelledby="settings-dates">
-        <h3 id="settings-dates">Datumsangaben</h3>
+        <h3 id="settings-dates">{t("Datumsangaben")}</h3>
         <label class="settings-toggle">
           <input type="checkbox" bind:checked={dateShiftEnabled}/>
-          <span><strong>Kalenderdaten verschieben</strong><small>Standardmäßig aktiv. Vollständige Datumsangaben erhalten denselben Tagesversatz, sodass Zeitabstände erhalten bleiben.</small></span>
+          <span><strong>{t("Kalenderdaten verschieben")}</strong><small>{t("Standardmäßig aktiv. Vollständige Datumsangaben erhalten denselben Tagesversatz, sodass Zeitabstände erhalten bleiben.")}</small></span>
         </label>
         {#if dateShiftEnabled || hasDateOverride}
           <div class="settings-field">
-            <label for="date-shift-mode">Verschiebung</label>
+            <label for="date-shift-mode">{t("Verschiebung")}</label>
             <select id="date-shift-mode" value={dateOffsetMode}
               onchange={event => {
                 dateOffsetMode = event.currentTarget.value as 'random'|'manual';
                 if (dateOffsetMode === 'random') dateOffset = randomDateOffset();
               }}>
-              <option value="random">Zufällig (empfohlen)</option>
-              <option value="manual">Manuell festlegen</option>
+              <option value="random">{t("Zufällig (empfohlen)")}</option>
+              <option value="manual">{t("Manuell festlegen")}</option>
             </select>
             {#if dateOffsetMode === 'manual'}
               <div class="settings-offset-row">
-                <label for="date-offset">Tage</label>
+                <label for="date-offset">{t("Tage")}</label>
                 <input id="date-offset" type="number" min="-3650" max="3650" step="1" bind:value={dateOffset}/>
               </div>
               {#if !Number.isSafeInteger(dateOffset) || dateOffset === 0 || Math.abs(dateOffset) > 3650}
-                <p class="settings-error">Eine ganze Zahl von −3650 bis +3650, ausgenommen 0, eingeben.</p>
+                <p class="settings-error">{t("Eine ganze Zahl von −3650 bis +3650, ausgenommen 0, eingeben.")}</p>
               {/if}
             {:else}
               <div class="settings-random-row">
-                <p>Der genaue Wert bleibt verborgen. Für einen neuen Text wird er automatisch neu gewählt. Datumsangaben ohne Jahr erhalten intern ein festes Kalenderjahr.</p>
-                <button type="button" class="secondary-button" onclick={() => dateOffset = randomDateOffset()}>Neuen Zufallswert wählen</button>
+                <p>{t("Der genaue Wert bleibt verborgen. Für einen neuen Text wird er automatisch neu gewählt. Datumsangaben ohne Jahr erhalten intern ein festes Kalenderjahr.")}</p>
+                <button type="button" class="secondary-button" onclick={() => dateOffset = randomDateOffset()}>{t("Neuen Zufallswert wählen")}</button>
               </div>
             {/if}
           </div>
         {/if}
         <div class="settings-field">
-          <label for="source-date-order">Mehrdeutige Zahlenformate im Original</label>
+          <label for="source-date-order">{t("Mehrdeutige Zahlenformate im Original")}</label>
           <select id="source-date-order" bind:value={numericOrder}>
-            <option value="auto">Nicht verändern und warnen</option>
-            <option value="DMY">Tag/Monat/Jahr</option>
-            <option value="MDY">Monat/Tag/Jahr (US)</option>
+            <option value="auto">{t("Nicht verändern und warnen")}</option>
+            <option value="DMY">{t("Tag/Monat/Jahr")}</option>
+            <option value="MDY">{t("Monat/Tag/Jahr (US)")}</option>
           </select>
         </div>
-        <p class="settings-note">Verschobene Daten sind pseudonymisiert, nicht vollständig anonymisiert. Bitte auf indirekte Identifizierbarkeit prüfen.</p>
+        <p class="settings-note">{t("Verschobene Daten sind pseudonymisiert, nicht vollständig anonymisiert. Bitte auf indirekte Identifizierbarkeit prüfen.")}</p>
       </section>
 
       <section class="settings-section" aria-labelledby="settings-detection">
-        <h3 id="settings-detection">Automatische Erkennung</h3>
+        <h3 id="settings-detection">{t("Automatische Erkennung")}</h3>
         <label class="settings-toggle">
           <input type="checkbox" checked={enabledKinds.NUMBER!==false}
             onchange={event=>changeDetectionKind('NUMBER',event.currentTarget.checked)}/>
-          <span><strong>Zahlen erkennen</strong><small>Zum Beispiel 12,48 Euro, 74 Kilo oder 128 Zentimeter. Aufzählungsnummern bleiben unverändert.</small></span>
+          <span><strong>{t("Zahlen erkennen")}</strong><small>{t("Zum Beispiel 12,48 Euro, 74 Kilo oder 128 Zentimeter. Aufzählungsnummern bleiben unverändert.")}</small></span>
         </label>
         <details class="settings-details">
-          <summary>Weitere Kategorien einzeln einstellen</summary>
+          <summary>{t("Weitere Kategorien einzeln einstellen")}</summary>
           <div class="detection-category-grid">
             {#each detectionKinds as kind}
               <label class="detection-category-option">
                 <input type="checkbox" checked={enabledKinds[kind]!==false}
                   onchange={event=>changeDetectionKind(kind,event.currentTarget.checked)}/>
-                <span>{KIND_LABELS[kind]}</span>
+                <span>{t(KIND_LABELS[kind])}</span>
               </label>
             {/each}
           </div>
-          <p>Das Ausschalten verhindert die automatische Erkennung in dieser Kategorie. Manuelle Markierungen bleiben möglich.</p>
+          <p>{t("Das Ausschalten verhindert die automatische Erkennung in dieser Kategorie. Manuelle Markierungen bleiben möglich.")}</p>
         </details>
         <details class="settings-details">
-          <summary>Lexika und Quellen</summary>
+          <summary>{t("Lexika und Quellen")}</summary>
           <p>{#if lexiconCounts}
-            {lexiconCounts.first.toLocaleString('de-DE')} Vornamen ·
-            {lexiconCounts.last.toLocaleString('de-DE')} Nachnamen ·
-            {lexiconCounts.streets.toLocaleString('de-DE')} Straßen ·
-            {lexiconCounts.cities.toLocaleString('de-DE')} Orte (davon {lexiconCounts.cityHomonyms.toLocaleString('de-DE')} mehrdeutige Namen).
+            {lexiconCounts.first.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Vornamen')} ·
+            {lexiconCounts.last.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Nachnamen')} ·
+            {lexiconCounts.streets.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Straßen')} ·
+            {lexiconCounts.cities.toLocaleString(language==='de'?'de-DE':'en-US')} {t('Orte (davon')} {lexiconCounts.cityHomonyms.toLocaleString(language==='de'?'de-DE':'en-US')} {t('mehrdeutige Namen).')}
           {:else}
             Die Größenangaben der Lexika erscheinen nach der ersten Analyse.
           {/if}</p>
-          <p>GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Daten sind offline eingebettet.</p>
-          {#if lastScanMs !== null}<p>Letzter vollständiger Scan: {lastScanMs.toFixed(0)} ms.</p>{/if}
+          <p>{t("GeoNames (CC BY 4.0), Universal Dependencies German-GSD (CC BY-SA 4.0), Onomaverse (CC BY 4.0), OpenStreetMap / OpenPLZ (ODbL 1.0). Alle Daten sind offline eingebettet.")}</p>
+          {#if lastScanMs !== null}<p>{t('Letzter vollständiger Scan:')} {lastScanMs.toFixed(0)} ms.</p>{/if}
         </details>
       </section>
 
       <section class="settings-section" aria-labelledby="settings-learning">
-        <h3 id="settings-learning">Gelernte Ersetzungen</h3>
+        <h3 id="settings-learning">{t("Gelernte Ersetzungen")}</h3>
         <label class="settings-toggle">
           <input type="checkbox" checked={consentState==='on'} onchange={event=>{void enableMemory(event.currentTarget.checked);}} />
-          <span><strong>Manuelle Ersetzungen merken</strong><small>Bestätigte Begriffe werden künftig automatisch pseudonymisiert. Die Originalbegriffe bleiben lokal im Browserprofil gespeichert.</small></span>
+          <span><strong>{t("Manuelle Ersetzungen merken")}</strong><small>{t("Bestätigte Begriffe werden künftig automatisch pseudonymisiert. Die Originalbegriffe bleiben lokal im Browserprofil gespeichert.")}</small></span>
         </label>
         {#if consentState==='on'}
-          <p class="settings-note">{learnedRules.length} gespeicherte Begriffe. Sie werden in zukünftigen Texten automatisch pseudonymisiert.</p>
+          <p class="settings-note">{learnedRules.length} {t('gespeicherte Begriffe. Sie werden in zukünftigen Texten automatisch pseudonymisiert.')}</p>
           {#if learnedRules.length}
             <div class="learned-list">
               {#each learnedRules as rule (rule.key)}
                 <div class="learned-row">
                   <strong title={rule.term}>{rule.term}</strong>
-                  <select aria-label={'Kategorie für '+rule.term} value={rule.kind}
+                  <select aria-label={t('Kategorie für ')+rule.term} value={rule.kind}
                     onchange={event=>updateLearned(rule,{kind:event.currentTarget.value as Kind})}>
-                    {#each kinds as kind}<option value={kind}>{KIND_LABELS[kind]}</option>{/each}
+                    {#each kinds as kind}<option value={kind}>{t(KIND_LABELS[kind])}</option>{/each}
                   </select>
-                  <button type="button" class="secondary-button" aria-label={'Gelernten Begriff '+rule.term+' löschen'} onclick={()=>forgetLearned(rule.key)}>Löschen</button>
+                  <button type="button" class="secondary-button" aria-label={t('Gelernten Begriff ')+rule.term+t(' löschen')} onclick={()=>forgetLearned(rule.key)}>{t("Löschen")}</button>
                 </div>
               {/each}
             </div>
-            <button type="button" class="secondary-button" onclick={clearMemory}>Alle gelernten Regeln löschen</button>
+            <button type="button" class="secondary-button" onclick={clearMemory}>{t("Alle gelernten Regeln löschen")}</button>
           {/if}
         {:else}
-          <p class="settings-note">Das Gedächtnis ist deaktiviert. Der aktuelle Text wird trotzdem wie bisher im Arbeitsspeicher verarbeitet.</p>
+          <p class="settings-note">{t("Das Gedächtnis ist deaktiviert. Der aktuelle Text wird trotzdem wie bisher im Arbeitsspeicher verarbeitet.")}</p>
         {/if}
       </section>
 
       <section class="settings-section" aria-labelledby="settings-reply">
-        <h3 id="settings-reply">Rückübersetzung</h3>
+        <h3 id="settings-reply">{t("Rückübersetzung")}</h3>
         <div class="settings-field">
-          <label for="reply-date-order">Mehrdeutige Zahlenformate in KI-Antworten</label>
+          <label for="reply-date-order">{t("Mehrdeutige Zahlenformate in KI-Antworten")}</label>
           <select id="reply-date-order" bind:value={replyNumericOrder}>
-            <option value="auto">Nicht verändern und warnen</option>
-            <option value="DMY">Tag/Monat/Jahr</option>
-            <option value="MDY">Monat/Tag/Jahr (US)</option>
+            <option value="auto">{t("Nicht verändern und warnen")}</option>
+            <option value="DMY">{t("Tag/Monat/Jahr")}</option>
+            <option value="MDY">{t("Monat/Tag/Jahr (US)")}</option>
           </select>
-          <p>Bei übersetzten Datumsangaben kann eine andere Tag-Monat-Reihenfolge nötig sein.</p>
+          <p>{t("Bei übersetzten Datumsangaben kann eine andere Tag-Monat-Reihenfolge nötig sein.")}</p>
         </div>
       </section>
     </div>
     <div class="settings-footer">
-      <span>Änderungen werden direkt lokal übernommen.</span>
-      <form method="dialog"><button type="submit" class="primary-button">Schließen</button></form>
+      <span>{t("Änderungen werden direkt lokal übernommen.")}</span>
+      <form method="dialog"><button type="submit" class="primary-button">{t("Schließen")}</button></form>
     </div>
   </dialog>
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
       onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select'))) event.preventDefault(); }}
-      role="dialog" tabindex="-1" aria-label="Textauswahl pseudonymisieren">
+      role="dialog" tabindex="-1" aria-label={t("Textauswahl pseudonymisieren")}>
       <div class="selection-popover-heading">
-        <strong>Auswahl pseudonymisieren</strong>
-        <button class="popover-close" type="button" aria-label="Auswahlmenü schließen" onclick={() => quickAction = null}>×</button>
+        <strong>{t("Auswahl pseudonymisieren")}</strong>
+        <button class="popover-close" type="button" aria-label={t("Auswahlmenü schließen")} onclick={() => quickAction = null}>×</button>
       </div>
       <label class="selection-mode-control">
-        Ersetzen durch
-        <select aria-label="Ersetzung für Textauswahl" bind:value={selectionReplacementMode}>
-          <option value="default">Standard</option>
-          <option value="token">Platzhalter</option>
-          <option value="synthetic">Pseudonym (Namen und Orte)</option>
+        {t("Ersetzen durch")}
+        <select aria-label={t("Ersetzung für Textauswahl")} bind:value={selectionReplacementMode}>
+          <option value="default">{t("Standard")}</option>
+          <option value="token">{t("Platzhalter")}</option>
+          <option value="synthetic">{t("Pseudonym (Namen und Orte)")}</option>
         </select>
       </label>
       <button class="selection-default" type="button" onclick={() => addManual('OTHER')}>
-        <strong>Sonstiges</strong><small>Allgemeiner Platzhalter</small>
+        <strong>{t("Sonstiges")}</strong><small>{t("Allgemeiner Platzhalter")}</small>
       </button>
-      <div class="selection-shortcuts" aria-label="Häufige Kategorien">
+      <div class="selection-shortcuts" aria-label={t("Häufige Kategorien")}>
         {#each quickKinds as kind}
-          <button type="button" onclick={() => addManual(kind)}>{KIND_LABELS[kind]}</button>
+          <button type="button" onclick={() => addManual(kind)}>{t(KIND_LABELS[kind])}</button>
         {/each}
       </div>
-      <select class="selection-more" aria-label="Weitere Kategorien" value=""
+      <select class="selection-more" aria-label={t("Weitere Kategorien")} value=""
         onchange={(event) => { const kind = event.currentTarget.value as Kind; if (kind) addManual(kind); }}>
-        <option value="" disabled>Weitere Kategorien…</option>
+        <option value="" disabled>{t("Weitere Kategorien…")}</option>
         {#each extraKinds as kind}
-          <option value={kind}>{KIND_LABELS[kind]}</option>
+          <option value={kind}>{t(KIND_LABELS[kind])}</option>
         {/each}
       </select>
     </div>
   {/if}
 
   {#if menu && selectedHit}
-    <button class="hit-sheet-backdrop" type="button" aria-label="Bearbeitungsmenü schließen" onclick={() => menu=null}></button>
-    <div class="hit-popover" role="dialog" aria-label="Markierung bearbeiten" style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
+    <button class="hit-sheet-backdrop" type="button" aria-label={t("Bearbeitungsmenü schließen")} onclick={() => menu=null}></button>
+    <div class="hit-popover" role="dialog" aria-label={t("Markierung bearbeiten")} style={'left:' + menu.x + 'px;top:' + menu.y + 'px'}>
       <div class="hit-popover-heading">
         <span class="hit-popover-title">{selectedHit.text}</span>
-        <button type="button" class="hit-close" aria-label="Schließen" onclick={() => menu = null}>×</button>
+        <button type="button" class="hit-close" aria-label={t("Schließen")} onclick={() => menu = null}>×</button>
       </div>
-      <label class="hit-type-label" for="hit-kind">Platzhalter-Typ</label>
+      <label class="hit-type-label" for="hit-kind">{t("Platzhalter-Typ")}</label>
       <select id="hit-kind" class="hit-type-select" value={selectedHit.kind}
         onchange={event => changeKind(selectedHit!, event.currentTarget.value as Kind)}>
         {#each kinds as kind}
-          <option value={kind}>{KIND_LABELS[kind]}</option>
+          <option value={kind}>{t(KIND_LABELS[kind])}</option>
         {/each}
       </select>
       <div class="hit-actions">
         {#if !isActive(selectedHit)}
-          <p class="hit-status hit-status-review">Vorschlag – noch nicht pseudonymisiert</p>
-          <button type="button" onclick={() => restoreOne(selectedHit!)}>Vorschlag übernehmen</button>
-          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Vorschlag verwerfen</button>
+          <p class="hit-status hit-status-review">{t("Vorschlag – noch nicht pseudonymisiert")}</p>
+          <button type="button" onclick={() => restoreOne(selectedHit!)}>{t("Vorschlag übernehmen")}</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>{t("Vorschlag verwerfen")}</button>
         {:else}
-          <p class="hit-status hit-status-active">Wird pseudonymisiert</p>
-          <label class="hit-type-label" for="hit-replacement-mode">Ersetzen durch</label>
+          <p class="hit-status hit-status-active">{t("Wird pseudonymisiert")}</p>
+          <label class="hit-type-label" for="hit-replacement-mode">{t("Ersetzen durch")}</label>
           <select id="hit-replacement-mode" class="hit-type-select" value={ruleMode(selectedHit.kind,selectedHit.text)}
             onchange={event=>setRuleMode(selectedHit!.kind,selectedHit!.text,event.currentTarget.value as RuleChoice)}>
-            <option value="default">Standard ({defaultModeLabel(selectedHit.kind)})</option>
-            <option value="token">Platzhalter</option>
-            {#if supportsSynthetic(selectedHit.kind)}<option value="synthetic">Pseudonym</option>{/if}
-            {#if selectedHit.kind==='DATE'}<option value="shift-date">Datum verschieben</option>{/if}
-            {#if ruleMode(selectedHit.kind,selectedHit.text)==='custom-token'}<option value="custom-token">Eigener Platzhalter</option>{/if}
+            <option value="default">{t('Standard')} ({defaultModeLabel(selectedHit.kind)})</option>
+            <option value="token">{t("Platzhalter")}</option>
+            {#if supportsSynthetic(selectedHit.kind)}<option value="synthetic">{t("Pseudonym")}</option>{/if}
+            {#if selectedHit.kind==='DATE'}<option value="shift-date">{t("Datum verschieben")}</option>{/if}
+            {#if ruleMode(selectedHit.kind,selectedHit.text)==='custom-token'}<option value="custom-token">{t("Eigener Platzhalter")}</option>{/if}
           </select>
-          <button type="button" onclick={() => suppressOne(selectedHit!)}>Nur diese Stelle nicht ersetzen</button>
-          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>Begriff im ganzen Text nicht ersetzen</button>
+          <button type="button" onclick={() => suppressOne(selectedHit!)}>{t("Nur diese Stelle nicht ersetzen")}</button>
+          <button type="button" onclick={() => ignoreEverywhere(selectedHit!)}>{t("Begriff im ganzen Text nicht ersetzen")}</button>
         {/if}
         {#if splitFullName(selectedHit)}
-          <button type="button" onclick={() => splitName(selectedHit!)}>↳ In Vorname und Nachname aufteilen</button>
+          <button type="button" onclick={() => splitName(selectedHit!)}>↳ {t('In Vorname und Nachname aufteilen')}</button>
         {/if}
         {#if selectedLearnedRule}
           <button type="button" class="forget-learned-button"
-            title="Dauerhaft gespeicherte Regel löschen. Das Ignorieren einzelner Stellen bleibt davon unabhängig."
+            title={t("Dauerhaft gespeicherte Regel löschen. Das Ignorieren einzelner Stellen bleibt davon unabhängig.")}
             onclick={() => {if(selectedLearnedRule)void forgetLearned(selectedLearnedRule.key);}}>
-            Aus Gedächtnis löschen
+            {t("Aus Gedächtnis löschen")}
           </button>
         {/if}
         {#if manual.some(anchor => anchor.id === selectedHit?.id)}
-          <button type="button" onclick={() => removeManualRule(selectedHit!)}>− Manuelle Erkennungsregel entfernen</button>
+          <button type="button" onclick={() => removeManualRule(selectedHit!)}>− {t('Manuelle Erkennungsregel entfernen')}</button>
         {/if}
       </div>
     </div>
