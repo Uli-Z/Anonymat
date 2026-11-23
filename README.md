@@ -1,11 +1,12 @@
-# Anonymat 2.0
+# Anonymat 2.0.1
 
 **Pseudonymize sensitive text locally before sharing it with other tools.** Anonymat runs in the browser and helps you identify and replace personal information. You can review every replacement and restore original values locally.
 
 **[Open Anonymat 2.0](https://uli-z.github.io/Anonymat/)** · [Download the offline HTML file](https://github.com/Uli-Z/Anonymat/releases/latest) · [Release notes](RELEASE_NOTES.md)
 
-## What's new in 2.0
+## What's new in 2.0.1
 
+- **Independent date findings:** Expressions such as `06.01.-10.01.2025` expose two individually editable date findings, without masking the separator or misidentifying the expression as a phone number. Date shifting and restoration continue to work across year boundaries.
 - **More complete detection:** Names (including contextual and inflected forms), addresses, locations, dates, amounts and measurements, contact details, and common identifiers. Uncertain matches are visibly marked as suggestions rather than silently replaced.
 - **You stay in control:** Review and correct findings in the text, add your own replacements, ignore individual occurrences, and enable or disable detection categories.
 - **Reversible pseudonymization:** Choose placeholders or, for supported names and places, locally generated pseudonyms. Shift dates while preserving intervals where possible. Restore original values from an AI-generated or edited response in the same browser session.
@@ -15,7 +16,7 @@
 
 ## Get started
 
-Use the [web app](https://uli-z.github.io/Anonymat/) or download **anonymat-2.0.0.html** from [GitHub Releases](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.0) and open it locally in a modern browser. Paste your text, review the highlighted findings, and inspect the pseudonymized result before copying it.
+Use the [web app](https://uli-z.github.io/Anonymat/) or download **anonymat-2.0.1.html** from [GitHub Releases](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.1) and open it locally in a modern browser. Paste your text, review the highlighted findings, and inspect the pseudonymized result before copying it.
 
 The previous version remains available [here](https://uli-z.github.io/Anonymat/legacy/).
 

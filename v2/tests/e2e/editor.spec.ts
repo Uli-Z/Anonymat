@@ -259,6 +259,32 @@ test('help opens a concise FAQ without repeating privacy badges', async ({page})
 });
 
 
+
+test('abbreviated interval has two separately editable date highlights and roundtrips',async({page})=>{
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  const settings=page.locator('dialog.settings-dialog');
+  await settings.locator('#date-shift-mode').selectOption('manual');
+  await settings.locator('#date-offset').fill('30');
+  await settings.getByRole('button',{name:'Schließen',exact:true}).click();
+
+  await page.locator('.cm-content').fill('06.01.-10.01.2025');
+  await expect(page.locator('.cm-anonymat-active')).toHaveCount(2);
+  await expect(page.locator('.cm-anonymat-active')).toHaveText(['06.01.','10.01.2025']);
+  await reveal(page);
+  await expect(page.locator('.preview')).toContainText('05.02.-09.02.2025');
+  await expect(page.locator('.preview .shifted-date-mark')).toHaveCount(2);
+  await page.getByRole('textbox',{name:'KI-Antwort mit Platzhaltern'}).fill('05.02.-09.02.2025');
+  await expect(page.locator('.restore-preview')).toContainText('06.01.-10.01.2025');
+
+  await page.locator('.cm-anonymat-active').first().click();
+  await expect(page.getByRole('dialog',{name:'Markierung bearbeiten'})).toBeVisible();
+  await page.locator('#hit-replacement-mode').selectOption('token');
+  await reveal(page);
+  await expect(page.locator('.preview .shifted-date-mark')).toHaveCount(1);
+  await expect(page.locator('.preview .placeholder-token')).toHaveCount(1);
+  await expect(page.locator('.preview')).toContainText('[DATE_001]-09.02.2025');
+});
+
 test('shifted dates and generated names are both marked as replacements',async({page})=>{
   await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
   await page.locator('#replacement-default').selectOption('synthetic');

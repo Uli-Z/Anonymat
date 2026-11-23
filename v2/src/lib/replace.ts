@@ -1,4 +1,4 @@
-import { parseDate, parseDateRange, scanDates, shiftIsoDay, shiftDateRange, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
+import { parseDate, scanDates, shiftIsoDay, calendarDayDifference, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
 import { syntheticReplacement, supportsSynthetic } from './synthetic';
 import { scanPartialDates, parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
@@ -81,6 +81,23 @@ export function maskText(
   // Resolve contextual partials by original offsets (e.g. "im März" marks just "März").
   const partialBySpan=new Map(scanPartialDates(source,{numericOrder:dateOptions.numericOrder})
     .map(hit=>[hit.start+':'+hit.end,hit] as const));
+  const completeDates=scanDates(source,{numericOrder:dateOptions.numericOrder}).matches;
+  // In "28.02.-02.03.2025" the year of 28 February is inferable from the
+  // complete second date. This keeps independent replacements chronologically
+  // consistent across leap days and year boundaries.
+  function yearOfConnectedShortDate(partial:import('./partial-dates').PartialMatch):number|undefined{
+    if(partial.precision!=='day-month'||partial.style!=='numeric'||!partial.endDot)return undefined;
+    const following=completeDates.find(full=>full.start>partial.end
+      && full.start-partial.end<=8
+      && /^\s*[-–—]\s*$/u.test(source.slice(partial.end,full.start)));
+    if(!following)return undefined;
+    const [year,month,day]=following.iso.split('-').map(Number);
+    const firstYear=partial.month>month || (partial.month===month && (partial.day??0)>day)
+      ?year-1:year;
+    const first=partialOriginalIso(partial,firstYear);
+    const length=first?calendarDayDifference(first,following.iso):null;
+    return length!==null && length>=0 && length<=366 ?firstYear:undefined;
+  }
   const warnings: string[] = [];
   for(const item of scanDates(source,{numericOrder:dateOptions.numericOrder}).issues){
     warnings.push('Datum "'+item.text+'": '+item.reason+' – bitte manuell prüfen.');
@@ -122,17 +139,9 @@ export function maskText(
       (spec?.mode==='shift-date' ||
        (dateOptions.dateShiftEnabled && spec?.mode!== 'token' && spec?.mode!=='custom-token'));
     if(shiftThisDate){
-      const range=parseDateRange(match.text);
-      const parsed=range?null:parseDate(match.text,{numericOrder:dateOptions.numericOrder});
+      const parsed=parseDate(match.text,{numericOrder:dateOptions.numericOrder});
       const offset=dateOptions.offsetDays;
       const validOffset=Number.isSafeInteger(offset) && offset!==0 && Math.abs(offset as number)<=3650;
-      const shiftedRange=range&&validOffset?shiftDateRange(range,offset as number):null;
-      if(shiftedRange&&range){
-        appendReplacement(match.start,match.end,shiftedRange,'shift-date');
-        dates.push({original:match.text,shifted:shiftedRange,
-          shiftedIso:shiftIsoDay(range.endIso,offset as number)!});
-        continue;
-      }
       const changed=parsed && validOffset ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);
@@ -144,7 +153,7 @@ export function maskText(
         ? partialBySpan.get(match.start+':'+match.end)
           ?? parsePartialDate(match.text,{numericOrder:dateOptions.numericOrder})
         :null;
-      const originalIso=partial?partialOriginalIso(partial):null;
+      const originalIso=partial?partialOriginalIso(partial,yearOfConnectedShortDate(partial)):null;
       const weekdayNear=!!partial && hasAdjacentWeekday(source,match.start,match.end);
       const shiftedIso=originalIso && validOffset && !weekdayNear
         ?shiftIsoDay(originalIso,offset as number):null;
