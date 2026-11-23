@@ -279,7 +279,16 @@ const ENGLISH:Readonly<Record<string,string>>={
   "und": "and",
   "Die Mustererkennung hat": "Pattern detection found",
   "Es gibt noch": "There are still",
-  "Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ...": "Example: Ms Anna Müller, email: anna.mueller@example.org, phone: +49 421 12345678…"
+  "Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ...": "Example: Ms Anna Müller, email: anna.mueller@example.org, phone: +49 421 12345678…",
+  "Gemischte Datumstrennzeichen": "Mixed date separators",
+  "Mehrdeutiges numerisches Datum": "Ambiguous numeric date",
+  "Ungültiges numerisches Datum": "Invalid numeric date",
+  "Ungültiger Kalendertag": "Invalid calendar day",
+  "Wochentag widerspricht dem Datum": "Weekday conflicts with the date",
+  "Ein Vorschlag ist noch ungeprüft und steht im pseudonymisierten Text unverändert.": "One suggestion is still unreviewed and remains unchanged in the pseudonymized text.",
+  "Vorschläge sind noch ungeprüft und stehen im pseudonymisierten Text unverändert.": "suggestions are still unreviewed and remain unchanged in the pseudonymized text.",
+  "Vorschlag übernommen. Bitte das Ergebnis prüfen.": "suggestion accepted. Please review the result.",
+  "gespeicherter Begriff. Er wird in zukünftigen Texten automatisch pseudonymisiert.": "stored term. It will be automatically pseudonymized in future texts."
 };
 export function translate(language:Language,key:string):string{
   return language==='en'?(ENGLISH[key] ?? key):key;
@@ -309,7 +318,11 @@ export function translateDiagnostic(language:Language,message:string):string{
     break;
   }
   // Date-parser reasons are also emitted in German.
-  for(const key of ['Zahlenformat Tag/Monat nicht eindeutig','Ungültiger Tag oder Monat']){
+  for(const key of [
+    'Zahlenformat Tag/Monat nicht eindeutig','Ungültiger Tag oder Monat',
+    'Gemischte Datumstrennzeichen','Mehrdeutiges numerisches Datum',
+    'Ungültiges numerisches Datum','Ungültiger Kalendertag','Wochentag widerspricht dem Datum'
+  ]){
     text=text.replaceAll(key,translate(language,key));
   }
   return text;
