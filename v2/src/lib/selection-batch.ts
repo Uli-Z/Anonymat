@@ -1,4 +1,4 @@
-import { overlaps, sameTerm, type Finding, type Kind } from './detect-types';
+import { overlaps, sameTerm, type Finding } from './detect-types';
 import { replacementKey, type ReplacementRule } from './replacement-strategies';
 import { supportsSynthetic } from './synthetic';
 
@@ -52,10 +52,9 @@ export function applyFindingsBatch(
   for(const hit of selected){
     const key=replacementKey(hit.kind,hit.text);
     if(mode==='default')delete replacementRules[key];
-    else replacementRules[key]={
-      mode:mode==='synthetic' && supportsSynthetic(hit.kind)?'synthetic':'token',
-      kind:hit.kind as Kind
-    };
+    else if(mode==='synthetic' && supportsSynthetic(hit.kind))
+      replacementRules[key]={mode:'synthetic',kind:hit.kind};
+    else replacementRules[key]={mode:'token',kind:hit.kind};
   }
   return {
     manual:[...state.manual.filter(hit=>!added.some(anchor=>overlaps(hit,anchor))),...added],
