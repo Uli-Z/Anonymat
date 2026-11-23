@@ -13,6 +13,7 @@
   import { normalizedKey, makeRule, loadLearnedRules, saveLearnedRules, deleteLearnedRule, clearLearnedRules, type LearnedRule } from './lib/learned-rules';
   import { replacementKey, validateCustomToken, type ReplacementRule } from './lib/replacement-strategies';
   import { supportsSynthetic } from './lib/synthetic';
+  import { findingsWithinSelection, applyFindingsBatch } from './lib/selection-batch';
   import { randomDateOffset, restoreShiftedDates, parseDate, calendarDayDifference, type NumericDateOrder } from './lib/dates';
   import type { MappingEntry } from './lib/replace';
   import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
@@ -30,7 +31,7 @@
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'NUMBER', 'OTHER'];
   const quickKinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'DATE', 'CITY'];
   const extraKinds = kinds.filter(kind => kind !== 'OTHER' && !quickKinds.includes(kind));
-  const detectionKinds = kinds.filter(kind => kind !== 'OTHER' && kind !== 'NUMBER');
+  const detectionKinds = kinds.filter(kind => kind !== 'OTHER');
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
@@ -99,6 +100,7 @@
   let selectedRange = $state({ from: 0, to: 0 });
   let quickAction = $state<{x: number; y: number} | null>(null);
   let selectionReplacementMode = $state<'default'|'token'|'synthetic'>('default');
+  let bulkDeselectedIds = $state<string[]>([]);
   let reply = $state('');
   let notice = $state('');
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
@@ -126,6 +128,8 @@
         +' · '+t(KIND_LABELS[hit.kind])+' · '+origin+t('. Klicken oder antippen zum Bearbeiten.')
     };
   }));
+  let selectionHits = $derived(findingsWithinSelection(findings,selectedRange.from,selectedRange.to));
+  let bulkChosenHits = $derived(selectionHits.filter(hit => !bulkDeselectedIds.includes(hit.id)));
   let pendingGroupKeys = $derived(new Set(pending.map(hit=>hit.kind+':'+normalizedKey(hit.text))));
   let pendingGroups = $derived(groups.filter(group=>pendingGroupKeys.has(group.key)));
 
@@ -427,6 +431,7 @@
     menu = null;
     quickAction = null;
     selectionReplacementMode = 'default';
+    bulkDeselectedIds = [];
     notice = '';
     if(!next.trim())reviewPromptHandled=false;
   }
@@ -444,9 +449,11 @@
   }
 
   function onSelect(from: number, to: number, position?: {x: number; y: number; top: number}): void {
+    if(from!==selectedRange.from || to!==selectedRange.to)bulkDeselectedIds=[];
     selectedRange = {from, to};
+    const bulk = findingsWithinSelection(findings,from,to).length>=2;
     quickAction = to > from && position
-      ? popoverPosition({left:position.x, top:position.top, bottom:position.y}, 322, 250)
+      ? popoverPosition({left:position.x, top:position.top, bottom:position.y}, bulk?392:322, bulk?440:250)
       : null;
   }
 
@@ -454,7 +461,7 @@
     if (quickAction) {
       const anchor = markedEditor?.selectionAnchor();
       quickAction = anchor
-        ? popoverPosition({left:anchor.x, top:anchor.top, bottom:anchor.y}, 322, 250)
+        ? popoverPosition({left:anchor.x, top:anchor.top, bottom:anchor.y}, selectionHits.length>=2?392:322, selectionHits.length>=2?440:250)
         : null;
     }
     if (menu) {
@@ -497,6 +504,28 @@
       else notice=t("Für diese Kategorie ist nur ein Platzhalter möglich.");
     }
     selectionReplacementMode='default';
+  }
+
+  /** Bulk actions target only individually listed, fully contained findings. */
+  function applyBulkSelection(action:'mask'|'exclude'):void{
+    if(!bulkChosenHits.length)return;
+    const changed=applyFindingsBatch(bulkChosenHits,action,selectionReplacementMode,{
+      manual,ignoredPlaces,ignoredTerms,replacementRules,manualCounter,exclusionCounter
+    });
+    manual=changed.manual;
+    ignoredPlaces=changed.ignoredPlaces;
+    ignoredTerms=changed.ignoredTerms;
+    replacementRules=changed.replacementRules;
+    manualCounter=changed.manualCounter;
+    exclusionCounter=changed.exclusionCounter;
+    quickAction=null;
+    selectedRange={from:0,to:0};
+    bulkDeselectedIds=[];
+    selectionReplacementMode='default';
+    for(const hit of changed.learned)recordLearning(hit.text,hit.kind);
+    notice=bulkChosenHits.length+' '+t(action==='mask'
+      ?'Fundstellen zur Pseudonymisierung übernommen.'
+      :'Fundstellen von der Pseudonymisierung ausgenommen.');
   }
 
   function suppressOne(hit: Finding): void {
@@ -686,6 +715,7 @@
     ignoredTerms = [];
     replacementRules = {};
     selectionReplacementMode = 'default';
+    bulkDeselectedIds = [];
     syntheticSeed = newSyntheticSeed();
     dateShiftEnabled = true;
     dateOffsetMode = 'random';
@@ -1236,24 +1266,16 @@
 
       <section class="settings-section" aria-labelledby="settings-detection">
         <h3 id="settings-detection">{t("Automatische Erkennung")}</h3>
-        <label class="settings-toggle">
-          <input type="checkbox" checked={enabledKinds.NUMBER!==false}
-            onchange={event=>changeDetectionKind('NUMBER',event.currentTarget.checked)}/>
-          <span><strong>{t("Zahlen erkennen")}</strong><small>{t("Zum Beispiel 12,48 Euro, 74 Kilo oder 128 Zentimeter. Aufzählungsnummern bleiben unverändert.")}</small></span>
-        </label>
-        <details class="settings-details">
-          <summary>{t("Weitere Kategorien einzeln einstellen")}</summary>
-          <div class="detection-category-grid">
-            {#each detectionKinds as kind}
-              <label class="detection-category-option">
-                <input type="checkbox" checked={enabledKinds[kind]!==false}
-                  onchange={event=>changeDetectionKind(kind,event.currentTarget.checked)}/>
-                <span>{t(KIND_LABELS[kind])}</span>
-              </label>
-            {/each}
-          </div>
-          <p>{t("Das Ausschalten verhindert die automatische Erkennung in dieser Kategorie. Manuelle Markierungen bleiben möglich.")}</p>
-        </details>
+        <div class="detection-category-grid">
+          {#each detectionKinds as kind}
+            <label class="detection-category-option">
+              <input type="checkbox" checked={enabledKinds[kind]!==false}
+                onchange={event=>changeDetectionKind(kind,event.currentTarget.checked)}/>
+              <span>{t(KIND_LABELS[kind])}</span>
+            </label>
+          {/each}
+        </div>
+        <p class="settings-note">{t("Das Ausschalten verhindert die automatische Erkennung in dieser Kategorie. Manuelle Markierungen bleiben möglich.")}</p>
         <details class="settings-details">
           <summary>{t("Lexika und Quellen")}</summary>
           <p>{#if lexiconCounts}
@@ -1317,13 +1339,45 @@
   </dialog>
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
-    <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
-      onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select'))) event.preventDefault(); }}
+    <div class:selection-popover--bulk={selectionHits.length>=2} class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
+      onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select,input,label'))) event.preventDefault(); }}
       role="dialog" tabindex="-1" aria-label={t("Textauswahl pseudonymisieren")}>
       <div class="selection-popover-heading">
-        <strong>{t("Auswahl pseudonymisieren")}</strong>
+        <strong>{selectionHits.length>=2 ? selectionHits.length+' '+t("Fundstellen in Auswahl") : t("Auswahl pseudonymisieren")}</strong>
         <button class="popover-close" type="button" aria-label={t("Auswahlmenü schließen")} onclick={() => quickAction = null}>×</button>
       </div>
+      {#if selectionHits.length>=2}
+        <div class="selection-bulk-list" aria-label={t("Fundstellen im markierten Bereich")}>
+          {#each selectionHits as hit (hit.id)}
+            <label class="selection-bulk-item">
+              <input type="checkbox" checked={!bulkDeselectedIds.includes(hit.id)}
+                aria-label={t("Fundstelle auswählen: ")+hit.text}
+                onchange={event=>bulkDeselectedIds=event.currentTarget.checked
+                  ? bulkDeselectedIds.filter(id=>id!==hit.id)
+                  : [...bulkDeselectedIds,hit.id]}/>
+              <span class="selection-bulk-item-text">
+                <strong title={hit.text}>{hit.text}</strong>
+                <small>{t(KIND_LABELS[hit.kind])} · {pendingIds.has(hit.id)?t("Vorschlag"):activeIds.has(hit.id)?t("Wird pseudonymisiert"):t("Nicht ersetzt")}</small>
+              </span>
+            </label>
+          {/each}
+        </div>
+        {#if bulkDeselectedIds.length}
+          <button type="button" class="selection-bulk-select-all" onclick={()=>bulkDeselectedIds=[]}>{t("Alle auswählen")}</button>
+        {/if}
+        <label class="selection-mode-control">
+          {t("Ersetzen durch")}
+          <select aria-label={t("Ersetzung für Textauswahl")} bind:value={selectionReplacementMode}>
+            <option value="default">{t("Standard")}</option>
+            <option value="token">{t("Platzhalter")}</option>
+            <option value="synthetic">{t("Pseudonym (Namen und Orte)")}</option>
+          </select>
+        </label>
+        <div class="selection-bulk-actions">
+          <button type="button" class="selection-bulk-confirm" disabled={!bulkChosenHits.length} onclick={()=>applyBulkSelection('mask')}>{t("Ausgewählte pseudonymisieren")} ({bulkChosenHits.length})</button>
+          <button type="button" class="selection-bulk-ignore" disabled={!bulkChosenHits.length} onclick={()=>applyBulkSelection('exclude')}>{t("Ausgewählte nicht ersetzen")}</button>
+        </div>
+      {:else}
       <label class="selection-mode-control">
         {t("Ersetzen durch")}
         <select aria-label={t("Ersetzung für Textauswahl")} bind:value={selectionReplacementMode}>
@@ -1347,6 +1401,7 @@
           <option value={kind}>{t(KIND_LABELS[kind])}</option>
         {/each}
       </select>
+      {/if}
     </div>
   {/if}
 
