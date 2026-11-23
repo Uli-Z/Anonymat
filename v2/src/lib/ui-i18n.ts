@@ -273,7 +273,13 @@ const ENGLISH:Readonly<Record<string,string>>={
   " löschen": " delete",
   "Datum \"": "Date \"",
   "Zahlenformat Tag/Monat nicht eindeutig": "Ambiguous day/month number format",
-  "Ungültiger Tag oder Monat": "Invalid day or month"
+  "Ungültiger Tag oder Monat": "Invalid day or month",
+  ". Klicken oder antippen zum Bearbeiten.": ". Click or tap to edit.",
+  "Anonymat 2.0 – Texte lokal pseudonymisieren und wiederherstellen. Offline und ohne Datenübertragung.": "Anonymat 2.0 – Pseudonymize and restore text locally, offline, without transmitting data.",
+  "und": "and",
+  "Die Mustererkennung hat": "Pattern detection found",
+  "Es gibt noch": "There are still",
+  "Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ...": "Example: Ms Anna Müller, email: anna.mueller@example.org, phone: +49 421 12345678…"
 };
 export function translate(language:Language,key:string):string{
   return language==='en'?(ENGLISH[key] ?? key):key;
