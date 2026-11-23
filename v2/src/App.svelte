@@ -756,8 +756,26 @@
 
 <div class="app-shell">
   <dialog class="first-run-dialog" bind:this={firstRunDialog} aria-labelledby="first-run-title" aria-describedby="first-run-summary" oncancel={event=>event.preventDefault()}>
-    <div class="settings-header">
-      <h2 id="first-run-title">{t("Wichtiger Hinweis zur Pseudonymisierung")}</h2>
+    <div class="first-run-header">
+      <div class="first-run-heading">
+        <div class="first-run-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.1">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7.7v5.6"/>
+            <circle cx="12" cy="16.8" r=".65" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+        <h2 id="first-run-title">{t("Wichtiger Hinweis zur Pseudonymisierung")}</h2>
+      </div>
+      <div class="first-run-language">
+        <label for="first-run-language">{t("Sprache")}</label>
+        <select id="first-run-language" value={languagePreference}
+          onchange={event=>setLanguagePreference(event.currentTarget.value as LanguagePreference)}>
+          <option value="auto">{t('Automatisch (Browsersprache)')}</option>
+          <option value="de">Deutsch</option>
+          <option value="en">English</option>
+        </select>
+      </div>
     </div>
     <div class="settings-body first-run-body">
       <p id="first-run-summary">{t("Anonymat unterstützt die Pseudonymisierung von Texten, garantiert aber weder eine vollständige noch eine fehlerfreie Erkennung. Persönliche Angaben können übersehen, falsch ersetzt oder durch den Zusammenhang weiterhin erkennbar sein. Das Ergebnis ist nicht automatisch anonym.")}</p>
