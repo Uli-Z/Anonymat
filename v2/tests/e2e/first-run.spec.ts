@@ -40,15 +40,26 @@ test.describe('initial warning in German', () => {
 test.describe('language picker inside initial warning', () => {
   test.use({ locale: 'de-DE' });
 
-  test('switches all warning text immediately, persists the choice, and offers browser language again', async ({ page }) => {
+  test('shows only a flag until opened and labels automatic German explicitly', async ({ page }) => {
     await page.goto(html);
     const notice = page.locator('dialog.first-run-dialog');
-    const picker = notice.getByRole('combobox', { name: 'Sprache' });
-    await expect(picker).toHaveValue('auto');
-    await expect(notice).toHaveAttribute('aria-labelledby', 'first-run-title');
-    await expect(notice.locator('.first-run-symbol svg')).toBeVisible();
+    const trigger = notice.locator('.first-run-language-toggle');
+    const menu = notice.locator('.first-run-language-menu');
+    await expect(trigger).toHaveAttribute('aria-label', 'Sprache ändern');
+    await expect(trigger).toContainText('🇩🇪');
+    await expect(menu).not.toBeVisible();
+    await expect(notice.locator('.first-run-symbol')).toBeVisible();
 
-    await picker.selectOption('en');
+    await trigger.click();
+    await expect(menu).toBeVisible();
+    await expect(menu.locator('.first-run-language-choice').first()).toContainText('Automatisch (Deutsch)');
+    await expect(menu.locator('.first-run-language-choice').first()).toHaveAttribute('aria-pressed','true');
+    await expect(menu).toContainText('🇬🇧');
+    await expect(notice).toHaveAttribute('aria-labelledby', 'first-run-title');
+
+    await menu.getByRole('button', { name: /English/ }).click();
+    await expect(menu).not.toBeVisible();
+    await expect(trigger).toContainText('🇬🇧');
     await expect(notice.getByRole('heading', { name: 'Important information about pseudonymization' })).toBeVisible();
     await expect(notice).toContainText('The result is not automatically anonymous.');
     await expect(notice.getByRole('checkbox', { name: 'I have read and understood this information.' })).not.toBeChecked();
@@ -56,17 +67,23 @@ test.describe('language picker inside initial warning', () => {
 
     await page.reload();
     await expect(notice.getByRole('heading', { name: 'Important information about pseudonymization' })).toBeVisible();
-    await expect(notice.getByRole('combobox', { name: 'Language' })).toHaveValue('en');
+    await trigger.click();
+    await expect(menu.getByRole('button', { name: /English/ })).toHaveAttribute('aria-pressed','true');
+    await expect(menu.getByRole('button', { name: /Automatic \(German\)/ })).toBeVisible();
 
-    await notice.getByRole('combobox', { name: 'Language' }).selectOption('auto');
+    await menu.getByRole('button', { name: /Automatic \(German\)/ }).click();
     await expect(notice.getByRole('heading', { name: 'Wichtiger Hinweis zur Pseudonymisierung' })).toBeVisible();
-    await expect(notice.getByRole('combobox', { name: 'Sprache' })).toHaveValue('auto');
+    await trigger.click();
+    await expect(menu.getByRole('button', { name: /Automatisch \(Deutsch\)/ })).toHaveAttribute('aria-pressed','true');
 
-    await notice.getByRole('combobox', { name: 'Sprache' }).selectOption('en');
+    await menu.getByRole('button', { name: /English/ }).click();
     await notice.getByRole('checkbox', { name: 'I have read and understood this information.' }).check();
     await notice.getByRole('button', { name: 'I understand – Start Anonymat' }).click();
     await page.getByRole('button', { name: 'Open settings' }).click();
-    await expect(page.locator('#ui-language')).toHaveValue('en');
+    const settings = page.locator('#ui-language');
+    await expect(settings).toHaveValue('en');
+    await expect(settings.locator('option[value="auto"]')).toContainText('Automatic (German)');
+    await expect(settings.locator('option[value="de"]')).toContainText('🇩🇪 Deutsch');
   });
 });
 
@@ -79,6 +96,10 @@ test.describe('initial warning in English', () => {
     await expect(notice).toBeVisible();
     await expect(notice).toContainText('The result is not automatically anonymous.');
     await expect(notice).toContainText('does not send it to a server');
+    await notice.locator('.first-run-language-toggle').click();
+    await expect(notice.locator('.first-run-language-menu')).toContainText('Automatic (English)');
+    await expect(notice.locator('.first-run-language-choice[aria-pressed="true"]')).toContainText('Automatic (English)');
+    await notice.locator('.first-run-language-toggle').click();
     const start = notice.getByRole('button', { name: 'I understand – Start Anonymat' });
     await expect(start).toBeDisabled();
     await notice.getByRole('checkbox', { name: 'I have read and understood this information.' }).check();
