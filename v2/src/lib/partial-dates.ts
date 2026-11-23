@@ -129,7 +129,8 @@ function getParsed(
   if(kind==='day-text'){
     const p=/^(\d{1,2})(\.)?\s+(?:(de)\s+)?([\p{L}]{3,}\.?)$/iu.exec(full);
     if(!p)return null;
-    const month=monthInfo(p[4],p[3]?'es':p[2]?'de':undefined);
+    const month=monthInfo(p[4],p[3]?'es':p[2]?'de':
+      /^[a-zà-ÿ]/u.test(p[4])?'fr':undefined);
     if(!month)return null;
     const day=+p[1];
     const result:PartialMatch={...base,precision:'day-month',style:'day-first',month:month.month,

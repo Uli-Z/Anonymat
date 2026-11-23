@@ -127,7 +127,9 @@ function parseCandidate(hit:RegExpMatchArray,style:typeof SCANNERS[number]['styl
     const p=/^(\d{1,2})(\.)?\s+(?:(de)\s+)?([\p{L}]+\.?)\s+(?:(de)\s+)?(\d{4})$/iu.exec(body);
     if(!p)return null;
     const [,day,dot,pre,monthWord,post,year]=p;
-    const hint:DateLanguage|null=(pre||post)?'es':dot?'de':null;
+    // "mai" is French and "Mai" German; preserve the source language.
+    const hint:DateLanguage|null=(pre||post)?'es':dot?'de':
+      /^[a-zà-ÿ]/u.test(monthWord)?'fr':null;
     const month=chooseMonth(monthWord,hint,weekday,false);
     if(!month)return null;
     language=month.language;format='day-first';dayDot=!!dot;
