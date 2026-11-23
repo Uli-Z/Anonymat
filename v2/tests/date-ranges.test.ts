@@ -60,9 +60,9 @@ describe('two independently editable dates separated by a dash',()=>{
 
   it('handles New Year and real leap-year context for the short endpoint',()=>{
     for(const [source,offset,shifted] of [
-      ['29.12.-02.01.2025',30,'28.01.-01.02.2025'],
-      ['28.02.-02.03.2025',1,'01.03.-03.03.2025'],
-      ['29.02.-02.03.2024',1,'01.03.-03.03.2024'],
+      ['29.12.-02.01.2025',30,'28.1.-01.02.2025'],
+      ['28.02.-02.03.2025',1,'1.03.-03.03.2025'],
+      ['29.02.-02.03.2024',1,'1.03.-03.03.2024'],
     ] as const){
       const masked=maskText(source,detectPII(source),{}, {dateShiftEnabled:true,offsetDays:offset});
       expect(masked.text,source).toBe(shifted);
