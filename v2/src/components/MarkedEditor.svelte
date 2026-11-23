@@ -25,6 +25,27 @@
   let { value, marks, onChange, onSelect, onHit, onViewportChange }: Props = $props();
   let host: HTMLDivElement;
   let view: EditorView | undefined;
+  let selectionFrame = 0;
+  let viewportFrame = 0;
+
+  function nativeSelectionRect(): DOMRect | undefined {
+    if (!view) return undefined;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0
+      || !view.dom.contains(selection.anchorNode) || !view.dom.contains(selection.focusNode)) return undefined;
+    const rects = selection.getRangeAt(0).getClientRects();
+    return rects.length ? rects[rects.length - 1] : undefined;
+  }
+
+  function scheduleSelectionSync(): void {
+    window.cancelAnimationFrame(selectionFrame);
+    selectionFrame = window.requestAnimationFrame(() => {
+      selectionFrame = 0;
+      if (!view) return;
+      const {from,to} = view.state.selection.main;
+      onSelect(from,to,selectionAnchor());
+    });
+  }
 
   const changeMarks = StateEffect.define<EditorMark[]>();
 
@@ -98,8 +119,9 @@
               const { from, to } = update.state.selection.main;
               // The initial selection must remain available even while
               // CodeMirror is still laying out the selection during typing.
-              const rect = to > from ? view?.coordsAtPos(to) : null;
+              const rect = to > from ? (nativeSelectionRect() ?? view?.coordsAtPos(to)) : null;
               onSelect(from, to, rect ? {x: rect.left, y: rect.bottom, top: rect.top} : undefined);
+              if (to > from) scheduleSelectionSync();
             }
           }),
           EditorView.domEventHandlers({
@@ -120,11 +142,19 @@
     view.dispatch({ effects: changeMarks.of(marks) });
     // CodeMirror scrolls inside its own scroller. Fixed-position menus must
     // track the actual text coordinates rather than the original mouse event.
-    const notifyViewport = () => onViewportChange();
+    const notifyViewport = () => {
+      window.cancelAnimationFrame(viewportFrame);
+      viewportFrame = window.requestAnimationFrame(() => {
+        viewportFrame = 0;
+        onViewportChange();
+      });
+    };
     view.scrollDOM.addEventListener('scroll', notifyViewport, { passive: true });
     window.addEventListener('scroll', notifyViewport, true);
     window.addEventListener('resize', notifyViewport);
     return () => {
+      window.cancelAnimationFrame(selectionFrame);
+      window.cancelAnimationFrame(viewportFrame);
       view?.scrollDOM.removeEventListener('scroll', notifyViewport);
       window.removeEventListener('scroll', notifyViewport, true);
       window.removeEventListener('resize', notifyViewport);
@@ -156,10 +186,13 @@
 
   export function selectionAnchor(): { x: number; y: number; top: number } | undefined {
     if (!view || view.state.selection.main.empty) return undefined;
+    // A DOM range reflects the painted selection even when CodeMirror has not
+    // yet measured the caret position for this editor transaction.
+    const native = nativeSelectionRect();
+    if (native && visibleAt(native)) {
+      return {x: native.right, y: native.bottom, top: native.top};
+    }
     const rect = view.coordsAtPos(view.state.selection.main.to);
-    // coordsAtPos returns null for positions outside the rendered viewport.
-    // Avoid a second clipping test here: it can incorrectly reject a
-    // selection while CodeMirror is scrolling the caret into view.
     return rect ? { x: rect.left, y: rect.bottom, top: rect.top } : undefined;
   }
 
