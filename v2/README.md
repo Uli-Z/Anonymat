@@ -1,6 +1,6 @@
 # Anonymat 2.0 — source and development
 
-This directory contains the current Anonymat application (Svelte 5, TypeScript, CodeMirror). **[Use the app](https://uli-z.github.io/Anonymat/)** · [Project overview](../README.md) · [v2.0.0 release](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.0).
+This directory contains the current Anonymat application (Svelte 5, TypeScript, CodeMirror). **[Use the app](https://uli-z.github.io/Anonymat/)** · [Project overview](../README.md) · [v2.0.1 release](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.1).
 
 Anonymat pseudonymizes text entirely in the browser. Automatic detections can be corrected manually. Unsupported or uncertain findings require human review; pseudonymization is not a guarantee of anonymity.
 

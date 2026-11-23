@@ -1,5 +1,5 @@
 import { scanPartialDates } from './partial-dates';
-import { scanDates, scanDateRanges, type NumericDateOrder } from './dates';
+import { scanDates, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
 import { scanNumbers } from './numbers';
@@ -58,15 +58,23 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   const add=(kind:Kind,start:number,value:string,confidence?:Finding['confidence']):void=>{
     if(value.trim())candidates.push(candidate(kind,start,value,'automatic','auto',confidence));
   };
-  const dateRanges=scanDateRanges(text);
+  const fullDates=scanDates(text,{numericOrder}).matches;
+  const partialDates=scanPartialDates(text,{numericOrder});
+  // A short date followed by a dash and a full date is TWO date findings.
+  // Guard the two real dates against the general telephone regex without
+  // converting the complete expression into a separate range finding.
+  const connectedDates=partialDates.filter(partial=>partial.precision==='day-month')
+    .flatMap(partial=>fullDates.filter(full=>
+      full.start>partial.end && full.start-partial.end<=8
+      && /^\s*[-–—]\s*$/u.test(text.slice(partial.end,full.start))
+    ).map(full=>({start:partial.start,end:full.end})));
   for(const hit of scanStructuredPII(text)){
-    // A valid date interval can resemble a phone number. Date semantics win.
-    if(hit.kind==='PHONE' && dateRanges.some(range=>hit.start<range.end && range.start<hit.start+hit.text.length))continue;
+    if(hit.kind==='PHONE' && connectedDates.some(pair=>
+      hit.start<pair.end && pair.start<hit.start+hit.text.length))continue;
     add(hit.kind,hit.start,hit.text);
   }
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
-  for(const hit of dateRanges)add('DATE',hit.start,hit.text);
-  for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
+  for(const hit of fullDates)add('DATE',hit.start,hit.text);
   // Two-digit years are century-ambiguous: protect with a DATE token, never
   // silently interpret or shift them to a guessed calendar year.
   const shortYear=/(?<![\p{L}\p{N}])(\d{1,2})([./-])(\d{1,2})\2(\d{2})(?![\p{L}\p{N}])/gu;
@@ -75,11 +83,17 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
     const limit=[31,29,31,30,31,30,31,31,30,31,30,31][month-1];
     if(limit && day>=1 && day<=limit)add('DATE',match.index,match[0]);
   }
-  for(const hit of scanPartialDates(text,{numericOrder}))add('DATE',hit.start,hit.text);
+  for(const hit of partialDates)add('DATE',hit.start,hit.text);
   for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);
-  // Numbers come last: dates, identifiers and addresses win on equal spans.
-  if(enableNumbers)for(const hit of scanNumbers(text))add('NUMBER',hit.start,hit.text);
+  // Numbers are the last-resort fallback. A longer "number" such as
+  // "-10.01.2025" must never outrank a valid DATE, ID, address or other
+  // recognized entity just because it includes a leading dash.
+  if(enableNumbers)for(const hit of scanNumbers(text)){
+    if(candidates.some(item=>item.kind!=='NUMBER'
+      && hit.start<item.end && item.start<hit.end))continue;
+    add('NUMBER',hit.start,hit.text);
+  }
   return removeOverlaps(candidates);
 }
 

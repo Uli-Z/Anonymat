@@ -6,7 +6,7 @@
  * and stay protected by tokens.
  */
 import {
-  MONTHS, SHORT_MONTHS, scanDates, scanDateRanges, shiftIsoDay, calendarDayDifference,
+  MONTHS, SHORT_MONTHS, scanDates, shiftIsoDay, calendarDayDifference,
   type DateLanguage, type NumericDateOrder
 } from './dates';
 
@@ -152,7 +152,7 @@ function getParsed(
 /** Positions refer to the exact identified sub-expression; context words stay outside. */
 export function scanPartialDates(source:string,options:PartialDateOptions={}):PartialMatch[]{
   const full=scanDates(source,{numericOrder:options.numericOrder});
-  const protectedSpans=[...scanDateRanges(source),...full.matches,...full.issues];
+  const protectedSpans=[...full.matches,...full.issues];
   const proposals:PartialMatch[]=[];
   for(const scanner of scanners)for(const hit of source.matchAll(scanner.re)){
     const rawBody=hit.groups?.body;
