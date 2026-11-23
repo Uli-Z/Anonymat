@@ -400,7 +400,7 @@
   }
 
   function restoreOne(hit: Finding): void {
-    if(hit.confidence==='review' && hit.origin==='automatic'){
+    if(hit.confidence==='review'){
       setManualMark(hit.start,hit.end,hit.kind);
       return;
     }
