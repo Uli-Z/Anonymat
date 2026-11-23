@@ -84,6 +84,7 @@
       hit.origin==='manual'?'manuell bestätigt':'durch Mustererkennung';
     return {
       id:hit.id,start:hit.start,end:hit.end,review,
+      ignored:false,manual:hit.origin==='manual',
       tooltip:(review?'Vorschlag – noch nicht pseudonymisiert':'Wird pseudonymisiert')
         +' · '+KIND_LABELS[hit.kind]+' · '+origin+'. Klicken oder antippen zum Bearbeiten.'
     };
@@ -395,7 +396,7 @@
     menu = null;
     quickAction = null;
     selectedRange = {from: 0, to: 0};
-    notice = 'Auswahl anonymisiert. Der Begriff wird im ganzen Text wiedererkannt.';
+    notice = 'Auswahl wird pseudonymisiert. Bei aktiviertem Gedächtnis gilt die Regel auch für spätere Texte.';
   }
 
   function addManual(kind: Kind): void {
