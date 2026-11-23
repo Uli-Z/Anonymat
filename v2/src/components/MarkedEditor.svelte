@@ -19,9 +19,10 @@
     onChange: (value: string, changes: ChangeDesc) => void;
     onSelect: (from: number, to: number, position?: {x: number; y: number}) => void;
     onHit: (id: string, rect: DOMRect) => void;
+    onViewportChange: () => void;
   }
 
-  let { value, marks, onChange, onSelect, onHit }: Props = $props();
+  let { value, marks, onChange, onSelect, onHit, onViewportChange }: Props = $props();
   let host: HTMLDivElement;
   let view: EditorView | undefined;
 
@@ -95,8 +96,8 @@
             if (update.docChanged) onChange(update.state.doc.toString(), update.changes);
             if (update.selectionSet || update.docChanged) {
               const { from, to } = update.state.selection.main;
-              const rect = to > from ? view?.coordsAtPos(to) : null;
-              onSelect(from, to, rect ? {x: rect.left, y: rect.bottom} : undefined);
+              const anchor = selectionAnchor();
+              onSelect(from, to, anchor);
             }
           }),
           EditorView.domEventHandlers({
@@ -115,7 +116,16 @@
       })
     });
     view.dispatch({ effects: changeMarks.of(marks) });
+    // CodeMirror scrolls inside its own scroller. Fixed-position menus must
+    // track the actual text coordinates rather than the original mouse event.
+    const notifyViewport = () => onViewportChange();
+    view.scrollDOM.addEventListener('scroll', notifyViewport, { passive: true });
+    window.addEventListener('scroll', notifyViewport, true);
+    window.addEventListener('resize', notifyViewport);
     return () => {
+      view?.scrollDOM.removeEventListener('scroll', notifyViewport);
+      window.removeEventListener('scroll', notifyViewport, true);
+      window.removeEventListener('resize', notifyViewport);
       view?.destroy();
       view = undefined;
     };
@@ -132,6 +142,31 @@
       view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: next } });
     }
   });
+
+  function visibleAt(rect: { top: number; bottom: number; left: number; right: number }): boolean {
+    if (!view) return false;
+    const scroller = view.scrollDOM.getBoundingClientRect();
+    return rect.bottom > Math.max(scroller.top, 0)
+      && rect.top < Math.min(scroller.bottom, window.innerHeight)
+      && rect.right > Math.max(scroller.left, 0)
+      && rect.left < Math.min(scroller.right, window.innerWidth);
+  }
+
+  export function selectionAnchor(): { x: number; y: number; top: number } | undefined {
+    if (!view || view.state.selection.main.empty) return undefined;
+    const rect = view.coordsAtPos(view.state.selection.main.to);
+    return rect && visibleAt(rect) ? { x: rect.left, y: rect.bottom, top: rect.top } : undefined;
+  }
+
+  export function hitAnchor(id: string): DOMRect | undefined {
+    if (!view) return undefined;
+    for (const span of view.dom.querySelectorAll<HTMLElement>('.cm-anonymat-hit')) {
+      if (span.dataset.hitId !== id) continue;
+      const rect = span.getBoundingClientRect();
+      if (visibleAt(rect)) return rect;
+    }
+    return undefined;
+  }
 
   export function focus(): void {
     view?.focus();
