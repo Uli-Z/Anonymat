@@ -6,7 +6,7 @@ export interface Finding {
   text: string;
   start: number;
   end: number;
-  origin: 'automatic' | 'manual';
+  origin: 'automatic' | 'manual' | 'learned';
   /** An uncertain lexicon-only candidate is shown but not replaced until confirmed. */
   confidence?: 'certain' | 'probable' | 'review';
 }

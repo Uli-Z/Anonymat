@@ -2,11 +2,13 @@ import type { Finding } from './detect';
 import type { ReviewedDocument } from './session';
 import type { MaskedResult, DateMaskOptions } from './replace';
 import type { ReplacementRule } from './replacement-strategies';
+import type { LearnedRule } from './learned-rules';
 export interface AnalysisRequest {
   type:'analyze';
   id:number;
   text:string;
   manual:Finding[];
+  learned?:LearnedRule[];
   ignoredPlaces:Finding[];
   ignoredTerms:string[];
   numericOrder:'auto'|'DMY'|'MDY';

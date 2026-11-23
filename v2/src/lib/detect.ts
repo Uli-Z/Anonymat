@@ -10,6 +10,7 @@ import { scanStreetLexicon } from './street-lexicon';
  * document-wide detection term (with Unicode-aware word boundaries).
  */
 import { overlaps } from './detect-types';
+import type { LearnedRule } from './learned-rules';
 export { KIND_LABELS, sameTerm, overlaps } from './detect-types';
 export type { Kind, Finding } from './detect-types';
 import type { Kind, Finding } from './detect-types';
@@ -27,8 +28,9 @@ function candidate(kind:Kind,start:number,value:string,origin:Finding['origin'],
  */
 export function removeOverlaps(findings:Finding[]):Finding[] {
   if(!findings.length)return [];
+  const rank=(hit:Finding):number=>hit.origin==='manual'?4:hit.origin==='learned' && hit.confidence!=='review'?3:hit.origin==='automatic' && hit.confidence!=='review'?2:hit.origin==='learned'?1:0;
   const priority=[...findings].sort((a,b)=>
-    Number(b.origin==='manual')-Number(a.origin==='manual')
+    rank(b)-rank(a)
     ||(b.end-b.start)-(a.end-a.start)||a.start-b.start
   );
   let maxEnd=0;
@@ -76,10 +78,13 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
  * Automatic detection -> learned terms -> explicit source-anchored overrides.
  * Manual classifications outrank automatic, even when they split a larger hit.
  */
-export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto',enableCities=true):Finding[]{
+export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto',enableCities=true,remembered:readonly LearnedRule[]=[]):Finding[]{
   const inferred=detectPII(text,numericOrder,enableCities);
   const manual:Finding[]=[];
-  const learned=new Map<string,{term:string;kind:Kind;anchorId:string}>();
+  const learned=new Map<string,{term:string;kind:Kind;anchorId:string;stored:boolean;autoApply:boolean}>();
+  for(const rule of remembered){
+    if(rule.term && rule.key)learned.set(rule.key,{term:rule.term,kind:rule.kind,anchorId:rule.key,stored:true,autoApply:rule.autoApply});
+  }
   for(const anchor of anchors){
     if(text.slice(anchor.start,anchor.end)!==anchor.text)continue;
     manual.push(anchor);
@@ -94,13 +99,14 @@ export function scanDocument(text:string,anchors:readonly Finding[],numericOrder
     }
     for(const term of terms){
       const key=term.toLocaleLowerCase('de');
-      if(key && !learned.has(key))learned.set(key,{term,kind:anchor.kind,anchorId:anchor.id});
+      if(key)learned.set(key,{term,kind:anchor.kind,anchorId:anchor.id,stored:false,autoApply:true});
     }
   }
   for(const hit of findTerms(text,[...learned.values()].map(rule=>rule.term))){
     const rule=learned.get(hit.term.toLocaleLowerCase('de'));
     if(!rule)continue;
-    manual.push(candidate(rule.kind,hit.start,hit.text,'manual','repeated-'+rule.anchorId));
+    manual.push(candidate(rule.kind,hit.start,hit.text,rule.stored?'learned':'manual','repeated-'+rule.anchorId,
+      rule.stored && !rule.autoApply?'review':undefined));
   }
   return mergeManual(inferred,manual);
 }

@@ -1,5 +1,6 @@
 import type { NumericDateOrder } from './dates';
 import { scanDocument, overlaps, type Finding, type Kind } from './detect';
+import type { LearnedRule } from './learned-rules';
 
 export interface TermGroup {
   key: string;
@@ -8,6 +9,7 @@ export interface TermGroup {
   count: number;
   activeCount: number;
   manual: boolean;
+  learned: boolean;
   review: boolean;
 }
 export interface ReviewedDocument {
@@ -25,9 +27,10 @@ export function reviewDocument(
   ignoredPlaces: readonly Finding[],
   ignoredTerms: readonly string[],
   numericOrder: NumericDateOrder = 'auto',
-  enableCities = true
+  enableCities = true,
+  learnedRules: readonly LearnedRule[] = []
 ): ReviewedDocument {
-  const findings = scanDocument(source, manualAnchors, numericOrder, enableCities);
+  const findings = scanDocument(source, manualAnchors, numericOrder, enableCities, learnedRules);
   const excluded=new Set(ignoredTerms.map(term=>term.normalize('NFC').toLocaleLowerCase('de')));
   const active = findings.filter(hit =>
     (hit.origin==='manual' || hit.confidence!=='review')
@@ -40,12 +43,13 @@ export function reviewDocument(
     const key=hit.kind+':'+hit.text.normalize('NFC').toLocaleLowerCase('de');
     let group=map.get(key);
     if(!group){
-      group={key,text:hit.text,kind:hit.kind,count:0,activeCount:0,manual:false,review:false};
+      group={key,text:hit.text,kind:hit.kind,count:0,activeCount:0,manual:false,learned:false,review:false};
       map.set(key,group);
     }
     group.count++;
     if(activeIds.has(hit.id))group.activeCount++;
     if(hit.origin==='manual')group.manual=true;
+    if(hit.origin==='learned')group.learned=true;
     if(hit.confidence==='review')group.review=true;
   }
   return {findings,active,groups:[...map.values()]};
