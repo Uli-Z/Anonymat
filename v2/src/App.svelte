@@ -913,36 +913,28 @@
     </div>
     <div class="faq-body settings-body">
       <section>
-        <h3>Wie anonymisiere ich eine nicht erkannte Textstelle?</h3>
-        <p>Markiere die Stelle im Originaltext. Im eingeblendeten Menü kannst du „Sonstiges“ für einen allgemeinen Platzhalter oder direkt eine Kategorie wie Name, Datum oder Ort wählen. Weitere Kategorien stehen im Auswahlmenü.</p>
+        <h3>Wofür ist Anonymat da?</h3>
+        <p>Anonymat hilft dabei, persönliche Angaben in Texten zu erkennen und durch Platzhalter zu ersetzen. So kannst du Texte beispielsweise für die Nutzung mit einer KI vorbereiten.</p>
       </section>
       <section>
-        <h3>Wie korrigiere ich eine automatische Erkennung?</h3>
-        <p>Klicke auf die farbig markierte Textstelle. Du kannst den Platzhalter-Typ ändern oder eine Erkennung an dieser Stelle beziehungsweise im gesamten Text ignorieren. Unter „Ersetzungen anzeigen“ lassen sich Begriffe und Ersatzwerte gesammelt prüfen.</p>
+        <h3>Warum läuft Anonymat im Browser?</h3>
+        <p>Dein Browser lädt das Programm wie eine Webseite und führt es dann auf deinem eigenen Gerät aus. Du musst nichts installieren.</p>
       </section>
       <section>
-        <h3>Was bedeuten die Markierungsfarben?</h3>
-        <p>Gelb steht für automatisch erkannte Angaben, Blau für noch nicht bestätigte Prüfvorschläge, Grün für manuell ergänzte Regeln und Grau für ignorierte Treffer.</p>
+        <h3>Werden meine Texte oder Änderungen übertragen?</h3>
+        <p>Nein. Anonymat verarbeitet deine Eingaben auf deinem Gerät und sendet sie nicht an den Server. Erst wenn du einen Text selbst an einen anderen Dienst weitergibst, verlässt er diesen geschützten Bereich.</p>
       </section>
       <section>
-        <h3>Werden gleiche Begriffe mehrfach ersetzt?</h3>
-        <p>Ja. Manuell markierte Begriffe werden im gesamten Text wiedererkannt. Mit aktiviertem lokalem Gedächtnis erscheinen sie auch in späteren Texten als Vorschläge. Optional kannst du eine automatische Übernahme erlauben.</p>
+        <h3>Wird etwas gespeichert?</h3>
+        <p>Dein aktueller Text wird nicht dauerhaft gespeichert. Wenn du das optionale lokale Gedächtnis einschaltest, merkt sich dein Browser bestätigte Begriffe für spätere Texte. Diese kannst du wieder löschen.</p>
       </section>
       <section>
-        <h3>Was passiert mit Datumsangaben?</h3>
-        <p>Kalenderdaten werden standardmäßig um denselben zufälligen Tagesabstand verschoben, damit Zeitabstände erhalten bleiben. Unter „Einstellungen“ kannst du die Verschiebung ändern oder deaktivieren. Mehrdeutige Daten müssen geprüft werden.</p>
+        <h3>Was ist der Unterschied zwischen anonym und pseudonymisiert?</h3>
+        <p>Bei einer Pseudonymisierung werden Angaben wie Namen durch Platzhalter ersetzt; eine Zuordnung zur Person kann trotzdem noch möglich sein. Anonym bedeutet, dass eine Person nicht mehr identifiziert werden kann.</p>
       </section>
       <section>
-        <h3>Wie funktioniert die Rückübersetzung?</h3>
-        <p>Kopiere den geprüften Text mit seinen Platzhaltern in ein externes Werkzeug. Füge dessen Antwort unten ein: Bekannte Platzhalter werden wieder durch die Originalangaben ersetzt. Die Platzhalter dürfen dabei nicht umbenannt werden.</p>
-      </section>
-      <section>
-        <h3>Werden meine Texte hochgeladen oder gespeichert?</h3>
-        <p>Die Verarbeitung erfolgt im Browser. Vollständige Texte und Platzhalter-Zuordnungen werden nicht dauerhaft gespeichert. Mit deiner Zustimmung werden ausschließlich manuell bestätigte Begriffe und ihre Kategorien in IndexedDB gespeichert. Auch diese können personenbezogen sein; du kannst sie in den Einstellungen löschen. Beim Neuladen wird der aktuelle Text verworfen.</p>
-      </section>
-      <section>
-        <h3>Ist das Ergebnis wirklich anonym?</h3>
-        <p>Nein, Platzhalter und verschobene Daten bewirken zunächst eine Pseudonymisierung. Indirekt identifizierende Angaben und übersehene Treffer können erhalten bleiben. Lies den vollständigen Ergebnistext vor einer externen Weitergabe kritisch durch.</p>
+        <h3>Kann ich mich auf das Ergebnis verlassen?</h3>
+        <p>Nicht vollständig. Anonymat kann Angaben übersehen oder Zusammenhänge nicht erkennen, durch die Personen trotzdem erkennbar bleiben. Es ist ein Hilfsmittel und keine Garantie: Du bist selbst dafür verantwortlich, den Text zu prüfen und zu entscheiden, was du weitergibst.</p>
       </section>
     </div>
   </dialog>
