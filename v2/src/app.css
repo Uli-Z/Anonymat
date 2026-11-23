@@ -205,6 +205,10 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .settings-details{margin-top:18px;font-size:12px;color:#4e6575}
 .settings-details summary{cursor:pointer;font-weight:650}
 .settings-details p{margin-top:10px}
+.detection-category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;margin-top:12px}
+.detection-category-option{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#344d5c}
+.detection-category-option input{accent-color:#0b6570;flex:none}
+@media(max-width:440px){.detection-category-grid{grid-template-columns:1fr}}
 .settings-footer{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 25px;border-top:1px solid #e7edf1;background:#fbfcfd;flex-shrink:0}
 .settings-footer span{color:#718292;font-size:11px}
 .analysis-banner{background:#f2f8fa;border:1px solid #d8e9ed;border-radius:11px;margin:0 0 17px;padding:13px 16px;color:#2a4f5b}

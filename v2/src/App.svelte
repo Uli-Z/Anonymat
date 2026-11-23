@@ -2,7 +2,7 @@
   import type { ChangeDesc } from '@codemirror/state';
   import { onMount } from 'svelte';
   import MarkedEditor from './components/MarkedEditor.svelte';
-  import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind } from './lib/detect-types';
+  import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind, type DetectionSettings } from './lib/detect-types';
   import type { ReviewedDocument, TermGroup } from './lib/session';
   import type { AnalysisMessage, AnalysisRequest } from './lib/analysis-protocol';
   import ScanWorker from './workers/analysis.worker?worker&inline';
@@ -16,9 +16,10 @@
   import type { MappingEntry } from './lib/replace';
   import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
 
-  const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'OTHER'];
+  const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'NUMBER', 'OTHER'];
   const quickKinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'DATE', 'CITY'];
   const extraKinds = kinds.filter(kind => kind !== 'OTHER' && !quickKinds.includes(kind));
+  const detectionKinds = kinds.filter(kind => kind !== 'OTHER' && kind !== 'NUMBER');
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
@@ -50,7 +51,8 @@
   let markedEditor: MarkedEditor | undefined;
   let findingsDialog: HTMLDialogElement | undefined;
   let resultVisible = $state(false);
-  let cityLexiconEnabled = $state(true);
+  // Numbers are enabled by default in the UI; settings persist across texts.
+  let enabledKinds = $state<DetectionSettings>({NUMBER:true});
   let analysisVersion = $state(0);
   let isAnalyzing = $state(false);
   let analysisProgress = $state(0);
@@ -141,6 +143,18 @@
       const replacementPreference=localStorage.getItem('anonymat-replacement-default-v1');
       if(replacementPreference==='token'||replacementPreference==='synthetic')
         replacementDefault=replacementPreference;
+      const detectionPreference=localStorage.getItem('anonymat-detection-v1');
+      if(detectionPreference){
+        const saved:unknown=JSON.parse(detectionPreference);
+        if(saved && typeof saved==='object' && !Array.isArray(saved)){
+          const next:DetectionSettings={NUMBER:true};
+          for(const kind of kinds){
+            const value=(saved as Record<string,unknown>)[kind];
+            if(typeof value==='boolean')next[kind]=value;
+          }
+          enabledKinds=next;
+        }
+      }
     }catch{ /* Private browsing can restrict site storage. */ }
     consentState=pref;
     if(pref==='on'){
@@ -157,6 +171,12 @@
     replacementDefault=value;
     try{localStorage.setItem('anonymat-replacement-default-v1',value);}catch{
       // A browser without storage can still use this preference for this session.
+    }
+  }
+  function changeDetectionKind(kind:Kind,checked:boolean):void{
+    enabledKinds={...enabledKinds,[kind]:checked};
+    try{localStorage.setItem('anonymat-detection-v1',JSON.stringify(enabledKinds));}catch{
+      // The current tab still works when browser storage is unavailable.
     }
   }
   function recordLearning(term:string,kind:Kind):void{
@@ -277,7 +297,8 @@
     const request:AnalysisRequest={
       type:'analyze',id:++latestJob,text:source,
       manual:$state.snapshot(manual),learned:consentState==='on'?$state.snapshot(learnedRules):[],ignoredPlaces:$state.snapshot(ignoredPlaces),
-      ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,cityLexiconEnabled,
+      ignoredTerms:$state.snapshot(ignoredTerms),numericOrder,
+      cityLexiconEnabled:enabledKinds.CITY!==false,enabledKinds:$state.snapshot(enabledKinds),
       rules:$state.snapshot(replacementRules),
       dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder,defaultReplacementMode:replacementDefault,syntheticSeed}
     };
@@ -636,7 +657,6 @@
     syntheticSeed = newSyntheticSeed();
     dateShiftEnabled = true;
     dateOffsetMode = 'random';
-    cityLexiconEnabled = true;
     analysisError = '';
     dateOffset = randomDateOffset();
     numericOrder = 'auto';
@@ -1130,9 +1150,23 @@
       <section class="settings-section" aria-labelledby="settings-detection">
         <h3 id="settings-detection">Automatische Erkennung</h3>
         <label class="settings-toggle">
-          <input type="checkbox" bind:checked={cityLexiconEnabled}/>
-          <span><strong>Europäische Ortsnamen erkennen</strong><small>Lokale Wörterbücher und Kontextregeln helfen bei der Ortserkennung.</small></span>
+          <input type="checkbox" checked={enabledKinds.NUMBER!==false}
+            onchange={event=>changeDetectionKind('NUMBER',event.currentTarget.checked)}/>
+          <span><strong>Zahlen erkennen</strong><small>Zum Beispiel 12,48 Euro, 74 Kilo oder 128 Zentimeter. Aufzählungsnummern bleiben unverändert.</small></span>
         </label>
+        <details class="settings-details">
+          <summary>Weitere Kategorien einzeln einstellen</summary>
+          <div class="detection-category-grid">
+            {#each detectionKinds as kind}
+              <label class="detection-category-option">
+                <input type="checkbox" checked={enabledKinds[kind]!==false}
+                  onchange={event=>changeDetectionKind(kind,event.currentTarget.checked)}/>
+                <span>{KIND_LABELS[kind]}</span>
+              </label>
+            {/each}
+          </div>
+          <p>Das Ausschalten verhindert die automatische Erkennung in dieser Kategorie. Manuelle Markierungen bleiben möglich.</p>
+        </details>
         <details class="settings-details">
           <summary>Lexika und Quellen</summary>
           <p>{#if lexiconCounts}

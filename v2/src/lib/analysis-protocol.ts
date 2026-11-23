@@ -3,6 +3,7 @@ import type { ReviewedDocument } from './session';
 import type { MaskedResult, DateMaskOptions } from './replace';
 import type { ReplacementRule } from './replacement-strategies';
 import type { LearnedRule } from './learned-rules';
+import type { DetectionSettings } from './detect-types';
 export interface AnalysisRequest {
   type:'analyze';
   id:number;
@@ -13,6 +14,8 @@ export interface AnalysisRequest {
   ignoredTerms:string[];
   numericOrder:'auto'|'DMY'|'MDY';
   cityLexiconEnabled:boolean;
+  /** Optional automatic detection categories; manual marks remain explicit. */
+  enabledKinds?:DetectionSettings;
   rules:Record<string,ReplacementRule>;
   dateOptions:DateMaskOptions;
 }

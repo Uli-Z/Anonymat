@@ -2,6 +2,7 @@ import { scanPartialDates } from './partial-dates';
 import { scanDates, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
+import { scanNumbers } from './numbers';
 import { scanPersonNames } from './person-names';
 import { scanCities } from './geography';
 import { scanStreetLexicon } from './street-lexicon';
@@ -52,7 +53,7 @@ export function removeOverlaps(findings:Finding[]):Finding[] {
 export function mergeManual(auto:Finding[],manual:Finding[]):Finding[]{
   return removeOverlaps([...manual,...auto]);
 }
-export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enableCities=true):Finding[]{
+export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enableCities=true,enableNumbers=false):Finding[]{
   const candidates:Finding[]=[];
   const add=(kind:Kind,start:number,value:string,confidence?:Finding['confidence']):void=>{
     if(value.trim())candidates.push(candidate(kind,start,value,'automatic','auto',confidence));
@@ -71,6 +72,8 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   for(const hit of scanPartialDates(text,{numericOrder}))add('DATE',hit.start,hit.text);
   for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);
+  // Numbers come last: dates, identifiers and addresses win on equal spans.
+  if(enableNumbers)for(const hit of scanNumbers(text))add('NUMBER',hit.start,hit.text);
   return removeOverlaps(candidates);
 }
 
@@ -78,8 +81,8 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
  * Automatic detection -> learned terms -> explicit source-anchored overrides.
  * Manual classifications outrank automatic, even when they split a larger hit.
  */
-export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto',enableCities=true,remembered:readonly LearnedRule[]=[]):Finding[]{
-  const inferred=detectPII(text,numericOrder,enableCities);
+export function scanDocument(text:string,anchors:readonly Finding[],numericOrder:NumericDateOrder='auto',enableCities=true,remembered:readonly LearnedRule[]=[],enableNumbers=false):Finding[]{
+  const inferred=detectPII(text,numericOrder,enableCities,enableNumbers);
   const manual:Finding[]=[];
   const learned=new Map<string,{term:string;kind:Kind;anchorId:string;stored:boolean}>();
   for(const rule of remembered){

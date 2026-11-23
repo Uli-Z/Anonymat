@@ -74,3 +74,25 @@ test('source editor stays the same height while findings change',async({page})=>
   await page.getByRole('button',{name:'Ersetzungen schließen'}).click();
   await expect(page.locator('dialog.findings-dialog')).not.toBeVisible();
 });
+
+test('number detection toggle persists and affects the next text',async({page})=>{
+  const settings=page.locator('dialog.settings-dialog');
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  const numbers=settings.getByRole('checkbox',{name:/Zahlen erkennen/});
+  await expect(numbers).toBeChecked();
+  await settings.getByText('Weitere Kategorien einzeln einstellen').click();
+  await expect(settings.getByRole('checkbox',{name:'IBAN'})).toBeChecked();
+  await numbers.uncheck();
+  await settings.getByRole('button',{name:'Schließen',exact:true}).click();
+  await page.locator('.cm-content').fill('Die Länge beträgt 128 cm.');
+  await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
+  await expect(page.locator('.preview')).toContainText('128 cm');
+  await page.getByRole('button',{name:/Neuer Text/}).click();
+  await page.getByRole('button',{name:'Einstellungen öffnen'}).click();
+  await expect(numbers).not.toBeChecked();
+  await numbers.check();
+  await settings.getByRole('button',{name:'Schließen',exact:true}).click();
+  await page.locator('.cm-content').fill('Die Länge beträgt 128 cm.');
+  await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
+  await expect(page.locator('.preview')).toContainText('[NUMBER_001] cm');
+});

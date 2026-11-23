@@ -7,7 +7,7 @@ export function analyze(request:AnalysisRequest,progress?:(stage:'detect'|'repla
   progress?.('detect',20);
   const reviewed=reviewDocument(
     request.text,request.manual,request.ignoredPlaces,request.ignoredTerms,
-    request.numericOrder,request.cityLexiconEnabled,request.learned ?? []
+    request.numericOrder,request.cityLexiconEnabled,request.learned ?? [],request.enabledKinds ?? {}
   );
   progress?.('replace',75);
   const prepared=maskText(request.text,reviewed.active,request.rules,request.dateOptions,reviewed.pending);

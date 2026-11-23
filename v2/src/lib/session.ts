@@ -1,6 +1,7 @@
 import type { NumericDateOrder } from './dates';
 import { scanDocument, overlaps, type Finding, type Kind } from './detect';
 import type { LearnedRule } from './learned-rules';
+import type { DetectionSettings } from './detect-types';
 
 export interface TermGroup {
   key: string;
@@ -29,9 +30,13 @@ export function reviewDocument(
   ignoredTerms: readonly string[],
   numericOrder: NumericDateOrder = 'auto',
   enableCities = true,
-  learnedRules: readonly LearnedRule[] = []
+  learnedRules: readonly LearnedRule[] = [],
+  enabledKinds: DetectionSettings = {}
 ): ReviewedDocument {
-  const findings = scanDocument(source, manualAnchors, numericOrder, enableCities, learnedRules);
+  // Resolve collisions first: disabling IBAN or DATE must not reveal their
+  // constituent digits as automatic NUMBER replacements.
+  const findings = scanDocument(source, manualAnchors, numericOrder, enableCities, learnedRules,
+    enabledKinds.NUMBER === true).filter(hit => hit.origin === 'manual' || enabledKinds[hit.kind] !== false);
   const excluded=new Set(ignoredTerms.map(term=>term.normalize('NFC').toLocaleLowerCase('de')));
   const active = findings.filter(hit =>
     (hit.origin==='manual' || hit.confidence!=='review')
