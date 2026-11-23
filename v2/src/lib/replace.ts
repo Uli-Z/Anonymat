@@ -1,5 +1,6 @@
 import { parseDate, scanDates, shiftIsoDay, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
+import { syntheticReplacement, supportsSynthetic } from './synthetic';
 import { scanPartialDates, parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
 import {
   replacementKey, validateCustomToken,
@@ -19,6 +20,14 @@ export interface MaskedResult {
   warnings: string[];
   /** Positions in the masked output that remain unmodified, unconfirmed review proposals. */
   reviewSpans: Array<{start:number;end:number;text:string}>;
+  /** Exact output offsets for every committed replacement, including shifted dates. */
+  replacementSpans: ReplacementSpan[];
+}
+export interface ReplacementSpan {
+  start:number;
+  end:number;
+  text:string;
+  mode:'token'|'synthetic'|'shift-date';
 }
 export interface RestoredResult {
   text: string;
@@ -29,6 +38,8 @@ export interface DateMaskOptions {
   dateShiftEnabled?: boolean;
   offsetDays?: number;
   numericOrder?: NumericDateOrder;
+  defaultReplacementMode?: 'token' | 'synthetic';
+  syntheticSeed?: number;
 }
 const TOKEN_PATTERN = /\[[A-Z][A-Z0-9_]{2,63}\]/g;
 
@@ -65,6 +76,8 @@ export function maskText(
   const mapping: MappingEntry[] = [];
   const dates: DateReplacement[] = [];
   const partialDates: ShiftedPartial[] = [];
+  const replacementSpans:ReplacementSpan[]=[];
+  const syntheticAssignments=new Map<string,string>();
   // Resolve contextual partials by original offsets (e.g. "im März" marks just "März").
   const partialBySpan=new Map(scanPartialDates(source,{numericOrder:dateOptions.numericOrder})
     .map(hit=>[hit.start+':'+hit.end,hit] as const));
@@ -90,6 +103,13 @@ export function maskText(
     output+=source.slice(pos,end);
   }
 
+  function appendReplacement(sourceStart:number,sourceEnd:number,value:string,mode:ReplacementSpan['mode']):void{
+    appendUnchanged(sourceStart);
+    replacementSpans.push({start:output.length,end:output.length+value.length,text:value,mode});
+    output+=value;
+    pos=sourceEnd;
+  }
+
   // Reserve names requested by user rules to prevent generated token clashes.
   const reserved = new Set(Object.values(rules)
     .filter((rule): rule is Extract<ReplacementRule, {mode:'custom-token'}> => rule.mode === 'custom-token')
@@ -108,10 +128,8 @@ export function maskText(
       const changed=parsed && validOffset ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);
-        appendUnchanged(match.start);
-        output+=shifted;
+        appendReplacement(match.start,match.end,shifted,'shift-date');
         dates.push({original:match.text,shifted,shiftedIso:changed});
-        pos=match.end;
         continue;
       }
       const partial=!parsed
@@ -124,9 +142,8 @@ export function maskText(
         ?shiftIsoDay(originalIso,offset as number):null;
       if(shiftedIso && originalIso && partial){
         const shifted=formatPartialLike(shiftedIso,partial);
-        output+=source.slice(pos,match.start)+shifted;
+        appendReplacement(match.start,match.end,shifted,'shift-date');
         partialDates.push({original:match.text,shifted,originalIso,shiftedIso});
-        pos=match.end;
         continue;
       }
       if(weekdayNear){
@@ -140,7 +157,13 @@ export function maskText(
     const key=match.kind+':'+match.text; // exact spelling for a lossless restore
     let token=existing.get(key);
     if(!token){
-      if(spec?.mode==='custom-token') {
+      const wantsSynthetic=spec?.mode==='synthetic' || (!spec && dateOptions.defaultReplacementMode==='synthetic');
+      if(wantsSynthetic && supportsSynthetic(match.kind)){
+        const proposed=syntheticReplacement(match.kind,match.text,dateOptions.syntheticSeed??0,source,syntheticAssignments);
+        if(proposed && !used.has(proposed) && !preexistingTokens.has(proposed))token=proposed;
+        else warnings.push('Für "'+match.text+'" war kein eindeutiges Pseudonym verfügbar; stattdessen Platzhalter verwendet.');
+      }
+      if(!token && spec?.mode==='custom-token') {
         const error=validateCustomToken(spec.token);
         if(error || preexistingTokens.has(spec.token) || used.has(spec.token)) {
           warnings.push('Ersatzwert für '+match.text+' ist nicht eindeutig oder ungültig.');
@@ -159,26 +182,33 @@ export function maskText(
       used.set(token,key);
       mapping.push({token,original:match.text,kind:match.kind});
     }
-    appendUnchanged(match.start);
-    output += token;
-    pos=match.end;
+    appendReplacement(match.start,match.end,token,token.startsWith('[')?'token':'synthetic');
   }
   appendUnchanged(source.length);
-  return {text:output,mapping,dates,partialDates,warnings,reviewSpans};
+  return {text:output,mapping,dates,partialDates,warnings,reviewSpans,replacementSpans};
 }
 
+function escapeRegex(value:string):string{
+  return value.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g,'\\$&');
+}
 export function restoreText(input:string,mapping:readonly MappingEntry[]):RestoredResult{
   const lookup=new Map(mapping.map(entry=>[entry.token,entry.original]));
   const seen=new Set<string>();
   const unknown:string[]=[];
-  // One pass: do not accidentally replace placeholders within original values.
-  const text=input.replace(TOKEN_PATTERN,token=>{
-    if(lookup.has(token)){
-      seen.add(token);
-      return lookup.get(token)!;
+  // Match all surrogates in one pass, longest first. Never rewrite text that
+  // has already been restored, and avoid matching a name inside a longer word.
+  const alternatives=[...lookup.keys()].sort((a,b)=>b.length-a.length).map(value=>
+    value.startsWith('[')?escapeRegex(value):
+      '(?<![\\p{L}\\p{N}\\p{M}-])'+escapeRegex(value)+'(?![\\p{L}\\p{N}\\p{M}-])'
+  );
+  const pattern=new RegExp([...alternatives,'\\[[A-Z][A-Z0-9_]{2,63}\\]'].join('|'),'gu');
+  const text=input.replace(pattern,value=>{
+    if(lookup.has(value)){
+      seen.add(value);
+      return lookup.get(value)!;
     }
-    if(!unknown.includes(token))unknown.push(token);
-    return token;
+    if(!unknown.includes(value))unknown.push(value);
+    return value;
   });
   return {
     text,
@@ -186,15 +216,27 @@ export function restoreText(input:string,mapping:readonly MappingEntry[]):Restor
     unknown
   };
 }
-export interface PreviewPart {value:string;token:boolean;review?:boolean}
+export interface PreviewPart {
+  value:string;
+  token:boolean;
+  review?:boolean;
+  replaced?:boolean;
+  mode?:ReplacementSpan['mode'];
+}
 export function splitForPreview(
   value:string,
-  reviews:readonly {start:number;end:number;text:string}[]=[]
+  reviews:readonly {start:number;end:number;text:string}[]=[],
+  replacements?:readonly ReplacementSpan[]
 ):PreviewPart[]{
   const parts:PreviewPart[]=[];
   const addPlain=(from:number,to:number):void=>{
     if(to<=from)return;
     const segment=value.slice(from,to);
+    if(replacements!==undefined){
+      parts.push({value:segment,token:false});
+      return;
+    }
+    // Backward compatible helper for callers that do not supply output spans.
     let last=0;
     for(const match of segment.matchAll(TOKEN_PATTERN)){
       if(match.index>last)parts.push({value:segment.slice(last,match.index),token:false});
@@ -203,13 +245,18 @@ export function splitForPreview(
     }
     if(last<segment.length)parts.push({value:segment.slice(last),token:false});
   };
+  const events:Array<{start:number;end:number;text:string;review?:boolean;mode?:ReplacementSpan['mode']}>=
+    [...reviews.map(entry=>({...entry,review:true})),
+      ...(replacements??[]).map(entry=>({...entry,review:false}))];
+  events.sort((a,b)=>a.start-b.start);
   let pos=0;
-  for(const review of [...reviews].sort((a,b)=>a.start-b.start)){
-    if(review.start<pos || review.end>value.length || review.start>=review.end
-      || value.slice(review.start,review.end)!==review.text)continue;
-    addPlain(pos,review.start);
-    parts.push({value:review.text,token:false,review:true});
-    pos=review.end;
+  for(const event of events){
+    if(event.start<pos || event.end>value.length || event.start>=event.end
+      || value.slice(event.start,event.end)!==event.text)continue;
+    addPlain(pos,event.start);
+    if(event.review)parts.push({value:event.text,token:false,review:true});
+    else parts.push({value:event.text,token:event.mode==='token',replaced:true,mode:event.mode});
+    pos=event.end;
   }
   addPlain(pos,value.length);
   return parts;
