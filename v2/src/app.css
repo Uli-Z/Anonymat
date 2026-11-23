@@ -165,9 +165,9 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .settings-trigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid #dce6e9;background:#fff;color:#355d64;border-radius:9px;font-size:12px;font-weight:700;padding:9px 11px;white-space:nowrap}
 .settings-trigger:hover,.settings-trigger:focus-visible{background:#edf7f7;border-color:#b8d9d7}
 .settings-trigger svg{width:16px;height:16px;flex:none}
-.settings-dialog{width:min(560px,calc(100vw - 28px));max-height:min(760px,calc(100dvh - 28px));margin:auto;padding:0;border:1px solid #dce5e9;border-radius:16px;background:#fff;color:#243647;box-shadow:0 22px 90px rgba(16,38,48,.24);overflow:hidden}
-.settings-dialog[open]{display:flex;flex-direction:column}
-.settings-dialog::backdrop{background:rgba(15,32,45,.52)}
+.settings-dialog,.faq-dialog{width:min(560px,calc(100vw - 28px));max-height:min(760px,calc(100dvh - 28px));margin:auto;padding:0;border:1px solid #dce5e9;border-radius:16px;background:#fff;color:#243647;box-shadow:0 22px 90px rgba(16,38,48,.24);overflow:hidden}
+.settings-dialog[open],.faq-dialog[open]{display:flex;flex-direction:column}
+.settings-dialog::backdrop,.faq-dialog::backdrop{background:rgba(15,32,45,.52)}
 .settings-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:23px 25px 18px;border-bottom:1px solid #e7edf1;flex-shrink:0}
 .settings-header h2{font-size:21px;letter-spacing:-.5px;margin:0 0 5px}
 .settings-header p{font-size:12px;color:#748595;margin:0}
@@ -211,7 +211,7 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   .selection-default{flex-direction:column;align-items:flex-start;gap:2px}
   .settings-trigger span{display:none}
   .topbar-actions{gap:9px}
-  .settings-dialog{max-height:calc(100dvh - 14px);width:calc(100vw - 14px);border-radius:12px}
+  .settings-dialog,.faq-dialog{max-height:calc(100dvh - 14px);width:calc(100vw - 14px);border-radius:12px}
   .settings-header{padding:18px}
   .settings-body{padding:0 18px}
   .settings-footer{padding:13px 18px}
