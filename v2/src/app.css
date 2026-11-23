@@ -292,3 +292,31 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 @media(max-width:680px){
   .analysis-banner{right:10px;bottom:10px;width:calc(100vw - 20px)}
 }
+
+/* Browser-only learning: compact modal and optional management table. */
+.review-dialog,.consent-dialog{
+  width:min(520px,calc(100vw - 28px));max-height:calc(100dvh - 28px);
+  margin:auto;padding:0;border:1px solid #dce5e9;border-radius:16px;
+  background:#fff;color:#243647;box-shadow:0 22px 90px rgba(16,38,48,.24);overflow:hidden;
+}
+.review-dialog[open],.consent-dialog[open]{display:flex;flex-direction:column}
+.review-dialog::backdrop,.consent-dialog::backdrop{background:rgba(15,32,45,.52)}
+.review-dialog .settings-body,.consent-dialog .settings-body{padding-top:19px;padding-bottom:15px}
+.review-dialog .settings-body p,.consent-dialog .settings-body p{font-size:13px;line-height:1.6;color:#506675;margin:0 0 12px}
+.review-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;padding:15px 25px 21px}
+.selection-remember{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12px;color:#4d6472;cursor:pointer}
+.selection-remember input{accent-color:#0b6570}
+.learned-list{display:flex;flex-direction:column;max-height:260px;overflow:auto;border:1px solid #e1eaee;border-radius:9px;margin:15px 0}
+.learned-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(100px,135px) auto auto;align-items:center;gap:10px;padding:9px 11px;border-bottom:1px solid #edf1f3;font-size:12px}
+.learned-row:last-child{border-bottom:0}
+.learned-row strong{font-weight:650;overflow-wrap:anywhere}
+.learned-row select{min-width:0;width:100%;border:1px solid #d8e5e7;border-radius:6px;background:#fff;padding:6px;font-size:12px}
+.learned-row label{white-space:nowrap;display:flex;align-items:center;gap:5px}
+.learned-row input{accent-color:#0b6570}
+.learned-row button{font-size:11px;padding:6px 8px}
+@media(max-width:680px){
+  .review-dialog,.consent-dialog{width:calc(100vw - 14px);max-height:calc(100dvh - 14px);border-radius:12px}
+  .review-actions{padding:12px 18px 17px}
+  .review-actions button{flex:1 1 auto}
+  .learned-row{grid-template-columns:minmax(80px,1fr) minmax(90px,1fr);gap:8px}
+}
