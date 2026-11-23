@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 
 const html = pathToFileURL(resolve('dist/index.html')).href;
 
+test.setTimeout(12000);
 test.beforeEach(async ({ page }) => {
   // Test the actual standalone file, not only the Vite development server.
   await page.goto(html);
@@ -46,6 +47,13 @@ test('manual highlights persist after editing elsewhere and can be removed', asy
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
   for (let i = 0; i < 8; i++) await page.keyboard.press('Shift+ArrowLeft');
+  console.log('DEBUG_SELECTION', await page.evaluate(() => ({
+    domSelection: window.getSelection()?.toString(),
+    appRange: document.querySelector('.app-shell')?.getAttribute('data-debug-selection'),
+    appPopup: document.querySelector('.app-shell')?.getAttribute('data-debug-popover'),
+    popoverCount: document.querySelectorAll('.selection-popover').length,
+    activeElement: document.activeElement?.className
+  })));
 
   await page.locator('.selection-popover').getByRole('button', { name: /Sonstiges/ }).click();
   await expect(page.locator('.cm-anonymat-manual')).toHaveCount(1);
