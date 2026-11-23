@@ -24,6 +24,18 @@ Datumsverschiebung ist **standardmäßig aktiviert**: Ein gemeinsamer kryptograp
 
 Ein offline eingebettetes europäisches Ortslexikon mit einem POS-basierten Abgleich gegen gewöhnliche deutsche Wörter ergänzt die Regeln; für die GitHub-Pages-Version wird es beim Build aus GeoNames (CC BY 4.0) erstellt. Die mitgelieferte Entwicklungsversion enthält eine kleinere Startliste. Siehe [Ortslexikon und Grenzen](docs/CITY_LEXICON.md).
 
+## Sprachen der Oberfläche
+
+Die Benutzeroberfläche ist auf **Deutsch und Englisch** verfügbar. Beim ersten Öffnen gilt
+automatisch die bevorzugte Browsersprache (einschließlich `de-DE`, `de-AT`,
+`en-US`, `en-GB` usw.); wenn keine der beiden Sprachen konfiguriert ist,
+wird Englisch verwendet. In **Einstellungen → Sprache** kann zwischen
+**Automatisch (Browsersprache)**, **Deutsch** und **English** gewechselt werden.
+Eine ausdrücklich gewählte Sprache wird lokal im Browser gespeichert; mit
+„Automatisch“ wird diese Festlegung gelöscht. Die Umschaltung erfordert
+kein erneutes Laden und verändert weder Originaltexte noch Ersetzungsdaten.
+Die Anwendung bleibt vollständig offline nutzbar.
+
 ## Entwicklung
 
 Voraussetzung: Node.js 22.12+.
