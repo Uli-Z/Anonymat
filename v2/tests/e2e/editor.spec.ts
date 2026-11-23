@@ -114,7 +114,7 @@ test('selecting an unknown word learns repeated words throughout the document', 
   const editor = page.locator('.cm-content');
   await editor.fill('Bitte FREIGABE und später FREIGABE.');
   // Wait for the initial scan and select the second occurrence from the end.
-  // The persistent selection toolbar works equally with keyboard and pointer.
+  // The contextual selection popover works equally with keyboard and pointer.
   await expect(page.getByRole('button', {name:/Ergebnis prüfen/})).toBeEnabled();
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
@@ -183,7 +183,7 @@ test('manual selection offers named categories in one popover, without a second 
 test('selection popover follows visible text when the editor itself scrolls', async ({page}) => {
   const lines = Array.from({length: 65},(_,i)=> 'Abschnitt ' + i);
   lines[59] = 'Sonderwort';
-  await page.locator('.cm-content').fill(lines.join('\\n'));
+  await page.locator('.cm-content').fill(lines.join('\n'));
   const editor = page.locator('.cm-content');
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
