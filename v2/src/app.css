@@ -109,6 +109,8 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
   padding:12px;box-shadow:0 12px 38px rgba(17,47,61,.22);
 }
 .selection-popover-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px}
+.selection-mode-control{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;color:#526b78;font-size:11px}
+.selection-mode-control select{min-width:0;max-width:76%;padding:7px;border:1px solid #d6e1e7;border-radius:7px;background:#fff;color:#253548;font-size:12px}
 .selection-popover-heading strong{font-size:12px;font-weight:750;color:#2c4251}
 .selection-popover .popover-close{border:0;background:transparent;color:#788c98;font-size:21px;padding:0 3px;line-height:1}
 .selection-default{
