@@ -878,6 +878,9 @@
                         </div>
                       {/if}
                     {/if}
+                    {#if group.activeCount>0 && group.activeCount<group.count}
+                      <button type="button" class="restore-group-button" onclick={() => toggleGroup(group,true)}>Alle Stellen wieder ersetzen</button>
+                    {/if}
                     {#if group.kind==='DATE' && group.activeCount>0}
                       <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
                         Ersetzen als
@@ -957,7 +960,7 @@
     <div class="faq-body settings-body">
       <section>
         <h3>Wofür ist Anonymat da?</h3>
-        <p>Anonymat hilft dabei, persönliche Angaben in Texten zu erkennen und durch Platzhalter zu ersetzen. So kannst du Texte beispielsweise für die Nutzung mit einer KI vorbereiten.</p>
+        <p>Anonymat hilft dir, Texte zu pseudonymisieren: Persönliche Angaben werden durch Platzhalter ersetzt oder beispielsweise Datumsangaben verschoben. Du kannst den Text danach für die Nutzung mit einer KI vorbereiten.</p>
       </section>
       <section>
         <h3>Warum läuft Anonymat im Browser?</h3>
@@ -969,15 +972,15 @@
       </section>
       <section>
         <h3>Wird etwas gespeichert?</h3>
-        <p>Dein aktueller Text wird nicht dauerhaft gespeichert. Wenn du das optionale lokale Gedächtnis einschaltest, merkt sich dein Browser bestätigte Begriffe für spätere Texte. Diese kannst du wieder löschen.</p>
+        <p>Dein aktueller Text und die Zuordnungen zu Platzhaltern werden nicht dauerhaft gespeichert. Mit deiner Zustimmung speichert das lokale Gedächtnis einzelne bestätigte Originalbegriffe im Browser und pseudonymisiert sie bei neuen Texten automatisch. Diese Begriffe kannst du jederzeit löschen.</p>
       </section>
       <section>
-        <h3>Was ist der Unterschied zwischen anonym und pseudonymisiert?</h3>
-        <p>Bei einer Pseudonymisierung werden Angaben wie Namen durch Platzhalter ersetzt; eine Zuordnung zur Person kann trotzdem noch möglich sein. Anonym bedeutet, dass eine Person nicht mehr identifiziert werden kann.</p>
+        <h3>Warum heißt es Anonymat, obwohl nur pseudonymisiert wird?</h3>
+        <p>„Anonymat“ ist der kurze Programmname, keine Garantie für Anonymität. Das Programm pseudonymisiert: Es ersetzt oder verändert direkte Angaben wie Namen und Daten. Durch verbleibende Informationen oder Zusammenhänge können Personen weiterhin erkennbar sein. Eine echte Anonymisierung erfordert, dass eine Identifizierung praktisch nicht mehr möglich ist.</p>
       </section>
       <section>
         <h3>Kann ich mich auf das Ergebnis verlassen?</h3>
-        <p>Nicht vollständig. Anonymat kann Angaben übersehen oder Zusammenhänge nicht erkennen, durch die Personen trotzdem erkennbar bleiben. Es ist ein Hilfsmittel und keine Garantie: Du bist selbst dafür verantwortlich, den Text zu prüfen und zu entscheiden, was du weitergibst.</p>
+        <p>Nein, nicht ohne eigene Prüfung. Anonymat kann Angaben übersehen, Vorschläge unbestätigt lassen oder Zusammenhänge übersehen, durch die Personen erkennbar bleiben. Das Programm ist nur ein Hilfsmittel zur Pseudonymisierung. Du bist selbst dafür verantwortlich, den gesamten Text zu prüfen, bevor du ihn weitergibst.</p>
       </section>
     </div>
   </dialog>
