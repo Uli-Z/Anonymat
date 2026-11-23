@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { EditorState, StateEffect, type ChangeDesc } from '@codemirror/state';
+  import { EditorState, StateEffect, Compartment, type ChangeDesc } from '@codemirror/state';
+  import { translate, type Language } from '../lib/ui-i18n';
   import { EditorView, Decoration, ViewPlugin, type ViewUpdate, type DecorationSet, keymap, placeholder } from '@codemirror/view';
   import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 
@@ -16,6 +17,7 @@
 
   interface Props {
     value: string;
+    language: Language;
     marks: EditorMark[];
     onChange: (value: string, changes: ChangeDesc) => void;
     onSelect: (from: number, to: number, position?: {x: number; y: number; top: number}) => void;
@@ -23,11 +25,18 @@
     onViewportChange: () => void;
   }
 
-  let { value, marks, onChange, onSelect, onHit, onViewportChange }: Props = $props();
+  let { value, language, marks, onChange, onSelect, onHit, onViewportChange }: Props = $props();
   let host: HTMLDivElement;
   let view: EditorView | undefined;
   let selectionFrame = 0;
   let viewportFrame = 0;
+  const uiLanguage = new Compartment();
+  function localizedEditorExtensions(lang:Language){
+    return [
+      placeholder(translate(lang,'Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ...')),
+      EditorView.contentAttributes.of({ 'aria-label':translate(lang,'Originaltext'), spellcheck:'false' })
+    ];
+  }
 
   function nativeSelectionRect(): DOMRect | undefined {
     if (!view) return undefined;
@@ -113,8 +122,7 @@
           history(),
           keymap.of([...defaultKeymap, ...historyKeymap]),
           highlights,
-          placeholder('Beispiel: Frau Anna Müller, E-Mail: anna.mueller@example.org, Telefon: +49 421 12345678 ...'),
-          EditorView.contentAttributes.of({ 'aria-label': 'Originaltext', spellcheck: 'false' }),
+          uiLanguage.of(localizedEditorExtensions(language)),
           EditorView.updateListener.of(update => {
             if (update.docChanged) onChange(update.state.doc.toString(), update.changes);
             if (update.selectionSet || update.docChanged) {
@@ -163,6 +171,11 @@
       view?.destroy();
       view = undefined;
     };
+  });
+
+  $effect(() => {
+    const nextLanguage = language;
+    if (view) view.dispatch({ effects: uiLanguage.reconfigure(localizedEditorExtensions(nextLanguage)) });
   });
 
   $effect(() => {
