@@ -1,7 +1,7 @@
 /** Locale-independent calendar-day shifting. Never use local timestamps or Date.parse. */
 export type DateLanguage='de'|'en'|'fr'|'es';
 export type NumericDateOrder='auto'|'DMY'|'MDY';
-export interface DateOptions{numericOrder?:NumericDateOrder}
+export interface DateOptions{numericOrder?:NumericDateOrder;restoreDerivedDates?:boolean}
 type Style='iso'|'numeric'|'day-first'|'month-first';
 export interface DateMatch{
   start:number;end:number;text:string;iso:string;language:DateLanguage;style:Style;
@@ -216,33 +216,91 @@ export function randomDateOffset():number{
   const n=buffer[0]%count;
   return (n<count/2?-1:1)*(30+n%(count/2));
 }
-/** Reverse only dates actually exported by this session; unknown dates are not touched. */
-export function restoreShiftedDates(source:string,shiftedIsos:readonly string[],offset:number,options:DateOptions={}):DateRestoreResult{
-  if(!shiftedIsos.length)return {text:source,warnings:[],changed:0};
-  const remaining=new Map<string,number>();
-  for(const iso of shiftedIsos)remaining.set(iso,(remaining.get(iso)??0)+1);
+/**
+ * German date ranges whose first endpoint omits its year, e.g.
+ * "06.01.-10.01.2025". The year is inferred solely from the explicit end:
+ * a start month/day later than the end belongs to the previous year.
+ */
+export interface DateRangeMatch{
+  start:number;end:number;text:string;startIso:string;endIso:string;join:string;
+  startPadDay:boolean;startPadMonth:boolean;endPadDay:boolean;endPadMonth:boolean;
+}
+const DATE_RANGE=/(?<![\p{L}\p{N}])(\d{1,2})\.(\d{1,2})\.(\s*[-–—]\s*)(\d{1,2})\.(\d{1,2})\.(\d{4})(?![\p{L}\p{N}])/gu;
+function dateField(n:number,padded:boolean):string{return String(n).padStart(padded?2:1,'0');}
+export function scanDateRanges(source:string):DateRangeMatch[]{
+  const found:DateRangeMatch[]=[];
+  for(const hit of source.matchAll(DATE_RANGE)){
+    const [,firstDay,firstMonth,join,lastDay,lastMonth,year]=hit;
+    const end=toIso(+year,+lastMonth,+lastDay);
+    if(!end)continue;
+    const crossing=+firstMonth>+lastMonth || (+firstMonth===+lastMonth && +firstDay>+lastDay);
+    const start=toIso(+year-(crossing?1:0),+firstMonth,+firstDay);
+    if(!start)continue;
+    const length=calendarDayDifference(start,end);
+    if(length===null||length<0||length>366)continue;
+    found.push({
+      start:hit.index,end:hit.index+hit[0].length,text:hit[0],startIso:start,endIso:end,join,
+      startPadDay:firstDay.length===2,startPadMonth:firstMonth.length===2,
+      endPadDay:lastDay.length===2,endPadMonth:lastMonth.length===2
+    });
+  }
+  return found;
+}
+export function parseDateRange(text:string):DateRangeMatch|null{
+  return scanDateRanges(text).find(hit=>hit.start===0&&hit.end===text.length)??null;
+}
+export function shiftDateRange(range:DateRangeMatch,offset:number):string|null{
+  const start=shiftIsoDay(range.startIso,offset),end=shiftIsoDay(range.endIso,offset);
+  if(!start||!end)return null;
+  const [,sm,sd]=parts(start),[ey,em,ed]=parts(end);
+  return dateField(sd,range.startPadDay)+'.'+dateField(sm,range.startPadMonth)+'.'+range.join+
+    dateField(ed,range.endPadDay)+'.'+dateField(em,range.endPadMonth)+'.'+ey;
+}
+/**
+ * Reverse every recognized date using the actual session offset, including
+ * derived/repeated dates which were not in the input. Missing input dates are
+ * normal in summaries and never produce errors.
+ *
+ * The shifted-date ledger (or a separate partial-date ledger via the explicit
+ * option) gates this feature: arbitrary AI dates must not be changed without
+ * evidence that the input dates were shifted.
+ */
+export function restoreShiftedDates(
+  source:string,shiftedIsos:readonly string[],offset:number,options:DateOptions={}
+):DateRestoreResult{
+  if((!shiftedIsos.length&&!options.restoreDerivedDates)||
+    !Number.isSafeInteger(offset)||offset===0||Math.abs(offset)>3650)
+    return {text:source,warnings:[],changed:0};
   const scan=scanDates(source,options);
-  const warnings=scan.issues.map(item=>'Datum "'+item.text+'": '+item.reason+'.');
+  const ranges=scanDateRanges(source);
+  const overlapsRange=(start:number,end:number)=>ranges.some(range=>start<range.end&&range.start<end);
+  const warnings=scan.issues.filter(item=>!overlapsRange(item.start,item.end))
+    .map(item=>'Datum "'+item.text+'": '+item.reason+'.');
+  const entries:Array<{start:number;end:number;date?:DateMatch;range?:DateRangeMatch}>=[
+    ...ranges.map(range=>({start:range.start,end:range.end,range})),
+    ...scan.matches.filter(match=>!overlapsRange(match.start,match.end))
+      .map(date=>({start:date.start,end:date.end,date}))
+  ].sort((a,b)=>a.start-b.start);
   let text='',pos=0,changed=0;
-  for(const match of scan.matches){
-    text+=source.slice(pos,match.start);
-    const count=remaining.get(match.iso)??0;
-    if(count===0){
-      text+=match.text;
-      warnings.push('Unbekanntes oder zusätzliches Datum "'+match.text+'" nicht zurückverschoben.');
-    }else{
-      const original=shiftIsoDay(match.iso,-offset);
-      if(original){
-        text+=formatLike(original,match);changed++;
-        remaining.set(match.iso,count-1);
-      }else{
-        text+=match.text;
-        warnings.push('Datum "'+match.text+'" kann nicht zurückverschoben werden.');
+  for(const entry of entries){
+    if(entry.start<pos)continue;
+    text+=source.slice(pos,entry.start);
+    if(entry.range){
+      const original=shiftDateRange(entry.range,-offset);
+      if(original){text+=original;changed++;}
+      else{
+        text+=entry.range.text;
+        warnings.push('Datumsbereich "'+entry.range.text+'" kann nicht zurückverschoben werden.');
+      }
+    }else if(entry.date){
+      const original=shiftIsoDay(entry.date.iso,-offset);
+      if(original){text+=formatLike(original,entry.date);changed++;}
+      else{
+        text+=entry.date.text;
+        warnings.push('Datum "'+entry.date.text+'" kann nicht zurückverschoben werden.');
       }
     }
-    pos=match.end;
+    pos=entry.end;
   }
-  for(const [iso,count] of remaining)if(count>0)
-    warnings.push('Verschobenes Datum '+iso+' fehlt '+count+'-mal in der KI-Antwort.');
   return {text:text+source.slice(pos),warnings,changed};
 }

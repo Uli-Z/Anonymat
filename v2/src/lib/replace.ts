@@ -1,4 +1,4 @@
-import { parseDate, scanDates, shiftIsoDay, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
+import { parseDate, parseDateRange, scanDates, shiftIsoDay, shiftDateRange, formatLike, WEEKDAYS, SHORT_WEEKDAYS, type NumericDateOrder, type DateReplacement } from './dates';
 import type { Finding, Kind } from './detect';
 import { syntheticReplacement, supportsSynthetic } from './synthetic';
 import { scanPartialDates, parsePartialDate, partialOriginalIso, formatPartialLike, type ShiftedPartial } from './partial-dates';
@@ -122,9 +122,17 @@ export function maskText(
       (spec?.mode==='shift-date' ||
        (dateOptions.dateShiftEnabled && spec?.mode!== 'token' && spec?.mode!=='custom-token'));
     if(shiftThisDate){
-      const parsed=parseDate(match.text,{numericOrder:dateOptions.numericOrder});
+      const range=parseDateRange(match.text);
+      const parsed=range?null:parseDate(match.text,{numericOrder:dateOptions.numericOrder});
       const offset=dateOptions.offsetDays;
       const validOffset=Number.isSafeInteger(offset) && offset!==0 && Math.abs(offset as number)<=3650;
+      const shiftedRange=range&&validOffset?shiftDateRange(range,offset as number):null;
+      if(shiftedRange&&range){
+        appendReplacement(match.start,match.end,shiftedRange,'shift-date');
+        dates.push({original:match.text,shifted:shiftedRange,
+          shiftedIso:shiftIsoDay(range.endIso,offset as number)!});
+        continue;
+      }
       const changed=parsed && validOffset ?shiftIsoDay(parsed.iso,offset as number):null;
       if(changed && parsed){
         const shifted=formatLike(changed,parsed);

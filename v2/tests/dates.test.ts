@@ -100,19 +100,24 @@ describe('date safety and contextual behavior',()=>{
     const result=maskText(source,detectPII(source),rules,{offsetDays:30});
     expect(result.text).toBe('09.04.2026 und [DATE_001]');
   });
-  it('does not shift newly added dates, nor malformed/ambiguous translated dates',()=>{
+  it('restores new AI-derived dates but leaves ambiguous formats untouched',()=>{
     const source='10.03.2026';
     const masked=maskText(source,detectPII(source),{}, {dateShiftEnabled:true,offsetDays:30});
     const translated='9 avril 2026, mais aussi 2 mai 2026.';
     const restored=restoreShiftedDates(translated,masked.dates.map(d=>d.shiftedIso),30);
-    expect(restored.text).toBe('10 mars 2026, mais aussi 2 mai 2026.');
-    expect(restored.warnings).toHaveLength(1);
+    expect(restored.text).toBe('10 mars 2026, mais aussi 2 avril 2026.');
+    expect(restored.warnings).toEqual([]);
     const ambiguous=restoreShiftedDates('04/09/2026',masked.dates.map(d=>d.shiftedIso),30);
     expect(ambiguous.text).toBe('04/09/2026');
     expect(ambiguous.warnings.some(w=>w.includes('Mehrdeutiges'))).toBe(true);
     const explicit=restoreShiftedDates('04/09/2026',masked.dates.map(d=>d.shiftedIso),30,{numericOrder:'MDY'});
     expect(explicit.text).toBe('03/10/2026');
     expect(explicit.warnings).toEqual([]);
+  });
+  it('restores brand-new dates when a partial-date ledger establishes the offset',()=>{
+    const restored=restoreShiftedDates('15.05.2026',[],30,{restoreDerivedDates:true});
+    expect(restored.text).toBe('15.04.2026');
+    expect(restored.warnings).toEqual([]);
   });
   it('falls back to tokens and warnings for invalid manually marked dates',()=>{
     const source='31.02.2026';
@@ -126,14 +131,14 @@ describe('date safety and contextual behavior',()=>{
     expect(calendarDayDifference('2026-03-10','2026-04-09')).toBe(30);
     expect(calendarDayDifference('2024-02-29','2024-03-01')).toBe(1);
   });
-  it('warns about duplicated or deleted shifted dates',()=>{
+  it('restores repeated dates and permits omitting original dates',()=>{
     const duplicated=restoreShiftedDates('9 avril 2026, 9 avril 2026',['2026-04-09'],30);
-    expect(duplicated.text).toBe('10 mars 2026, 9 avril 2026');
-    expect(duplicated.warnings).toHaveLength(1);
-    expect(duplicated.warnings[0]).toContain('zusätzliches');
+    expect(duplicated.text).toBe('10 mars 2026, 10 mars 2026');
+    expect(duplicated.warnings).toEqual([]);
     const absent=restoreShiftedDates('Pas de date.',['2026-04-09'],30);
     expect(absent.text).toBe('Pas de date.');
-    expect(absent.warnings[0]).toContain('fehlt');
+    expect(absent.warnings).toEqual([]);
+    expect(restoreShiftedDates('2 mai 2026',[],30).text).toBe('2 mai 2026');
   });
   it('warns about ambiguous dates even when shifting is not enabled',()=>{
     const masked=maskText('04/05/2026',detectPII('04/05/2026'));

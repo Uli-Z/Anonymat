@@ -1,5 +1,5 @@
 import { scanPartialDates } from './partial-dates';
-import { scanDates, type NumericDateOrder } from './dates';
+import { scanDates, scanDateRanges, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
 import { scanNumbers } from './numbers';
@@ -60,6 +60,7 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   };
   for(const hit of scanStructuredPII(text))add(hit.kind,hit.start,hit.text);
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
+  for(const hit of scanDateRanges(text))add('DATE',hit.start,hit.text);
   for(const hit of scanDates(text,{numericOrder}).matches)add('DATE',hit.start,hit.text);
   // Two-digit years are century-ambiguous: protect with a DATE token, never
   // silently interpret or shift them to a guessed calendar year.

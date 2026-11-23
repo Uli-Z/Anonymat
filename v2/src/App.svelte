@@ -396,11 +396,12 @@
   let preview = $derived(splitForPreview(prepared.text,prepared.reviewSpans,prepared.replacementSpans));
   let inversePartial = $derived(restoreShiftedPartialDates(
     reply, exportSnapshot?.partialDates ?? prepared.partialDates,
-    {numericOrder:replyNumericOrder}
+    {numericOrder:replyNumericOrder,offsetDays:exportSnapshot?.offset ?? dateOffset}
   ));
   let inverseDates = $derived(restoreShiftedDates(
     inversePartial.text,exportSnapshot?.shiftedDates ?? prepared.dates.map(date=>date.shiftedIso),
-    exportSnapshot?.offset ?? dateOffset,{numericOrder:replyNumericOrder}
+    exportSnapshot?.offset ?? dateOffset,
+    {numericOrder:replyNumericOrder,restoreDerivedDates:(exportSnapshot?.partialDates ?? prepared.partialDates).length>0}
   ));
   let restored = $derived(restoreText(inverseDates.text,exportSnapshot?.mapping ?? prepared.mapping));
   let selectedHit = $derived(findings.find(hit => hit.id === menu?.id));
