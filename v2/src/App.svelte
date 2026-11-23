@@ -19,6 +19,7 @@
 
   let languagePreference = $state<LanguagePreference>(loadLanguagePreference());
   let language = $derived(resolveLanguage(languagePreference, browserLanguages()));
+  let browserLanguage = $derived(resolveLanguage('auto', browserLanguages()));
   const t = (value:string):string => translate(language,value);
   function setLanguagePreference(value:LanguagePreference):void{
     languagePreference=value;
@@ -48,6 +49,11 @@
   let dateOffsetMode = $state<'random'|'manual'>('random');
   const FIRST_RUN_ACK_KEY = 'anonymat-first-run-ack-v2';
   let firstRunDialog: HTMLDialogElement | undefined;
+  let firstRunLanguageMenu: HTMLDetailsElement | undefined;
+  function chooseFirstRunLanguage(value:LanguagePreference):void{
+    setLanguagePreference(value);
+    if(firstRunLanguageMenu)firstRunLanguageMenu.open=false;
+  }
   let firstRunConfirmed = $state(false);
   function acknowledgeFirstRun():void{
     if(!firstRunConfirmed)return;
@@ -661,6 +667,9 @@
   }
 
   function closeMenuOutside(event: MouseEvent): void {
+    if(firstRunLanguageMenu && event.target instanceof Node && !firstRunLanguageMenu.contains(event.target)){
+      firstRunLanguageMenu.open=false;
+    }
     if (!(event.target instanceof Element)) {
       menu = null;
       quickAction = null;
@@ -758,24 +767,31 @@
   <dialog class="first-run-dialog" bind:this={firstRunDialog} aria-labelledby="first-run-title" aria-describedby="first-run-summary" oncancel={event=>event.preventDefault()}>
     <div class="first-run-header">
       <div class="first-run-heading">
-        <div class="first-run-symbol" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.1">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M12 7.7v5.6"/>
-            <circle cx="12" cy="16.8" r=".65" fill="currentColor" stroke="none"/>
-          </svg>
-        </div>
+        <svg class="first-run-symbol" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" aria-hidden="true">
+          <path d="M10.3 3.9 2.1 18.1a2 2 0 0 0 1.7 3h16.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+          <path d="M12 9v4.5M12 17h.01"/>
+        </svg>
         <h2 id="first-run-title">{t("Wichtiger Hinweis zur Pseudonymisierung")}</h2>
       </div>
-      <div class="first-run-language">
-        <label for="first-run-language">{t("Sprache")}</label>
-        <select id="first-run-language" value={languagePreference}
-          onchange={event=>setLanguagePreference(event.currentTarget.value as LanguagePreference)}>
-          <option value="auto">{t('Automatisch (Browsersprache)')}</option>
-          <option value="de">Deutsch</option>
-          <option value="en">English</option>
-        </select>
-      </div>
+      <details class="first-run-language" bind:this={firstRunLanguageMenu}>
+        <summary class="first-run-language-toggle" aria-label={t("Sprache ändern")} title={t("Sprache ändern")}>
+          <span aria-hidden="true">{language==='de'?'🇩🇪':'🇬🇧'}</span>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+        </summary>
+        <div class="first-run-language-menu" role="group" aria-label={t("Sprache wählen")}>
+          <div class="first-run-language-caption">{t("Sprache")}</div>
+          <button type="button" class="first-run-language-choice" aria-pressed={languagePreference==='auto'} onclick={()=>chooseFirstRunLanguage('auto')}>
+            <span aria-hidden="true">{browserLanguage==='de'?'🇩🇪':'🇬🇧'}</span>
+            <span>{t(browserLanguage==='de'?'Automatisch (Deutsch)':'Automatisch (Englisch)')}</span>
+          </button>
+          <button type="button" class="first-run-language-choice" aria-pressed={languagePreference==='de'} onclick={()=>chooseFirstRunLanguage('de')}>
+            <span aria-hidden="true">🇩🇪</span><span>Deutsch</span>
+          </button>
+          <button type="button" class="first-run-language-choice" aria-pressed={languagePreference==='en'} onclick={()=>chooseFirstRunLanguage('en')}>
+            <span aria-hidden="true">🇬🇧</span><span>English</span>
+          </button>
+        </div>
+      </details>
     </div>
     <div class="settings-body first-run-body">
       <p id="first-run-summary">{t("Anonymat unterstützt die Pseudonymisierung von Texten, garantiert aber weder eine vollständige noch eine fehlerfreie Erkennung. Persönliche Angaben können übersehen, falsch ersetzt oder durch den Zusammenhang weiterhin erkennbar sein. Das Ergebnis ist nicht automatisch anonym.")}</p>
@@ -1156,9 +1172,9 @@
           <label for="ui-language">{t('Benutzerschnittstelle')}</label>
           <select id="ui-language" value={languagePreference}
             onchange={event=>setLanguagePreference(event.currentTarget.value as LanguagePreference)}>
-            <option value="auto">{t('Automatisch (Browsersprache)')}</option>
-            <option value="de">Deutsch</option>
-            <option value="en">English</option>
+            <option value="auto">{browserLanguage==='de'?'🇩🇪':'🇬🇧'} {t(browserLanguage==='de'?'Automatisch (Deutsch)':'Automatisch (Englisch)')}</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="en">🇬🇧 English</option>
           </select>
         </div>
       </section>
