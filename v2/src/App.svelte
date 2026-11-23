@@ -425,9 +425,13 @@
   }
 
   function closeMenuOutside(event: MouseEvent): void {
-    if (!(event.target instanceof Element) || !event.target.closest('.hit-popover')) {
+    if (!(event.target instanceof Element)) {
       menu = null;
+      quickAction = null;
+      return;
     }
+    if (!event.target.closest('.hit-popover')) menu = null;
+    if (!event.target.closest('.selection-popover, .marked-editor')) quickAction = null;
   }
 
   function resetAll(): void {
