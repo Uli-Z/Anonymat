@@ -112,8 +112,9 @@ test('open suggestions remain visible in output and trigger a one-time copy warn
 });
 
 test('touching an orange mark opens a bottom sheet with both decisions',async({browser})=>{
-  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const context=await browser.newContext({locale:'de-DE',viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await context.newPage();
+  await page.addInitScript(() => localStorage.setItem('anonymat-first-run-ack-v2','accepted'));
   await page.goto(html);
   await page.locator('.cm-content').fill('Peter.');
   await expect(page.locator('.cm-anonymat-review')).toHaveCount(1);
