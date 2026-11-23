@@ -6,8 +6,8 @@
 2. **Erlernte Dokumentbegriffe (\`term-index.ts\`)** erkennen vollständige Wörter mit Aho-Corasick als einmaligen Mehrfachscan. Aus „Frau Müller“ wird „Müller“ unabhängig von der Fundstelle erkannt, ebenso explizit markierte Texte. Alle Daten bleiben lokal.
 3. **Benutzerregeln (\`overrides.ts\` und \`scanDocument\`)** gewinnen vor automatisch erkannten, überlappenden Kandidaten. Beispiel: „Anna Müller“ wird als Vorname „Anna“ und Nachname „Müller“ klassifiziert. Eine manuelle Auswahl erstellt Anker plus eine dokumentlokale Suchregel.
 4. **Review (\`session.ts\`)** wendet lokale und globale Ignorierregeln an und gruppiert Fundstellen für die UI. Ignorierregeln erzeugen *keine* zusätzlichen Treffer.
-5. **Ersetzung (\`replacement-strategies.ts\` + \`replace.ts\`)** verarbeitet nur freigegebene Fundstellen. Derzeit aktiv: automatisch generierte Tokens oder benutzerdefinierte eindeutige Tokens. Die Zuordnung enthält die genaue Originalschreibweise.
-6. **Rückübersetzung (\`restoreText\`)** ersetzt in einem Durchlauf die bekannten Tokens innerhalb der simulierten/external verarbeiteten Texte. Fehlende/unerwartete Tokens werden gemeldet.
+5. **Ersetzung (`replacement-strategies.ts`, `replace.ts` und `synthetic.ts`)** verarbeitet nur freigegebene Fundstellen. Unterstützt sind Tokens, eigene eindeutige Tokens und lokale lexikonbasierte Pseudonyme für Namen, Städte, Straßen und einfache Adressen. Der Zuordnungseintrag bewahrt die genaue Originalschreibweise; ein Dokument-Seed erlaubt bei jeder Neuanalyse identische Pseudonyme.
+6. **Rückübersetzung (`restoreText`)** ersetzt Tokens und Pseudonyme in einem Durchlauf. Fehlende oder unbekannte Tokens werden gemeldet. Bei abgeänderten Pseudonymen oder zufällig identischen Wörtern in KI-Antworten ist die Rückübersetzung möglicherweise unvollständig oder mehrdeutig.
 
 Die UI (\`App.svelte\`) ist nur Adapter dieser reinen Funktionen. CodeMirror verwaltet Textänderungen; \`marks.ts\` verschiebt manuelle Anker bei Bearbeitung.
 
