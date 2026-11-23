@@ -40,6 +40,25 @@ test('stored rules survive reload and can be deleted without an auto-apply check
   const consent=page.getByRole('dialog',{name:'Ersetzungen dauerhaft merken?'});
   await consent.getByRole('button',{name:'Lokales Gedächtnis aktivieren'}).click();
   await expect(consent).not.toBeVisible();
+  // Ensure the consent and IndexedDB transaction are durable before reloading:
+  // slower browsers may otherwise race the page teardown.
+  await expect.poll(async()=>{
+    return page.evaluate(async()=>{
+      if(localStorage.getItem('anonymat-learning-consent-v1')!=='on')return false;
+      const request=indexedDB.open('anonymat-learned-rules',1);
+      return new Promise<boolean>(resolve=>{
+        request.onerror=()=>resolve(false);
+        request.onsuccess=()=>{
+          const db=request.result;
+          const tx=db.transaction('rules','readonly');
+          const rule=tx.objectStore('rules').get('zorbel');
+          rule.onsuccess=()=>resolve(rule.result?.term==='Zorbel');
+          rule.onerror=()=>resolve(false);
+          tx.oncomplete=()=>db.close();
+        };
+      });
+    });
+  }).toBe(true);
   await page.reload();
   // The IndexedDB rules are loaded asynchronously on startup; wait for that
   // state before testing detection in a new document.
