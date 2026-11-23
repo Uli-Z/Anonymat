@@ -35,6 +35,20 @@ describe('cross-document learning',()=>{
       text:'Zorbel',start:0,end:6}];
     expect(scanDocument(input,manual,'auto',true,remembered)[0].kind).toBe('PERSON');
   });
+  it('reuses a manually corrected category where the automatic detector already masks the same span',()=>{
+    const remembered=[makeRule('Müller','LAST_NAME')!];
+    const input='Frau Müller antwortet.';
+    const reviewed=reviewDocument(input,[],[],[],'auto',true,remembered);
+    expect(reviewed.active.find(hit=>hit.text==='Müller')?.kind).toBe('LAST_NAME');
+    expect(reviewed.active.find(hit=>hit.text==='Müller')?.origin).toBe('learned');
+  });
+  it('proposes the surname and German genitive after learning a full person name',()=>{
+    const remembered=[makeRule('Ulrich Meier','PERSON')!];
+    const input='Meier und Meiers, nicht Meierberg.';
+    const found=scanDocument(input,[],'auto',true,remembered).filter(hit=>hit.origin==='learned');
+    expect(found.map(hit=>hit.text)).toEqual(['Meier','Meiers']);
+    expect(found.every(hit=>hit.confidence==='review')).toBe(true);
+  });
   it('does not match substrings of ordinary words',()=>{
     const remembered=[makeRule('Zorbel','PERSON')!];
     const matches=scanDocument('Zorbelberg und Zorbel.',[],'auto',true,remembered)
