@@ -90,6 +90,7 @@ test('three unconfirmed pattern names cause one batch review with accept-all',as
 test('open suggestions remain visible in output and trigger a one-time copy warning',async({page})=>{
   await page.locator('.cm-content').fill('Peter und Ulrich.');
   await expect(page.locator('.cm-anonymat-review')).toHaveCount(2);
+  await expect(page.getByRole('button',{name:'Vorschläge prüfen (2)'})).toBeVisible();
   await expect(page.locator('.cm-anonymat-review').first()).toHaveAttribute('title',/Vorschlag – noch nicht pseudonymisiert/);
   await expect(page.locator('.cm-anonymat-active')).toHaveCount(0);
   await page.getByRole('button',{name:/Ergebnis prüfen/}).click();

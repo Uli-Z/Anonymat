@@ -731,7 +731,7 @@
         <MarkedEditor bind:this={markedEditor} value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} onViewportChange={onEditorViewportChange} />
         <div class="editor-actions">
           <button type="button" class="secondary-button" onclick={() => { quickAction=null; menu=null; findingsDialog?.showModal(); }}>
-            Ersetzungen anzeigen ({groups.length})
+            {#if pendingGroups.length}Vorschläge prüfen ({pendingGroups.length}){:else}Ersetzungen anzeigen ({groups.length}){/if}
           </button>
           <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
             Ergebnis prüfen <span aria-hidden="true">↓</span>
