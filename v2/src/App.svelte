@@ -156,9 +156,15 @@
     learnedRules=mergeRemembered(learnedRules,[updated]);
     void saveLearnedRules([updated]).catch(memoryFailure);
   }
-  function forgetLearned(key:string):void{
-    learnedRules=learnedRules.filter(rule=>rule.key!==key);
-    void deleteLearnedRule(key).catch(memoryFailure);
+  async function forgetLearned(key:string):Promise<void>{
+    if(!learnedRules.some(rule=>rule.key===key))return;
+    try{
+      // Wait for a committed delete before changing the displayed rule list.
+      await deleteLearnedRule(key);
+      learnedRules=learnedRules.filter(rule=>rule.key!==key);
+      menu=null;
+      notice='Regel aus dem lokalen Gedächtnis gelöscht. Markierungen im aktuellen Text können durch andere Regeln bestehen bleiben.';
+    }catch{memoryFailure();}
   }
   function clearMemory():void{
     if(!window.confirm('Alle dauerhaft gelernten Begriffe aus diesem Browser löschen?'))return;
@@ -325,6 +331,19 @@
   ));
   let restored = $derived(restoreText(inverseDates.text,exportSnapshot?.mapping ?? prepared.mapping));
   let selectedHit = $derived(findings.find(hit => hit.id === menu?.id));
+  let learnedByKey = $derived(new Map(learnedRules.map(rule=>[rule.key,rule])));
+  let selectedLearnedRule = $derived(selectedHit
+    ? learnedByKey.get(selectedHit.learnedRuleKey ?? normalizedKey(selectedHit.text))
+    : undefined);
+  // A group can still be listed after all its occurrences were excluded in
+  // this document. Keep the persistent deletion action accessible there.
+  let learnedRuleByGroup = $derived(new Map(findings
+    .filter(hit=>hit.learnedRuleKey)
+    .map(hit=>[hit.kind+':'+normalizedKey(hit.text),hit.learnedRuleKey!])));
+  function learnedKeyForGroup(group:TermGroup):string|null{
+    const key=learnedRuleByGroup.get(group.key) ?? normalizedKey(group.text);
+    return learnedByKey.has(key)?key:null;
+  }
 
   function isActive(hit: Finding): boolean {
     return active.some(item => item.id === hit.id);
@@ -453,9 +472,8 @@
 
   function removeManualRule(hit: Finding): void {
     manual = manual.filter(anchor => anchor.id !== hit.id);
-    if(learnedRules.some(rule=>rule.key===normalizedKey(hit.text)))forgetLearned(normalizedKey(hit.text));
     menu = null;
-    notice = 'Manuelle Erkennungsregel entfernt.';
+    notice = 'Manuelle Markierung für diesen Text entfernt. Gespeicherte Regeln bleiben bestehen.';
   }
 
   /** Refine an automatic full-name proposal with two anchored override rules. */
@@ -886,6 +904,14 @@
                     {#if group.activeCount>0 && group.activeCount<group.count}
                       <button type="button" class="restore-group-button" onclick={() => toggleGroup(group,true)}>Alle Stellen wieder ersetzen</button>
                     {/if}
+                    {#if learnedKeyForGroup(group)}
+                      <button type="button" class="forget-learned-button"
+                        aria-label={'Aus lokalem Gedächtnis löschen: '+group.text}
+                        title="Dauerhafte Regel für zukünftige Texte löschen"
+                        onclick={() => {const key=learnedKeyForGroup(group);if(key)void forgetLearned(key);}}>
+                        Aus Gedächtnis löschen
+                      </button>
+                    {/if}
                     {#if group.kind==='DATE' && group.activeCount>0}
                       <label style="display:flex;gap:6px;align-items:center;margin-top:8px">
                         Ersetzen als
@@ -1165,6 +1191,13 @@
         {/if}
         {#if splitFullName(selectedHit)}
           <button type="button" onclick={() => splitName(selectedHit!)}>↳ In Vorname und Nachname aufteilen</button>
+        {/if}
+        {#if selectedLearnedRule}
+          <button type="button" class="forget-learned-button"
+            title="Dauerhaft gespeicherte Regel löschen. Das Ignorieren einzelner Stellen bleibt davon unabhängig."
+            onclick={() => {if(selectedLearnedRule)void forgetLearned(selectedLearnedRule.key);}}>
+            Aus Gedächtnis löschen
+          </button>
         {/if}
         {#if manual.some(anchor => anchor.id === selectedHit?.id)}
           <button type="button" onclick={() => removeManualRule(selectedHit!)}>− Manuelle Erkennungsregel entfernen</button>

@@ -118,7 +118,9 @@ export function scanDocument(text:string,anchors:readonly Finding[],numericOrder
     if(!rule)continue;
     // All stored, previously confirmed terms are active. Only uncertain
     // dictionary/pattern detections require a review.
-    manual.push(candidate(rule.kind,hit.start,hit.text,rule.stored?'learned':'manual','repeated-'+rule.anchorId));
+    const found=candidate(rule.kind,hit.start,hit.text,rule.stored?'learned':'manual','repeated-'+rule.anchorId);
+    if(rule.stored)found.learnedRuleKey=rule.anchorId;
+    manual.push(found);
   }
   return mergeManual(inferred,manual);
 }
