@@ -14,16 +14,19 @@
   import { parsePartialDate, partialOriginalIso, nearestPartialDateOffset, restoreShiftedPartialDates, type ShiftedPartial } from './lib/partial-dates';
 
   const kinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'EMAIL', 'PHONE', 'IBAN', 'DATE', 'TIME', 'ADDRESS', 'STREET', 'CITY', 'POSTAL_CODE', 'URL', 'IP', 'BIC', 'ID', 'LICENSE_PLATE', 'OTHER'];
+  const quickKinds: Kind[] = ['PERSON', 'FIRST_NAME', 'LAST_NAME', 'DATE', 'CITY'];
+  const extraKinds = kinds.filter(kind => kind !== 'OTHER' && !quickKinds.includes(kind));
 
   let source = $state('');
   let manual = $state<Finding[]>([]);
   let ignoredPlaces = $state<Finding[]>([]);
   let ignoredTerms = $state<string[]>([]);
-  let selectedKind = $state<Kind>('PERSON');
   let replacementRules = $state<Record<string, ReplacementRule>>({});
   let dateShiftEnabled = $state(true);
   let dateOffsetMode = $state<'random'|'manual'>('random');
   let settingsDialog: HTMLDialogElement | undefined;
+  let faqDialog: HTMLDialogElement | undefined;
+  let markedEditor: MarkedEditor | undefined;
   let findingsDialog: HTMLDialogElement | undefined;
   let resultVisible = $state(false);
   let cityLexiconEnabled = $state(true);
@@ -203,12 +206,36 @@
     notice = '';
   }
 
-  function onSelect(from: number, to: number, position?: {x: number; y: number}): void {
-    selectedRange = { from, to };
-    quickAction = to > from && position ? {
-      x: Math.max(12, Math.min(position.x, window.innerWidth - 240)),
-      y: Math.max(12, Math.min(position.y + 7, window.innerHeight - 66))
-    } : null;
+  function popoverPosition(anchor: {left:number;top:number;bottom:number}, width:number, height:number): {x:number;y:number} {
+    const popupWidth = Math.min(width, window.innerWidth - 24);
+    const popupHeight = Math.min(height, window.innerHeight - 24);
+    const x = Math.max(12, Math.min(anchor.left, window.innerWidth - popupWidth - 12));
+    const below = anchor.bottom + 8;
+    const above = anchor.top - popupHeight - 8;
+    const y = below + popupHeight <= window.innerHeight - 12 ? below
+      : above >= 12 ? above
+      : Math.max(12, Math.min(below, window.innerHeight - popupHeight - 12));
+    return {x,y};
+  }
+
+  function onSelect(from: number, to: number, position?: {x: number; y: number; top: number}): void {
+    selectedRange = {from, to};
+    quickAction = to > from && position
+      ? popoverPosition({left:position.x, top:position.top, bottom:position.y}, 322, 250)
+      : null;
+  }
+
+  function onEditorViewportChange(): void {
+    if (quickAction) {
+      const anchor = markedEditor?.selectionAnchor();
+      quickAction = anchor
+        ? popoverPosition({left:anchor.x, top:anchor.top, bottom:anchor.y}, 322, 250)
+        : null;
+    }
+    if (menu) {
+      const anchor = markedEditor?.hitAnchor(menu.id);
+      menu = anchor ? {id:menu.id, ...popoverPosition(anchor, 300, 285)} : null;
+    }
   }
 
   /** A single click converts the actual current editor selection into a learned rule. */
@@ -234,8 +261,8 @@
     notice = 'Auswahl anonymisiert. Der Begriff wird im ganzen Text wiedererkannt.';
   }
 
-  function addManual(): void {
-    setManualMark(selectedRange.from, selectedRange.to, selectedKind);
+  function addManual(kind: Kind): void {
+    setManualMark(selectedRange.from, selectedRange.to, kind);
   }
 
   function suppressOne(hit: Finding): void {
@@ -394,11 +421,7 @@
 
   function onHit(id: string, rect: DOMRect): void {
     quickAction = null;
-    menu = {
-      id,
-      x: Math.max(12, Math.min(rect.left, window.innerWidth - 305)),
-      y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 285))
-    };
+    menu = { id, ...popoverPosition(rect, 300, 285) };
   }
 
   function closeMenuOutside(event: MouseEvent): void {
@@ -423,6 +446,7 @@
     exportSnapshot = null;
     resultVisible = false;
     findingsDialog?.close();
+    faqDialog?.close();
     editingReplacement = null;
     replacementError = '';
     selectedRange = {from: 0, to: 0};
@@ -484,12 +508,12 @@
         </svg>
       </div>
       <div>
-        <div class="brand-name">Anonymat <span class="version">2.0 Alpha</span></div>
-        <div class="brand-subtitle">Texte lokal pseudonymisieren</div>
+        <div class="brand-name">Anonymat</div>
+        <div class="brand-subtitle">Lokal im Browser · ohne Textübertragung</div>
       </div>
     </div>
     <div class="topbar-actions">
-      <span class="offline-indicator"><span class="status-dot"></span> Offline · Verarbeitung im Browser</span>
+      <button class="faq-trigger" type="button" onclick={() => {quickAction=null;menu=null;faqDialog?.showModal();}}>Hilfe & FAQ</button>
       <button class="settings-trigger" type="button" onclick={() => settingsDialog?.showModal()} aria-label="Einstellungen öffnen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
         <span>Einstellungen</span>
@@ -501,9 +525,7 @@
   <main class="main-content">
     <div class="page-heading">
       <div>
-        <div class="eyebrow">ARBEITSPLATZ</div>
-        <h1>Vertrauliche Texte sicher vorbereiten.</h1>
-        <p>Angaben werden direkt im Text hervorgehoben. Klicke auf eine Markierung, um sie zu bearbeiten.</p>
+        <h1>Texte pseudonymisieren</h1>
       </div>
       <button class="reset-button" type="button" onclick={resetAll} disabled={!source && !reply}>↺ <span>Neuer Text</span></button>
     </div>
@@ -512,7 +534,6 @@
       <div class="step-number">1</div>
       <div>
         <h2>Text vorbereiten</h2>
-        <p>Automatische Treffer sind Vorschläge. Lies den gesamten Text vor dem Kopieren aufmerksam durch.</p>
       </div>
     </div>
 
@@ -539,38 +560,20 @@
       <section class="panel editor-panel" aria-labelledby="source-title">
         <div class="panel-heading">
           <div>
-            <h3 id="source-title">Originaltext</h3>
-            <p>Farbige Treffer anklicken oder Text auswählen und sofort anonymisieren</p>
+            <div class="panel-title-row">
+              <h3 id="source-title">Originaltext</h3>
+              <details class="legend-help">
+                <summary title="Markierungsfarben erklären" aria-label="Bedeutung der Markierungsfarben">?</summary>
+                <div class="legend-tooltip">Gelb: automatisch erkannt · Blau: bitte prüfen · Grün: manuell ergänzt · Grau: ignoriert</div>
+              </details>
+            </div>
           </div>
           <span class="quiet-count">{source.length.toLocaleString('de-DE')} Zeichen</span>
         </div>
-        <MarkedEditor value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} />
-        <div class="selection-toolbar">
-          <div class="selection-help">
-            {#if selectedRange.to > selectedRange.from}
-              {selectedRange.to - selectedRange.from} Zeichen ausgewählt
-            {:else}
-              Text auswählen, dann mit einem Klick anonymisieren:
-            {/if}
-          </div>
-          <div class="selection-actions">
-            <select bind:value={selectedKind} aria-label="Kategorie für manuelle Markierung">
-              {#each kinds as kind}
-                <option value={kind}>{KIND_LABELS[kind]}</option>
-              {/each}
-            </select>
-            <button type="button" class="small-primary" onpointerdown={(event) => event.preventDefault()} onclick={addManual} disabled={selectedRange.to === selectedRange.from}>+ Auswahl anonymisieren</button>
-          </div>
-        </div>
-        <div class="mark-legend" aria-label="Farblegende">
-          <span><i class="legend-auto"></i> Automatisch</span>
-          <span><i class="legend-review"></i> Prüfvorschlag</span>
-          <span><i class="legend-manual"></i> Manuell</span>
-          <span><i class="legend-ignored"></i> Ignoriert</span>
-        </div>
+        <MarkedEditor bind:this={markedEditor} value={source} marks={editorMarks} onChange={onSourceChange} onSelect={onSelect} onHit={onHit} onViewportChange={onEditorViewportChange} />
         <div class="editor-actions">
           <button type="button" class="secondary-button" onclick={() => { quickAction=null; menu=null; findingsDialog?.showModal(); }}>
-            Ersetzungen anzeigen <span class="count-inline">{groups.length}</span>{#if pendingNameGroups.length}<span class="count-inline">· {pendingNameGroups.length} prüfen</span>{/if}
+            Ersetzungen anzeigen ({groups.length})
           </button>
           <button type="button" class="primary-button" onclick={openResult} disabled={!source.trim() || isAnalyzing || !!analysisError}>
             Ergebnis prüfen <span aria-hidden="true">↓</span>
@@ -583,7 +586,6 @@
       <div class="step-number">2</div>
       <div>
         <h2>Ergebnis prüfen</h2>
-        <p>Die anonymisierte Fassung wird erst auf Wunsch angezeigt. Kontrolliere alle Angaben vor der Weitergabe.</p>
       </div>
     </div>
 
@@ -591,7 +593,6 @@
       <div class="panel-heading">
         <div>
           <h3 id="result-title">Pseudonymisierter Text</h3>
-          <p>Nur diesen überprüften Text an externe KI-Dienste weitergeben</p>
         </div>
         <button class="primary-button" type="button" onclick={copyMasked} disabled={!resultVisible || !source.trim() || isAnalyzing || !!analysisError}>
           <span aria-hidden="true">⧉</span> Text kopieren
@@ -600,7 +601,6 @@
       <div class="preview" aria-live="polite">
         {#if !resultVisible}
           <div class="preview-gate">
-            <p>Der Ergebnistext bleibt während der Bearbeitung ausgeblendet. Sobald die Analyse abgeschlossen ist, kannst du ihn hier kontrollieren.</p>
             <button type="button" class="secondary-button" onclick={() => resultVisible=true} disabled={!source.trim() || isAnalyzing || !!analysisError}>Anonymisierten Text anzeigen</button>
           </div>
         {:else if isAnalyzing}
@@ -630,14 +630,13 @@
       <div class="step-number">3</div>
       <div>
         <h2>KI-Ergebnis zurückübersetzen</h2>
-        <p>Füge den bearbeiteten oder übersetzten Text ein. Platzhalter und bekannte verschobene Kalenderdaten werden lokal wiederhergestellt.</p>
       </div>
     </div>
 
     <div class="restore-grid">
       <section class="panel" aria-labelledby="reply-title">
         <div class="panel-heading">
-          <div><h3 id="reply-title">Antwort der KI</h3><p>Text mit Platzhaltern hier einfügen</p></div>
+          <div><h3 id="reply-title">Antwort der KI</h3></div>
         </div>
         <textarea class="reply-editor" bind:value={reply} spellcheck="false"
           placeholder="Hier die Antwort von ChatGPT oder einem anderen Tool mit [PERSON_001] usw. einfügen ..."
@@ -645,7 +644,7 @@
       </section>
       <section class="panel" aria-labelledby="restored-title">
         <div class="panel-heading">
-          <div><h3 id="restored-title">Wiederhergestellter Text</h3><p>Originalangaben lokal eingesetzt</p></div>
+          <div><h3 id="restored-title">Wiederhergestellter Text</h3></div>
           <button class="secondary-button" type="button" disabled={!reply.trim()} onclick={() => copy(restored.text, 'Wiederhergestellter Text')}>⧉ Kopieren</button>
         </div>
         <div class="restore-preview">{#if reply.trim()}{restored.text}{:else}<span class="preview-empty">Die Rückübersetzung wird hier angezeigt.</span>{/if}</div>
@@ -662,29 +661,24 @@
       </section>
     </div>
 
-    <div class="footer-note">
-      <span class="footer-note-icon" aria-hidden="true">ⓘ</span>
-      <span>Automatische Erkennungen sind Vorschläge und müssen geprüft werden. Die Verarbeitung erfolgt lokal; Texte werden nicht gespeichert oder versendet.</span>
-    </div>
     {#if notice}<div class="toast" role="status">{notice}</div>{/if}
   </main>
 
-  <footer class="site-footer"><span>Anonymat 2.0 Alpha 6 · Lokales Werkzeug · Open Source</span><span>Alpha – nicht für ungeprüfte vertrauliche Dokumente verwenden</span></footer>
+  <footer class="site-footer"><span>Anonymat 2.0 Alpha · Open Source</span><span>Automatische Erkennung ist nicht vollständig – vor Weitergabe prüfen.</span></footer>
 
       <dialog class="findings-dialog" bind:this={findingsDialog} aria-labelledby="findings-title">
         <div class="panel-heading">
           <div>
             <h3 id="findings-title">Erkannte Angaben</h3>
-            <p>Auch direkt über den Text bearbeitbar</p>
           </div>
-          <div class="findings-dialog-actions"><span class="count-badge">{findings.length}</span><form method="dialog"><button class="settings-close" type="submit" aria-label="Ersetzungen schließen">×</button></form></div>
+          <div class="findings-dialog-actions"><form method="dialog"><button class="settings-close" type="submit" aria-label="Ersetzungen schließen">×</button></form></div>
         </div>
         <div class="findings-body">
           {#if groups.length === 0}
             <div class="empty-state">
               <div class="empty-symbol" aria-hidden="true">⌕</div>
               <strong>Noch keine Treffer</strong>
-              <p>Text einfügen oder links einen Bereich auswählen und anonymisieren.</p>
+              <p>Markiere Textstellen direkt im Originaltext.</p>
             </div>
           {:else}
             <div class="list-caption">{active.length} von {findings.length} Textstellen aktiv · {groups.length} unterschiedliche Begriffe</div>
@@ -737,6 +731,47 @@
           {/if}
         </div>
       </dialog>
+
+  <dialog class="faq-dialog settings-dialog" bind:this={faqDialog} aria-labelledby="faq-title">
+    <div class="settings-header">
+      <div><h2 id="faq-title">Hilfe & FAQ</h2></div>
+      <form method="dialog"><button type="submit" class="settings-close" aria-label="Hilfe schließen">×</button></form>
+    </div>
+    <div class="faq-body settings-body">
+      <section>
+        <h3>Wie anonymisiere ich eine nicht erkannte Textstelle?</h3>
+        <p>Markiere die Stelle im Originaltext. Im eingeblendeten Menü kannst du „Sonstiges“ für einen allgemeinen Platzhalter oder direkt eine Kategorie wie Name, Datum oder Ort wählen. Weitere Kategorien stehen im Auswahlmenü.</p>
+      </section>
+      <section>
+        <h3>Wie korrigiere ich eine automatische Erkennung?</h3>
+        <p>Klicke auf die farbig markierte Textstelle. Du kannst den Platzhalter-Typ ändern oder eine Erkennung an dieser Stelle beziehungsweise im gesamten Text ignorieren. Unter „Ersetzungen anzeigen“ lassen sich Begriffe und Ersatzwerte gesammelt prüfen.</p>
+      </section>
+      <section>
+        <h3>Was bedeuten die Markierungsfarben?</h3>
+        <p>Gelb steht für automatisch erkannte Angaben, Blau für noch nicht bestätigte Prüfvorschläge, Grün für manuell ergänzte Regeln und Grau für ignorierte Treffer.</p>
+      </section>
+      <section>
+        <h3>Werden gleiche Begriffe mehrfach ersetzt?</h3>
+        <p>Ja. Manuell markierte Begriffe werden im gesamten Text wiedererkannt. Einzelne Vorkommen kannst du von der Ersetzung ausnehmen.</p>
+      </section>
+      <section>
+        <h3>Was passiert mit Datumsangaben?</h3>
+        <p>Kalenderdaten werden standardmäßig um denselben zufälligen Tagesabstand verschoben, damit Zeitabstände erhalten bleiben. Unter „Einstellungen“ kannst du die Verschiebung ändern oder deaktivieren. Mehrdeutige Daten müssen geprüft werden.</p>
+      </section>
+      <section>
+        <h3>Wie funktioniert die Rückübersetzung?</h3>
+        <p>Kopiere den geprüften Text mit seinen Platzhaltern in ein externes Werkzeug. Füge dessen Antwort unten ein: Bekannte Platzhalter werden wieder durch die Originalangaben ersetzt. Die Platzhalter dürfen dabei nicht umbenannt werden.</p>
+      </section>
+      <section>
+        <h3>Werden meine Texte hochgeladen oder gespeichert?</h3>
+        <p>Die Verarbeitung erfolgt im Browser. Der eingegebene Text wird durch Anonymat nicht an einen Server gesendet und nicht dauerhaft gespeichert. Schließe oder lade die Seite neu, um den aktuellen Text zu verwerfen.</p>
+      </section>
+      <section>
+        <h3>Ist das Ergebnis wirklich anonym?</h3>
+        <p>Nein, Platzhalter und verschobene Daten bewirken zunächst eine Pseudonymisierung. Indirekt identifizierende Angaben und übersehene Treffer können erhalten bleiben. Lies den vollständigen Ergebnistext vor einer externen Weitergabe kritisch durch.</p>
+      </section>
+    </div>
+  </dialog>
 
   <dialog class="settings-dialog" bind:this={settingsDialog} aria-labelledby="settings-title">
     <div class="settings-header">
@@ -835,8 +870,27 @@
 
   {#if quickAction && selectedRange.to > selectedRange.from && !menu}
     <div class="selection-popover" style={'left:' + quickAction.x + 'px;top:' + quickAction.y + 'px'}
-      onpointerdown={(event) => event.preventDefault()} role="group" aria-label="Textauswahl anonymisieren">
-      <button type="button" onclick={addManual}>+ Auswahl anonymisieren</button>
+      onpointerdown={(event) => { if (!(event.target instanceof Element && event.target.closest('select'))) event.preventDefault(); }}
+      role="dialog" aria-label="Textauswahl anonymisieren">
+      <div class="selection-popover-heading">
+        <strong>Auswahl anonymisieren</strong>
+        <button class="popover-close" type="button" aria-label="Auswahlmenü schließen" onclick={() => quickAction = null}>×</button>
+      </div>
+      <button class="selection-default" type="button" onclick={() => addManual('OTHER')}>
+        <strong>Sonstiges</strong><small>Allgemeiner Platzhalter</small>
+      </button>
+      <div class="selection-shortcuts" aria-label="Häufige Kategorien">
+        {#each quickKinds as kind}
+          <button type="button" onclick={() => addManual(kind)}>{KIND_LABELS[kind]}</button>
+        {/each}
+      </div>
+      <select class="selection-more" aria-label="Weitere Kategorien" value=""
+        onchange={(event) => { const kind = event.currentTarget.value as Kind; if (kind) addManual(kind); }}>
+        <option value="" disabled>Weitere Kategorien…</option>
+        {#each extraKinds as kind}
+          <option value={kind}>{KIND_LABELS[kind]}</option>
+        {/each}
+      </select>
     </div>
   {/if}
 
