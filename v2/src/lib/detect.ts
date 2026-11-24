@@ -3,6 +3,7 @@ import { scanDates, type NumericDateOrder } from './dates';
 import { findTerms } from './term-index';
 import { scanStructuredPII } from './structured-pii';
 import { scanNumbers } from './numbers';
+import { scanContextMarkers } from './context-markers';
 import { scanPersonNames } from './person-names';
 import { scanCities } from './geography';
 import { scanStreetLexicon } from './street-lexicon';
@@ -76,6 +77,9 @@ export function detectPII(text:string,numericOrder:NumericDateOrder='auto',enabl
   for(const hit of scanStreetLexicon(text))add(hit.hasNumber?'ADDRESS':'STREET',hit.start,hit.text);
   for(const hit of fullDates)add('DATE',hit.start,hit.text);
   for(const hit of partialDates)add('DATE',hit.start,hit.text);
+  // Context markers are added before dictionary-only name proposals, so
+  // an equally uncertain slash signature is consistently a surname proposal.
+  for(const hit of scanContextMarkers(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   for(const hit of scanPersonNames(text))add(hit.kind,hit.start,hit.text,hit.confidence);
   if(enableCities)for(const hit of scanCities(text))add('CITY',hit.start,hit.text);
   // Numbers are the last-resort fallback. A longer "number" such as
