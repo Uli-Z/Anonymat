@@ -10,6 +10,15 @@ This maintenance release improves how separate calendar dates are handled in com
 - **Number defaults.** Single digits are excluded from automatic number masking. Multi-digit and decimal values remain detectable, and manual selections still work.
 - **Streamlined controls.** Multiple selected findings can be managed together, and all detection categories (including numbers) appear side-by-side in Settings.
 
+## In-place update (2026-11-24)
+
+- **Two-digit years:** dates such as `10.08.25` shift and restore as complete dates, retaining their two-digit format (1950–2049 interpretation window).
+- **Street detection:** avoid matching street suffixes inside longer words.
+- **Name pseudonyms:** preserve Latin or Cyrillic script.
+- **Attached units:** detect numerical values such as `74kg` or `12,48EUR` without masking the unit.
+- **Context markers:** automatically replace single bracketed terms; offer slash-prefixed signatures at the end of a line for review.
+- **Copy action:** the result toolbar remains visible during scrolling and confirms successful copying of pseudonymized text directly beside the button.
+
 ## Install or use
 
 - **Online:** https://uli-z.github.io/Anonymat/

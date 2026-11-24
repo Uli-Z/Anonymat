@@ -330,3 +330,35 @@ test('manual text selection chooses a pseudonym before creating the mark',async(
   await expect(page.locator('.preview .replacement-mark')).toHaveCount(1);
   await expect(page.locator('.preview .placeholder-token')).toHaveCount(0);
 });
+
+test('copy stays visible while reviewing long output and confirms only successful clipboard writes', async ({page})=>{
+  await page.setViewportSize({width:390,height:740});
+  await page.evaluate(()=>{
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText:async(value:string)=>{localStorage.setItem('anonymat-test-clipboard',value);}
+    }});
+  });
+  const source='kontakt: test@example.org\n'+('befund ohne weitere auffälligkeiten.\n'.repeat(90));
+  await page.locator('.cm-content').fill(source);
+  await reveal(page);
+  const button=page.getByRole('button',{name:'Text kopieren',exact:true});
+  await page.locator('.output-panel').evaluate(panel=>{
+    window.scrollTo(0,panel.getBoundingClientRect().top+window.scrollY+panel.clientHeight/2);
+  });
+  await expect(button).toBeInViewport();
+  const bounds=await button.boundingBox();
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeLessThan(100);
+  await button.click();
+  await expect(page.getByText('Pseudonymisierter Text in die Zwischenablage kopiert.')).toBeVisible();
+  await expect(button).toContainText('Kopiert!');
+  expect(await page.evaluate(()=>localStorage.getItem('anonymat-test-clipboard'))).toBe(source.replace('test@example.org','[EMAIL_001]'));
+  await page.evaluate(()=>{
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText:async()=>{throw new Error('blocked');}
+    }});
+  });
+  await button.click();
+  await expect(page.getByText('Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.')).toBeVisible();
+  await expect(button).not.toContainText('Kopiert!');
+});

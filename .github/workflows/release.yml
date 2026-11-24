@@ -8,6 +8,11 @@ on:
       - RELEASE_NOTES.md
       - .github/workflows/release.yml
   workflow_dispatch:
+    inputs:
+      refresh_existing:
+        description: 'Explicitly replace the existing latest release and move its tag after tests'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,6 +43,7 @@ jobs:
       - name: Publish versioned single-file HTML and GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          REFRESH_EXISTING: ${{ (github.event_name == 'workflow_dispatch' && inputs.refresh_existing) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[refresh release]')) }}
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./v2/package.json').version")
@@ -45,11 +51,26 @@ jobs:
             echo "Refusing to publish a prerelease as stable: $VERSION" >&2
             exit 1
           fi
+          cp v2/dist/index.html "anonymat-$VERSION.html"
           if gh release view "v$VERSION" >/dev/null 2>&1; then
-            echo "Release v$VERSION already exists; no changes made."
+            if [[ "$REFRESH_EXISTING" != "true" ]]; then
+              echo "Release v$VERSION already exists; no changes made."
+              exit 0
+            fi
+            LATEST=$(gh release view --json tagName --jq .tagName)
+            [[ "$LATEST" == "v$VERSION" ]] || { echo "Refusing to refresh a non-latest release"; exit 1; }
+            TAG_REF="refs/tags/v$VERSION"
+            OLD_SHA=$(git ls-remote origin "$TAG_REF" | awk '{print $1}')
+            [[ -n "$OLD_SHA" ]] || { echo "Existing release tag is missing"; exit 1; }
+            git push --force-with-lease="$TAG_REF:$OLD_SHA" origin "$GITHUB_SHA:$TAG_REF"
+            gh release upload "v$VERSION" "anonymat-$VERSION.html" --clobber
+            gh release edit "v$VERSION" --notes-file RELEASE_NOTES.md --latest
             exit 0
           fi
-          cp v2/dist/index.html "anonymat-$VERSION.html"
+          if [[ "$REFRESH_EXISTING" == "true" ]]; then
+            echo "No existing release to refresh; refusing to create a new one."
+            exit 1
+          fi
           gh release create "v$VERSION" "anonymat-$VERSION.html" \
             --target "$GITHUB_SHA" \
             --title "Anonymat $VERSION" \

@@ -50,7 +50,10 @@ describe('document-wide learned terms and clear ignore semantics',()=>{
     const start=source.indexOf('[ABC]');
     const anchor:Finding={id:'manual-3',origin:'manual',kind:'OTHER',text:'[ABC]',start,end:start+5};
     const hits=scanDocument(source,[anchor]);
-    expect(hits.map(hit=>hit.text)).toEqual(['[ABC]','[ABC]']);
+    expect(hits.map(hit=>hit.text)).toEqual(['[ABC]','[ABC]','[ABCD]']);
+    // The third term is independently detected, not a learned partial match.
+    expect(hits.filter(hit=>hit.origin==='manual').map(hit=>hit.text)).toEqual(['[ABC]','[ABC]']);
+    expect(hits.find(hit=>hit.text==='[ABCD]')?.origin).toBe('automatic');
   });
   it('handles backslashes safely in manually learned terms', () => {
     const source='Ordner C:\\Users und C:\\Users.';

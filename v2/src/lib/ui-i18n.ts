@@ -67,6 +67,8 @@ const ENGLISH:Readonly<Record<string,string>>={
   "Ersetzungen anzeigen": "Show replacements",
   "Pseudonymisierter Text": "Pseudonymized text",
   "Text kopieren": "Copy text",
+  "Kopiert!": "Copied!",
+  "Pseudonymisierter Text in die Zwischenablage kopiert.": "Pseudonymized text copied to the clipboard.",
   "Pseudonymisierten Text anzeigen": "Show pseudonymized text",
   "Analyse läuft – vor der vollständigen Prüfung wird kein Text freigegeben.": "Analysis in progress – no text is released until the check is complete.",
   "Analyse nicht abgeschlossen. Bitte erneut analysieren.": "Analysis not completed. Please try again.",

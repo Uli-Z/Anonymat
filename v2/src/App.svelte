@@ -103,6 +103,12 @@
   let bulkDeselectedIds = $state<string[]>([]);
   let reply = $state('');
   let notice = $state('');
+  let maskedCopyFeedback = $state<'idle'|'success'|'error'>('idle');
+  let maskedCopyTimer: number | undefined;
+  function clearMaskedCopyFeedback():void {
+    window.clearTimeout(maskedCopyTimer);
+    maskedCopyFeedback='idle';
+  }
   let menu = $state<{ id: string; x: number; y: number } | null>(null);
   let manualCounter = 0;
   let exclusionCounter = 0;
@@ -198,6 +204,7 @@
     return ()=>{
       cancelled=true;
       window.clearTimeout(reviewPromptTimer);
+      window.clearTimeout(maskedCopyTimer);
     };
   });
   function changeReplacementDefault(value:'token'|'synthetic'):void{
@@ -336,6 +343,7 @@
       dateOptions:{dateShiftEnabled,offsetDays:dateOffset,numericOrder,defaultReplacementMode:replacementDefault,syntheticSeed}
     };
     void analysisVersion;
+    clearMaskedCopyFeedback();
     // Never reveal an earlier preview after source, rules or settings have changed.
     resultVisible=false;
     if(!source.trim()){
@@ -755,8 +763,13 @@
       partialDates:prepared.partialDates.map(item=>({...item})),
       offset:dateOffset
     };
-    await copy(prepared.text,'Pseudonymisierter Text');
-    exportSnapshot=snapshot;
+    const job=latestJob;
+    clearMaskedCopyFeedback();
+    const success=await copy(prepared.text,'Pseudonymisierter Text',false);
+    if(success)exportSnapshot=snapshot;
+    if(job!==latestJob)return;
+    maskedCopyFeedback=success?'success':'error';
+    maskedCopyTimer=window.setTimeout(clearMaskedCopyFeedback,4000);
   }
 
   async function copyDespiteSuggestions():Promise<void>{
@@ -765,8 +778,8 @@
     await copyMasked();
   }
 
-  async function copy(value: string, label: string): Promise<void> {
-    if (!value.trim()) return;
+  async function copy(value: string, label: string, showNotice=true): Promise<boolean> {
+    if (!value.trim()) return false;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(value);
@@ -782,9 +795,11 @@
         field.remove();
         if (!success) throw new Error('copy failed');
       }
-      notice = t(label) + ' ' + t('kopiert.');
+      if(showNotice)notice = t(label) + ' ' + t('kopiert.');
+      return true;
     } catch {
-      notice = t("Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.");
+      if(showNotice)notice = t("Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.");
+      return false;
     }
   }
 </script>
@@ -930,12 +945,19 @@
     </div>
 
     <section class="panel output-panel" aria-labelledby="result-title">
-      <div class="panel-heading">
+      <div class="panel-heading output-toolbar">
         <div>
           <h3 id="result-title">{t("Pseudonymisierter Text")}</h3>
+          <div class="copy-feedback" class:copy-feedback-error={maskedCopyFeedback==='error'} role="status">
+            {#if resultVisible && maskedCopyFeedback==='success'}
+              {t("Pseudonymisierter Text in die Zwischenablage kopiert.")}
+            {:else if resultVisible && maskedCopyFeedback==='error'}
+              {t("Automatisches Kopieren nicht verfügbar. Bitte Text manuell auswählen.")}
+            {/if}
+          </div>
         </div>
-        <button class="primary-button" type="button" onclick={copyMasked} disabled={!resultVisible || !source.trim() || isAnalyzing || !!analysisError}>
-          <span aria-hidden="true">⧉</span> {t("Text kopieren")}
+        <button class="primary-button output-copy-button" class:copy-success={maskedCopyFeedback==='success'} type="button" aria-label={t("Text kopieren")} onclick={copyMasked} disabled={!resultVisible || !source.trim() || isAnalyzing || !!analysisError}>
+          <span aria-hidden="true">{maskedCopyFeedback==='success'?'✓':'⧉'}</span> {maskedCopyFeedback==='success'?t("Kopiert!"):t("Text kopieren")}
         </button>
       </div>
       <div class="preview" aria-live="polite">
