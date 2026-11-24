@@ -14,6 +14,29 @@ const fold=(value:string)=>value.normalize('NFC').toLocaleLowerCase('de');
 const knownGiven=new Set([...givenNames,'Ulrich'].map(fold));
 const knownFamily=new Set(familyNames.map(fold));
 
+// Match writing systems, not languages or presumed origins. Ignore combining
+// marks, spaces and punctuation when classifying letters. Mixed/unsupported
+// scripts use the existing typed-placeholder fallback rather than a wrong script.
+type NameScript='Latin'|'Cyrillic';
+function nameScript(value:string):NameScript|null {
+  const letters=value.normalize('NFC').replace(/[^\p{L}]/gu,'');
+  if(/^\p{Script=Latin}+$/u.test(letters))return 'Latin';
+  if(/^\p{Script=Cyrillic}+$/u.test(letters))return 'Cyrillic';
+  return null;
+}
+function partitionNames(values:readonly string[]):Record<NameScript,string[]>{
+  const pools:Record<NameScript,string[]>={Latin:[],Cyrillic:[]};
+  for(const value of values){
+    const script=nameScript(value);
+    if(script)pools[script].push(value);
+  }
+  return pools;
+}
+// Partition once, not on every replacement; release lexica are much larger
+// than the checked-in development seeds.
+const namePools={given:partitionNames(givenNames),family:partitionNames(familyNames)};
+
+
 function hash(seed:number,key:string):number {
   let value=(2166136261 ^ (seed>>>0))>>>0;
   for(let i=0;i<key.length;i++){
@@ -38,8 +61,13 @@ function pick(
   seed:number,source:string,assignments:Map<string,string>
 ):string|null{
   const key=family+':'+fold(original);
-  if(assignments.has(key))return assignments.get(key)!;
-  const values=family==='given'?givenNames:family==='family'?familyNames:family==='city'?cities:streets;
+  const script=family==='given'||family==='family'?nameScript(original):null;
+  const values=family==='given'||family==='family'
+    ? (script?namePools[family][script]:[])
+    : family==='city'?cities:streets;
+  if(!values.length)return null;
+  const assigned=assignments.get(key);
+  if(assigned!==undefined && (!script||nameScript(assigned)===script))return assigned;
   const start=hash(seed,key)%values.length;
   const occupied=new Set([...assignments.values()].map(fold));
   for(let i=0;i<values.length;i++){
