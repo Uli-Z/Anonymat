@@ -17,6 +17,31 @@ describe('optional automatic numbers',()=>{
     expect(maskText(source,numbers).text).toContain('[NUMBER_002] Kilo');
   });
 
+
+  it('recognizes attached units and currency without including them in the number',()=>{
+    const source='74kg, 128cm, 12,48EUR, 0,5mg, 150mmol/L, 120mL, 18µg, 25°C, 40%, 20m², 30mg/dL, 12,5Euro';
+    const values=['74','128','12,48','0,5','150','120','18','25','40','20','30','12,5'];
+    for(const hits of [scanNumbers(source),scan(source).filter(hit=>hit.kind==='NUMBER')]){
+      expect(hits.map(hit=>hit.text)).toEqual(values);
+      for(const hit of hits)expect(source.slice(hit.start,hit.end)).toBe(hit.text);
+    }
+  });
+
+  it('does not mask identifier fragments, unknown suffixes or single digits with attached units',()=>{
+    const source='AB123kg AB-123kg 123ABC 12,48abc 128cmX 12kg2 15_kg A12,48kg 7kg 1h';
+    expect(scanNumbers(source)).toEqual([]);
+    expect(scanNumbers('12. Punkt\n  23) Zweitens\n- 34. Drittens\nLänge 128cm.').map(hit=>hit.text)).toEqual(['128']);
+  });
+
+  it('preserves attached units through masking and restoration',()=>{
+    const source='Gewicht: 74kg, Länge: 128cm, Betrag: 12,48EUR.';
+    const reviewed=reviewDocument(source,[],[],[],'auto',true,[],{NUMBER:true});
+    const masked=maskText(source,reviewed.active);
+    expect(masked.text).toBe('Gewicht: [NUMBER_001]kg, Länge: [NUMBER_002]cm, Betrag: [NUMBER_003]EUR.');
+    expect(restoreText(masked.text,masked.mapping).text).toBe(source);
+    expect(reviewDocument(source,[],[],[],'auto',true,[],{NUMBER:false}).active.filter(hit=>hit.kind==='NUMBER')).toEqual([]);
+  });
+
   it('leaves isolated digits 0–9 unchanged but detects larger and decimal values',()=>{
     const source='1 2 3 4 5 6 7 8 9 0, 1 kg, +2, −3, 10 kg, 1,5 kg, 0,5 €';
     expect(scanNumbers(source).map(hit=>hit.text)).toEqual(['10','1,5','0,5']);
