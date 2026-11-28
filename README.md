@@ -1,42 +1,44 @@
-# Anonymat 2.0.1
+# Anonymat
 
-**Pseudonymize sensitive text locally before sharing it with other tools.** Anonymat runs in the browser and helps you identify and replace personal information. You can review every replacement and restore original values locally.
+### Local, reversible text pseudonymization
 
-**[Open Anonymat 2.0](https://uli-z.github.io/Anonymat/)** · [Download the offline HTML file](https://github.com/Uli-Z/Anonymat/releases/latest) · [Release notes](RELEASE_NOTES.md)
+**Prepare sensitive text for AI-assisted translation, proofreading, summarization and rewriting — without sending the original text to an external service during pseudonymization.**
 
-## What's new in 2.0.1
+Anonymat is a local application packaged as a **single, self-contained HTML file**. It runs directly in a modern web browser on virtually any workstation, including Windows, macOS and Linux. No installation, account or server is required. Once downloaded, it also works entirely offline.
 
-- **Independent date findings:** Expressions such as `06.01.-10.01.2025` expose two individually editable date findings, without masking the separator or misidentifying the expression as a phone number. Date shifting and restoration continue to work across year boundaries.
-- **More complete detection:** Names (including contextual and inflected forms), addresses, locations, dates, amounts and measurements, contact details, and common identifiers. Uncertain matches are visibly marked as suggestions rather than silently replaced.
-- **You stay in control:** Review and correct findings in the text, add your own replacements, ignore individual occurrences, and enable or disable detection categories.
-- **Reversible pseudonymization:** Choose placeholders or, for supported names and places, locally generated pseudonyms. Shift dates while preserving intervals where possible. Restore original values from an AI-generated or edited response in the same browser session.
-- **Optional local memory:** With your consent, manually confirmed terms can be remembered in this browser profile and deleted again.
-- **Simpler workflow:** Edit the source, inspect the result, copy it, and optionally restore an external response. The interface is available in English and German, with automatic browser-language selection.
-- **Faster, self-contained processing:** Large offline dictionaries and analysis in a Web Worker. The downloadable application is a single HTML file.
+**[Open Anonymat in your browser](https://uli-z.github.io/Anonymat/)** · **[Download the offline HTML file](https://github.com/Uli-Z/Anonymat/releases/latest)**
+
+## How it works
+
+![Four-step workflow: detect, review and pseudonymize text locally; manually share it with an external AI tool; paste the response back into Anonymat and restore the original values locally.](docs/pseudonymization-flow.svg)
+
+Paste a document into Anonymat, review the detected information and inspect the pseudonymized output. Copy the reviewed text to your chosen external tool if needed. Paste the resulting response back into Anonymat to restore original values within the same browser session.
+
+The illustration uses fictional data and shows optional realistic pseudonyms and a consistent date shift.
+
+## Key features
+
+- **Automatic detection:** Names, addresses, locations, contact details, dates, identifiers, amounts and measurements.
+- **Full manual control:** Correct detections, review uncertain suggestions, add replacements, ignore individual findings and choose which categories to detect.
+- **Placeholders or realistic pseudonyms:** Replace supported names and places with synthetic alternatives, or use identifiable replacement tokens.
+- **Consistent date shifting:** Shift dates while preserving chronological relationships where possible.
+- **Reversible replacements:** Restore original values in externally edited or translated texts locally.
+- **Local and offline:** No server-side text processing or installation; optional browser-local memory for manually confirmed terms. English and German interface.
 
 ## Get started
 
-Use the [web app](https://uli-z.github.io/Anonymat/) or download **anonymat-2.0.1.html** from [GitHub Releases](https://github.com/Uli-Z/Anonymat/releases/tag/v2.0.1) and open it locally in a modern browser. Paste your text, review the highlighted findings, and inspect the pseudonymized result before copying it.
+Use the [web app](https://uli-z.github.io/Anonymat/) or download the standalone HTML file from the [latest release](https://github.com/Uli-Z/Anonymat/releases/latest) and open it directly in your browser. The downloaded file requires no internet connection, administrator privileges or additional software beyond a compatible browser.
 
-## Privacy and important limitations
+## Privacy and limitations
 
-Anonymat processes entered text in your browser; it does not send that text to a server. Complete documents and replacement mappings remain in the browser session. Optional remembered terms are stored in the local browser profile only after consent and may themselves contain personal information.
+> **Pseudonymization is not anonymization.** Automatic detection may miss personal information or produce incorrect matches, and people may remain identifiable from context. Always review the entire output before sharing it with any external service.
 
-**Pseudonymization is not anonymization.** Personal information may be missed or remain identifiable from context; replacements may be incorrect. **Review the entire output yourself before sharing it.** Using Anonymat does not automatically make a workflow compliant with data-protection law.
+Anonymat does not transmit entered text or replacement mappings to a server. Full documents and mappings remain in the browser session. Optional remembered terms are saved in your browser profile with your consent and can be deleted.
 
-## Development
+Using Anonymat does not automatically make an external processing workflow compliant with data-protection requirements. Restoration can also be incomplete if an external tool changes replacement values.
 
-The application source is in [v2/](v2/). Requirements: Node.js 22.12+.
+## Project information
 
-```sh
-cd v2
-npm install
-npm run verify
-# Standalone HTML: v2/dist/index.html
-```
+[Source and development guide](v2/README.md) · [Testing](v2/docs/TESTING.md) · [Dictionary sources and licenses](v2/docs/PERFORMANCE_AND_LEXICA.md) · [Release notes](RELEASE_NOTES.md) · [Report an issue](https://github.com/Uli-Z/Anonymat/issues)
 
-Build details, tests and dictionary sources: [V2 developer guide](v2/README.md) · [Testing](v2/docs/TESTING.md) · [Lexicon sources and licenses](v2/docs/PERFORMANCE_AND_LEXICA.md).
-
-## License
-
-[GNU General Public License v3.0](LICENSE).
+Licensed under the [GNU General Public License v3.0](LICENSE).
