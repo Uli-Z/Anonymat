@@ -57,6 +57,7 @@ test('yearless day/month shifts automatically and restores without a reference-y
   await expect(page.locator('.preview')).toContainText('11. Dezember');
   await expect(page.locator('.preview')).not.toContainText('[DATE');
   await page.getByRole('button',{name:'Text kopieren'}).click();
+  await page.getByRole('button',{name:'KI-Antwort einfügen'}).click();
   await page.getByRole('textbox',{name:'KI-Antwort mit Platzhaltern'}).fill('Le rendez-vous est le 11 décembre.');
   await expect(page.locator('.restore-preview')).toContainText('11 novembre');
 });
