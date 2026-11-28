@@ -24,7 +24,10 @@ const cases: Array<[string,string[]]> = [
   ['Herrn Qazmirek',['Qazmirek']],
   ['OA\tSchmidt',['Schmidt']],
   ['Herr Müller\nKontrolle unauffällig.',['Müller']],
-  ['Patientin heißt Anna   Müller.',['Anna   Müller']]
+  ['Patientin heißt Anna   Müller.',['Anna   Müller']],
+  ['Frau Koch. Der Koch sagte etwas.',['Koch']],
+  ['Müller hat angerufen.',['Müller']],
+  ['Herr Morgen.',['Morgen']]
 ];
 
 describe('contextual names: synthetic positive and negative regressions',()=>{
