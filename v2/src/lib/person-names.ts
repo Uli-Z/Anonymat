@@ -35,11 +35,11 @@ const frequentLast = new Set(trustedFamily.map(fold));
 const nonPersonWords = new Set(('krankenhaus klinik klinikum arztpraxis praxis patient patientin '+
 'patienten station notaufnahme intensivstation op operation behandlung therapie '+
 'untersuchung befund diagnose medikament labor bericht brief adresse iban bic swift plz '+
-'straße straßenname haus nummer zimmer pflege krankenpflege rettungsdienst aufnahme entlassung übergabe rücksprache rückruf kontrolle visite sprechstunde anamnese allergie allergien verlauf empfehlung empfehlungen notfall befunde ergebnisse mitarbeiter team kontakt information termin termine dokument dokumentation heute gestern morgen guten gute sehr geehrte geehrter vielen dank bitte hallo herr herrn herren frau fräulein familie dr prof oa oä pd med pat name vorname nachname').split(/\s+/u));
+'straße straßenname haus nummer zimmer pflege krankenpflege rettungsdienst aufnahme entlassung übergabe rücksprache rückruf kontrolle visite sprechstunde anamnese allergie allergien verlauf empfehlung empfehlungen notfall befunde ergebnisse mitarbeiter team kontakt information termin termine dokument dokumentation heute gestern guten gute sehr geehrte geehrter vielen dank bitte hallo herr herrn herren frau fräulein familie dr prof oa oä pd med pat name vorname nachname der die das den dem des ein eine einen einem einer eines im ins am beim zum zur mit von für bei an zu durch gegen über und oder ich du er sie es wir ihr mein meine unser unsere seine ihre bett ärztin arzt ärzte rückmeldung').split(/\s+/u));
 
 // These spellings can genuinely be surnames, but also occur as ordinary
 // nouns/adjectives. An explicit title wins; dictionary evidence alone does not.
-const ambiguousNames = new Set(('bauer berger bergmann braun fischer fuchs kaiser keller klein koch könig lange schwarz weiß weiss wolf richter schuster schreiber wagner winter sommer rosa mai stern stein buch engel vogel müller').split(/\s+/u));
+const ambiguousNames = new Set(('bauer berger bergmann braun fischer fuchs kaiser keller klein koch könig lange schwarz weiß weiss wolf richter schuster schreiber wagner winter sommer rosa mai stern stein buch engel vogel müller morgen').split(/\s+/u));
 const strongPersonalVerb = /^\s+(?:sagte|berichtete|erzählte|erklärte|fragte|antwortete|schrieb|bestätigte|rief|unterschrieb|sprach|meldete)\b/iu;
 const blockedName = (value:string):boolean => nonPersonWords.has(fold(value));
 const horizontal = String.raw`[\t \u00a0\u202f]`;
@@ -119,7 +119,7 @@ export function scanPersonNames(text:string):NameHit[]{
     const internationalInitial=second && [...first+second].some(c=>/\p{Lu}/u.test(c) && !/[A-ZÄÖÜ]/u.test(c));
     const compoundGiven=first.includes('-') && second && surnames.has(fold(second));
     const secondIsName=second && !blockedName(second) && (
-      firstNames.has(fold(first))||compoundGiven||internationalInitial
+      (firstNames.has(fold(first)) && (!surnames.has(fold(first))||frequentFirst.has(fold(first))))||compoundGiven||internationalInitial
       ||(!surnames.has(fold(first)) && surnames.has(fold(second)))
       || /^(?:von|van|de|zu|del|da|di)\s/u.test(second));
     const name=secondIsName?first+space+second:first;
@@ -177,7 +177,7 @@ export function scanPersonNames(text:string):NameHit[]{
     const before=text.slice(Math.max(0,match.start-70),match.start);
     const after=text.slice(match.end,match.end+70);
     if(ambiguousNames.has(fold(match.text)) && !explicitPersonBefore.test(before)
-      && !strongPersonalVerb.test(after) && (!/^\p{Lu}/u.test(match.text)||articleBefore.test(before)))continue;
+      && (articleBefore.test(before)||(!/^\p{Lu}/u.test(match.text)&&!strongPersonalVerb.test(after))))continue;
     hits.push({start:match.start,text:match.text,kind:'PERSON',confidence:'certain'});
   }
 
@@ -202,7 +202,7 @@ export function scanPersonNames(text:string):NameHit[]{
     const personCue=explicitPersonBefore.test(before);
     const verbCue=personalVerbAfter.test(after);
     const prepositionCue=personalBefore.test(before);
-    if(ambiguousNames.has(key) && !personCue && !strongPersonalVerb.test(after))continue;
+    if(ambiguousNames.has(key) && key!=='müller' && !personCue && !strongPersonalVerb.test(after))continue;
     const frequentGiven=first && frequentFirst.has(key);
     const frequentSurname=last && frequentLast.has(key);
     // "Peter berichtete", "mit Ulrich", "Müller antwortete":
