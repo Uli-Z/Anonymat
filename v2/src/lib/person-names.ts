@@ -35,20 +35,32 @@ const frequentLast = new Set(trustedFamily.map(fold));
 const nonPersonWords = new Set(('krankenhaus klinik klinikum arztpraxis praxis patient patientin '+
 'patienten station notaufnahme intensivstation op operation behandlung therapie '+
 'untersuchung befund diagnose medikament labor bericht brief adresse iban bic swift plz '+
-'straße straßenname haus nummer zimmer pflege krankenpflege rettungsdienst').split(/\s+/u));
+'straße straßenname haus nummer zimmer pflege krankenpflege rettungsdienst aufnahme entlassung übergabe rücksprache rückruf kontrolle visite sprechstunde anamnese allergie allergien verlauf empfehlung empfehlungen notfall befunde ergebnisse mitarbeiter team kontakt information termin termine dokument dokumentation heute gestern morgen guten gute sehr geehrte geehrter vielen dank bitte hallo herr herrn herren frau fräulein familie dr prof oa oä pd med pat name vorname nachname').split(/\s+/u));
+
+// These spellings can genuinely be surnames, but also occur as ordinary
+// nouns/adjectives. An explicit title wins; dictionary evidence alone does not.
+const ambiguousNames = new Set(('bauer berger bergmann braun fischer fuchs kaiser keller klein koch könig lange schwarz weiß weiss wolf richter schuster schreiber wagner winter sommer rosa mai stern stein buch engel vogel müller').split(/\s+/u));
+const strongPersonalVerb = /^\s+(?:sagte|berichtete|erzählte|erklärte|fragte|antwortete|schrieb|bestätigte|rief|unterschrieb|sprach|meldete)\b/iu;
+const blockedName = (value:string):boolean => nonPersonWords.has(fold(value));
+const horizontal = String.raw`[\t \u00a0\u202f]`;
+const nameWord = String.raw`\p{Lu}[\p{L}\p{M}'’-]+`;
+const namePart = String.raw`(?:(?:von|van|de|zu|del|da|di)(?:${horizontal}+(?:der|den|dem|la|le))?${horizontal}+)?${nameWord}`;
 
 export const bundledGivenNameCount=givenNames.length;
 export const bundledFamilyNameCount=familyNames.length;
 
-const salutation = /\b(?:Herr(?:n|en)?|Frau|Hr\.?|Fr\.?|Fräulein|Familie|Patient(?:in|en)?|Dr\.|Prof\.|OA\.?|OÄ\.?)\s+(?:(?:Dr\.\s*(?:med\.\s*)?|Prof\.\s*|PD\s+Dr\.\s*)*)(?:([\p{Lu}][\p{L}\p{M}'’-]+|(?:von|van|de|zu)\s+[\p{Lu}][\p{L}\p{M}'’-]+)(?:\s+([\p{Lu}][\p{L}\p{M}'’-]+))?)/gu;
-// Typical dictation typo: "HerrnMüller" / "FrauSchmidt".
-const gluedSalutation = /(?<![\p{L}\p{M}])(?:Herrn|Herr|Frau|Fr\.|Hr\.|Dr\.|Prof\.|OA\.?|OÄ\.?)(?=([A-ZÄÖÜ][\p{L}\p{M}'’-]{2,}))/gu;
-const labeledName = /\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)\s*[:=]\s*([A-ZÄÖÜ][\p{L}\p{M}'’-]+)(?:\s+([A-ZÄÖÜ][\p{L}\p{M}'’-]+))?/gu;
-const twoNames = /(?<![\p{L}\p{M}])([\p{Lu}][\p{L}\p{M}'’-]+)\s+([\p{Lu}][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
+// One title grammar handles ordinary, abbreviated, chained and glued forms.
+const title = String.raw`(?:Herr(?:n|en)?|Frau|Fräulein|Familie|Patient(?:in|en)?|Pat\.|Hr\.?|Fr\.?|Dr\.|Prof\.|PD|OA\.?|OÄ\.?)`;
+const separator = String.raw`(?:${horizontal}*:${horizontal}*|${horizontal}+|(?=\p{Lu}))`;
+const academicTitle = String.raw`(?:Dr\.|Prof\.|PD|med\.|dent\.|OA\.?|OÄ\.?)`;
+const salutation = new RegExp(String.raw`(?<![\p{L}\p{M}\p{N}_])(${title}${separator}(?:${academicTitle}${horizontal}*)*)(${namePart})(?:(${horizontal}+)(${namePart}))?`, 'gu');
+const labeledName = new RegExp(String.raw`\b(Name|Kontaktperson|Ansprechpartner(?:in)?|Unterschrift von|Patientenname|Vorname|Nachname|Familienname)${horizontal}*[:=]${horizontal}*(${nameWord})(?:(${horizontal}+)(${namePart}))?`, 'gu');
+// Lookahead permits overlapping pairs: "Heute Anna Müller" must still scan Anna Müller.
+const twoNames = new RegExp(String.raw`(?<![\p{L}\p{M}])(?=(${nameWord})(${horizontal}+)(${namePart})(?![\p{L}\p{M}]))`, 'gu');
 const wordPattern = /[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*/gu;
 // Strong semantic cues permit novel international spellings without relying on
 // a surname dictionary or prompting on every capitalized ordinary word.
-const explicitlyNamed = /\b(?:Patient(?:in|en)?|Betroffene|Kind|Anrufer(?:in)?)\s+(?:heißt|heisst|namens)\s+([\p{Lu}][\p{L}\p{M}'’-]+)\s+([\p{Lu}][\p{L}\p{M}'’-]+)(?![\p{L}\p{M}])/gu;
+const explicitlyNamed = new RegExp(String.raw`\b(?:Patient(?:in|en)?|Betroffene|Kind|Anrufer(?:in)?)${horizontal}+(?:heißt|heisst|namens)${horizontal}+(${nameWord})(?:(${horizontal}+)(${namePart}))?(?![\p{L}\p{M}])`, 'gu');
 const lowercaseConversation = /\b(?:mit|von|für|bei)\s+([\p{Ll}][\p{Ll}\p{M}'’-]{2,})\s+(?:gesprochen|telefoniert|geschrieben|gechattet|verabredet)\b/giu;
 const articleBefore = /\b(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|eines|im|ins|am|beim|zum|zur)\s+$/iu;
 const personalBefore = /\b(?:mit|von|für|bei|an|zu|durch|gegen|über|mein|meine|unser|unsere|seine|ihre)\s+$/iu;
@@ -102,17 +114,23 @@ export function scanPersonNames(text:string):NameHit[]{
     for(const form of variants(value))if(form.length>2)learned.add(form);
   };
   for(const match of text.matchAll(salutation)){
-    const first=match[1],second=match[2];
-    if(match.index===undefined || !first)continue;
+    const [,prefix,first,space,second]=match;
+    if(blockedName(first))continue;
     const internationalInitial=second && [...first+second].some(c=>/\p{Lu}/u.test(c) && !/[A-ZÄÖÜ]/u.test(c));
     const compoundGiven=first.includes('-') && second && surnames.has(fold(second));
-    const name=second && (firstNames.has(fold(first))||compoundGiven||internationalInitial)?first+' '+second:first;
-    add(name,match.index+match[0].lastIndexOf(name));
+    const secondIsName=second && !blockedName(second) && (
+      firstNames.has(fold(first))||compoundGiven||internationalInitial
+      ||(!surnames.has(fold(first)) && surnames.has(fold(second)))
+      || /^(?:von|van|de|zu|del|da|di)\s/u.test(second));
+    const name=secondIsName?first+space+second:first;
+    add(name,match.index+prefix.length);
   }
   for(const match of text.matchAll(explicitlyNamed)){
-    if(match.index===undefined)continue;
-    const name=match[1]+' '+match[2];
-    add(name,match.index+match[0].lastIndexOf(name));
+    const [,first,space,second]=match;
+    if(blockedName(first))continue;
+    const name=second&&!blockedName(second)?first+space+second:first;
+    const offset=match[0].length-first.length-(second?space.length+second.length:0);
+    add(name,match.index+offset);
   }
   // Only strong conversational grammar supports automatic masking of lowercase
   // given names; a lowercase token alone remains unclassified.
@@ -120,37 +138,48 @@ export function scanPersonNames(text:string):NameHit[]{
     if(match.index===undefined || !frequentFirst.has(fold(match[1])))continue;
     add(match[1],match.index+match[0].indexOf(match[1]),'FIRST_NAME');
   }
-  for(const match of text.matchAll(gluedSalutation)){
-    if(match.index===undefined || !match[1])continue;
-    if(surnames.has(fold(match[1])) || firstNames.has(fold(match[1])))
-      add(match[1],match.index+match[0].length);
-  }
   for(const match of text.matchAll(labeledName)){
-    const first=match[2],second=match[3];
-    if(match.index===undefined || !first)continue;
-    const label=fold(match[1]);
+    const [,rawLabel,first,space,second]=match;
+    const label=fold(rawLabel);
     const single=label==='vorname'||label==='nachname'||label==='familienname';
     const honorific=/^(?:Herrn?|Frau|Hr|Fr)$/iu.test(first);
-    const name=honorific && second && !single ? second : first+(!single&&second?' '+second:'');
-    add(name,match.index+match[0].lastIndexOf(name),
-      label==='vorname'?'FIRST_NAME':label==='nachname'||label==='familienname'?'LAST_NAME':'PERSON');
-  }
-  for(const match of text.matchAll(twoNames)){
-    if(match.index===undefined)continue;
-    // A global dictionary can contain technical acronyms as apparent names.
-    // Never let e.g. "IBAN DE..." become a learned person's name.
-    if(nonPersonWords.has(fold(match[1])) || nonPersonWords.has(fold(match[2])))continue;
-    if(firstNames.has(fold(match[1])) && surnames.has(fold(match[2])))
-      add(match[0],match.index);
-    else if(surnames.has(fold(match[2])) && looksLikeGivenNameTypo(match[1])){
-      const before=text.slice(Math.max(0,match.index-70),match.index);
-      const after=text.slice(match.index+match[0].length,match.index+match[0].length+70);
-      if(explicitPersonBefore.test(before) || personalVerbAfter.test(after) || /^\s+meldete\b/iu.test(after))
-        add(match[0],match.index);
+    const offset=match[0].length-first.length-(second?space.length+second.length:0);
+    if(honorific && second && !single && !blockedName(second)){
+      add(second,match.index+offset+first.length+space.length);
+    }else if(!blockedName(first)){
+      const name=first+(!single&&second&&!blockedName(second)?space+second:'');
+      add(name,match.index+offset,
+        label==='vorname'?'FIRST_NAME':label==='nachname'||label==='familienname'?'LAST_NAME':'PERSON');
     }
   }
-  for(const match of findTerms(text,[...learned]))
+  for(const match of text.matchAll(twoNames)){
+    const [,first,space,second]=match;
+    if(blockedName(first)||blockedName(second))continue;
+    const name=first+space+second;
+    const before=text.slice(Math.max(0,match.index-70),match.index);
+    const after=text.slice(match.index+name.length,match.index+name.length+70);
+    const contextual=explicitPersonBefore.test(before)||strongPersonalVerb.test(after);
+    if(firstNames.has(fold(first)) && surnames.has(fold(second))){
+      // Two common dictionary words are not sufficient evidence of a person.
+      if(contextual||frequentFirst.has(fold(first))||frequentLast.has(fold(second))){
+        if(!contextual && ambiguousNames.has(fold(first)) && ambiguousNames.has(fold(second)))continue;
+        add(name,match.index);
+      }else if(!articleBefore.test(before) && !ambiguousNames.has(fold(first)) && !ambiguousNames.has(fold(second))){
+        hits.push({start:match.index,text:name,kind:'PERSON',confidence:'review'});
+      }
+    }else if(surnames.has(fold(second)) && looksLikeGivenNameTypo(first)){
+      if(contextual || personalVerbAfter.test(after))
+        add(name,match.index);
+    }
+  }
+  for(const match of findTerms(text,[...learned])){
+    if(blockedName(match.text))continue;
+    const before=text.slice(Math.max(0,match.start-70),match.start);
+    const after=text.slice(match.end,match.end+70);
+    if(ambiguousNames.has(fold(match.text)) && !explicitPersonBefore.test(before)
+      && !strongPersonalVerb.test(after) && (!/^\p{Lu}/u.test(match.text)||articleBefore.test(before)))continue;
     hits.push({start:match.start,text:match.text,kind:'PERSON',confidence:'certain'});
+  }
 
   // Skip tokens already covered by a stronger contextual or learned match.
   const covered=hits.map(hit=>({start:hit.start,end:hit.start+hit.text.length}))
@@ -173,6 +202,7 @@ export function scanPersonNames(text:string):NameHit[]{
     const personCue=explicitPersonBefore.test(before);
     const verbCue=personalVerbAfter.test(after);
     const prepositionCue=personalBefore.test(before);
+    if(ambiguousNames.has(key) && !personCue && !strongPersonalVerb.test(after))continue;
     const frequentGiven=first && frequentFirst.has(key);
     const frequentSurname=last && frequentLast.has(key);
     // "Peter berichtete", "mit Ulrich", "Müller antwortete":
