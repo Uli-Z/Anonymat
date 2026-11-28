@@ -19,7 +19,7 @@ test('analysis can be aborted and restarted without releasing stale output',asyn
   // across slow and fast CI browsers, without a huge CodeMirror paste.
   await page.getByRole('button',{name:'Abbrechen'}).click({timeout:10000});
   await expect(page.getByText(/Analyse abgebrochen/)).toBeVisible();
-  await expect(page.getByRole('button',{name:'Text kopieren'})).toBeDisabled();
+  await expect(page.locator('.output-copy-button')).toBeDisabled();
   await page.getByRole('button',{name:'Erneut analysieren'}).click();
   await page.getByRole('button',{name:/Ergebnis prüfen/}).click({timeout:25000});
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
@@ -36,8 +36,9 @@ test('quick edits never expose an earlier pseudonymization preview',async({page}
   await input.fill('Frau Anna Müller wohnt in Bremen.');
   await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
+  await page.getByRole('button',{name:'Originaltext bearbeiten'}).click();
   await input.fill('Frau Carla Becker wohnt in Berlin.');
-  await expect(page.getByRole('button',{name:'Text kopieren'})).toBeDisabled();
+  await expect(page.locator('.output-copy-button')).toBeDisabled();
   await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
   await expect(page.locator('.preview')).not.toContainText('Müller');

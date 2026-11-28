@@ -6,9 +6,10 @@ Anonymat pseudonymizes text entirely in the browser. Automatic detections can be
 
 ## Build and test
 
-Requires Node.js 22.12+.
+Requires Node.js 22.12+ and npm 11.6+ (npm 11.21.3 in CI). Node 22 bundles npm 10, which can crash while resolving Vite peer dependencies; upgrade npm before installing.
 
 ```sh
+npm install --global npm@11.21.3
 cd v2
 npm install
 npm run dev       # local development

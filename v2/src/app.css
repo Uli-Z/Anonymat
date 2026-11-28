@@ -475,3 +475,62 @@ h1{font-size:clamp(23px,2.5vw,32px);letter-spacing:-1px;line-height:1.18;margin:
 .copy-feedback:not(:empty){margin-top:5px}
 .copy-feedback-error{color:#9a3e24}
 @media(max-width:680px){.output-copy-button{min-height:44px}.output-toolbar{gap:8px}.copy-feedback{font-size:11px}}
+
+/* Viewport-bound workflow. Only text panes (and unusually long notices) scroll;
+   changing the active stage is an explicit action, never a wheel gesture. */
+html,body,#app{height:100%;overflow:hidden;overscroll-behavior:none}
+.app-shell{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.app-shell>.topbar{flex:none;height:60px;padding-block:0}
+.main-content{width:100%;flex:1;min-height:0;display:flex;flex-direction:column;margin:0 auto;padding-block:12px 8px;position:relative}
+.page-heading{flex:none;margin-bottom:12px;gap:12px}
+.page-heading h1{margin:0;font-size:clamp(19px,2.4vw,27px)}
+.workflow-viewport{flex:1;min-height:0;overflow:clip;position:relative}
+.workflow-track{height:100%;display:flex;flex-direction:column;transition:transform .28s ease}
+.workflow-stage{flex:0 0 100%;min-height:0;min-width:0;display:flex;flex-direction:column;gap:8px;overflow:clip}
+.workflow-stage .step-heading{flex:none;margin:0}
+.workflow-stage h2:focus{outline:none}
+.workflow-stage .editing-workspace{display:flex;flex:1;min-height:0}
+.workflow-stage .editor-panel,.workflow-stage .output-panel,.workflow-stage .restore-grid>.panel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.workflow-stage .panel-heading,.workflow-stage .editor-actions{flex:none}
+.workflow-stage .editor-actions{padding:10px 14px}
+.workflow-stage .editing-workspace .marked-editor{flex:1;height:0;min-height:0;max-height:none;overflow:hidden}
+.workflow-stage .editing-workspace .marked-editor .cm-editor{height:100%;min-height:0}
+.workflow-stage .editing-workspace .marked-editor .cm-scroller{height:100%;overflow:auto;overscroll-behavior:contain}
+.workflow-stage .editing-workspace .marked-editor .cm-content{min-height:100%}
+.workflow-stage .output-panel{flex:1;margin:0}
+.workflow-stage .output-toolbar{position:static;box-shadow:none}
+.workflow-stage .preview,.workflow-stage .restore-preview,.workflow-stage .reply-editor{flex:1;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain;resize:none}
+.workflow-stage .reply-editor{height:0}
+.workflow-stage .restore-grid{flex:1;min-height:0;grid-template-rows:minmax(0,1fr)}
+.workflow-stage .result-notices{flex:none;max-height:30%;overflow:auto;overscroll-behavior:contain}
+.workflow-stage .restore-grid .inline-warning{flex:none;max-height:24%;overflow:auto;overscroll-behavior:contain}
+.workflow-stage .proposal-review-banner{margin:8px 12px;padding:9px 12px}
+.workflow-stage .inline-warning{padding:8px 12px}
+.workflow-restore-actions{border:1px solid #e8eef1;border-radius:9px}
+.app-shell>.site-footer{width:100%;flex:none;margin:0 auto;padding-block:0 7px}
+.analysis-banner{top:68px;bottom:auto}
+.workflow-toast{position:fixed;z-index:50;bottom:65px;right:16px;max-width:calc(100vw - 32px);margin:0;pointer-events:none;box-shadow:0 3px 18px rgba(31,53,73,.12)}
+@media(max-width:680px){
+  .app-shell>.topbar{height:54px}
+  .main-content{padding:8px 10px 5px}
+  .page-heading{margin-bottom:8px}
+  .workflow-stage{gap:6px}
+  .workflow-stage .panel-heading{padding:9px 12px}
+  .workflow-stage .editor-actions{padding:8px;gap:6px}
+  .workflow-stage .editor-actions button{white-space:normal}
+  .workflow-stage .restore-grid{grid-template-rows:repeat(2,minmax(0,1fr));gap:6px}
+  .workflow-stage .preview,.workflow-stage .restore-preview,.workflow-stage .reply-editor{padding:12px}
+  .app-shell>.site-footer{display:none}
+  .analysis-banner{top:60px}
+}
+@media(max-height:540px){
+  .app-shell>.topbar{height:44px}
+  .page-heading h1{font-size:17px}
+  .main-content{padding-block:4px}
+  .page-heading{margin-bottom:4px}
+  .workflow-stage .panel-heading{padding-block:6px}
+  .workflow-stage .editor-actions{padding-block:5px}
+  .app-shell>.site-footer{display:none}
+  .analysis-banner{top:48px}
+}
+@media(prefers-reduced-motion:reduce){.workflow-track{transition:none}}

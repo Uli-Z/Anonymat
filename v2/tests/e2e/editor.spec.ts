@@ -17,7 +17,12 @@ async function reveal(page:import('@playwright/test').Page):Promise<void>{
   await page.getByRole('button',{name:/Ergebnis prüfen/}).click();
   await expect(page.getByRole('button',{name:'Text kopieren'})).toBeEnabled();
 }
+async function backToSource(page:import('@playwright/test').Page):Promise<void>{
+  await page.getByRole('button',{name:'Originaltext bearbeiten'}).click();
+}
 async function openReplacements(page:import('@playwright/test').Page):Promise<void>{
+  const back=page.getByRole('button',{name:'Originaltext bearbeiten'});
+  if(await back.isVisible())await backToSource(page);
   await page.getByRole('button',{name:/Ersetzungen anzeigen/}).click();
   await expect(page.getByRole('dialog',{name:'Erkannte Angaben'})).toBeVisible();
 }
@@ -32,6 +37,7 @@ test('automatic highlights open an inline context menu and can be ignored', asyn
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
 
+  await backToSource(page);
   await page.locator('.cm-anonymat-auto').first().click();
   await expect(page.getByRole('dialog', { name: 'Markierung bearbeiten' })).toBeVisible();
   await page.getByRole('button', { name: /Nur diese Stelle nicht ersetzen/ }).click();
@@ -57,6 +63,7 @@ test('manual highlights persist after editing elsewhere and can be removed', asy
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(1);
 
+  await backToSource(page);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.type('Neuer Satz. ');
@@ -80,6 +87,7 @@ test('a name learned from a salutation is masked at every later occurrence', asy
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
   await expect(page.locator('.findings-list .count-inline')).toContainText('2');
 
+  await backToSource(page);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type(' Müller!');
@@ -99,6 +107,7 @@ test('ignoring one occurrence never creates a phantom entry, but global ignore h
   await reveal(page);
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
 
+  await backToSource(page);
   await page.locator('.cm-anonymat-auto').first().click();
   await page.getByRole('button', { name: /Begriff im ganzen Text nicht ersetzen/ }).click();
   await expect(page.locator('.cm-anonymat-hit')).toHaveCount(0);
@@ -130,6 +139,7 @@ test('selecting an unknown word learns repeated words throughout the document', 
   await expect(page.locator('.placeholder-token')).toHaveCount(2);
   await expect(page.locator('.findings-list .finding-row')).toHaveCount(1);
 
+  await backToSource(page);
   await editor.click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type(' FREIGABE');
@@ -159,6 +169,7 @@ test('editing a replacement token keeps restoration working after French AI text
   await closeReplacements(page);
   await reveal(page);
   await expect(page.locator('.preview')).toContainText('Frau [PATIENT_A] antwortete.');
+  await page.getByRole('button',{name:'KI-Antwort einfügen'}).click();
   await page.getByRole('textbox', {name:'KI-Antwort mit Platzhaltern'})
     .fill('Madame [PATIENT_A] a répondu.');
   await expect(page.locator('.restore-preview')).toContainText('Madame Müller a répondu.');
@@ -273,9 +284,11 @@ test('abbreviated interval has two separately editable date highlights and round
   await reveal(page);
   await expect(page.locator('.preview')).toContainText('05.02.-09.02.2025');
   await expect(page.locator('.preview .shifted-date-mark')).toHaveCount(2);
+  await page.getByRole('button',{name:'KI-Antwort einfügen'}).click();
   await page.getByRole('textbox',{name:'KI-Antwort mit Platzhaltern'}).fill('05.02.-09.02.2025');
   await expect(page.locator('.restore-preview')).toContainText('06.01.-10.01.2025');
 
+  await backToSource(page);
   await page.locator('.cm-anonymat-active').first().click();
   await expect(page.getByRole('dialog',{name:'Markierung bearbeiten'})).toBeVisible();
   await page.locator('#hit-replacement-mode').selectOption('token');
@@ -342,13 +355,11 @@ test('copy stays visible while reviewing long output and confirms only successfu
   await page.locator('.cm-content').fill(source);
   await reveal(page);
   const button=page.getByRole('button',{name:'Text kopieren',exact:true});
-  await page.locator('.output-panel').evaluate(panel=>{
-    window.scrollTo(0,panel.getBoundingClientRect().top+window.scrollY+panel.clientHeight/2);
-  });
+  await page.locator('.preview').evaluate(pane=>{pane.scrollTop=pane.scrollHeight;});
   await expect(button).toBeInViewport();
   const bounds=await button.boundingBox();
   expect(bounds!.y).toBeGreaterThanOrEqual(0);
-  expect(bounds!.y).toBeLessThan(100);
+  expect(bounds!.y+bounds!.height).toBeLessThan(740);
   await button.click();
   await expect(page.getByText('Pseudonymisierter Text in die Zwischenablage kopiert.')).toBeVisible();
   await expect(button).toContainText('Kopiert!');

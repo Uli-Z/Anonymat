@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ChangeDesc } from '@codemirror/state';
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { browserLanguages, loadLanguagePreference, resolveLanguage, saveLanguagePreference, translate, translateDiagnostic, type LanguagePreference } from './lib/ui-i18n';
   import MarkedEditor from './components/MarkedEditor.svelte';
   import { KIND_LABELS, sameTerm, overlaps as spansOverlap, type Finding, type Kind, type DetectionSettings } from './lib/detect-types';
@@ -77,6 +77,16 @@
   let markedEditor: MarkedEditor | undefined;
   let findingsDialog: HTMLDialogElement | undefined;
   let resultVisible = $state(false);
+  let workflowStep = $state<1|2|3>(1);
+  async function goToStep(step:1|2|3):Promise<void>{
+    if(step!==1 && !resultVisible)return;
+    menu=null;
+    quickAction=null;
+    workflowStep=step;
+    await tick();
+    // Focus the new heading without causing browser/document scrolling.
+    document.getElementById('workflow-heading-'+step)?.focus({preventScroll:true});
+  }
   // Numbers are enabled by default in the UI; settings persist across texts.
   let enabledKinds = $state<DetectionSettings>({NUMBER:true});
   let analysisVersion = $state(0);
@@ -384,7 +394,7 @@
   function openResult():void{
     if(isAnalyzing || analysisError || !source.trim())return;
     resultVisible=true;
-    window.requestAnimationFrame(()=>document.getElementById('result-title')?.scrollIntoView({behavior:'smooth',block:'start'}));
+    void goToStep(2);
   }
 
   function cancelAnalysis():void{
@@ -437,6 +447,7 @@
     ignoredPlaces = remapFindings(ignoredPlaces, changes, next, 'exact');
     source = next;
     resultVisible = false;
+    workflowStep = 1;
     reply = '';
     menu = null;
     quickAction = null;
@@ -736,6 +747,7 @@
     replyNumericOrder = 'auto';
     exportSnapshot = null;
     resultVisible = false;
+    void goToStep(1);
     findingsDialog?.close();
     reviewDialog?.close();
     faqDialog?.close();
@@ -882,14 +894,7 @@
       <div>
         <h1>{t("Texte pseudonymisieren")}</h1>
       </div>
-      <button class="reset-button" type="button" onclick={resetAll} disabled={!source && !reply}>↺ <span>{t("Neuer Text")}</span></button>
-    </div>
-
-    <div class="step-heading">
-      <div class="step-number">1</div>
-      <div>
-        <h2>{t("Text vorbereiten")}</h2>
-      </div>
+      <button class="reset-button" type="button" onclick={resetAll} aria-label={t("Neuer Text")} disabled={!source && !reply}>↺ <span>{t("Neuer Text")}</span></button>
     </div>
 
     {#if isAnalyzing || analysisError}
@@ -910,6 +915,18 @@
         {/if}
       </section>
     {/if}
+
+    <div class="workflow-viewport">
+      <div class="workflow-track" style:transform={'translateY(-'+((workflowStep-1)*100)+'%)'}>
+      <section class="workflow-stage" data-step="1" inert={workflowStep!==1} aria-labelledby="workflow-heading-1">
+    <div class="step-heading">
+      <div class="step-number">1</div>
+      <div>
+        <h2 id="workflow-heading-1" tabindex="-1">{t("Text vorbereiten")}</h2>
+      </div>
+    </div>
+
+
 
     <div class="editing-workspace">
       <section class="panel editor-panel" aria-labelledby="source-title">
@@ -937,10 +954,12 @@
       </section>
     </div>
 
+      </section>
+      <section class="workflow-stage" data-step="2" inert={workflowStep!==2} aria-labelledby="workflow-heading-2">
     <div class="step-heading second-step">
       <div class="step-number">2</div>
       <div>
-        <h2>{t("Ergebnis prüfen")}</h2>
+        <h2 id="workflow-heading-2" tabindex="-1">{t("Ergebnis prüfen")}</h2>
       </div>
     </div>
 
@@ -984,6 +1003,7 @@
           <span class="preview-empty">{t("Hier erscheint die Vorschau mit den ersetzten Angaben.")}</span>
         {/if}
       </div>
+      <div class="result-notices">
       {#if resultVisible && pending.length}
         <div class="proposal-review-banner" role="status">
           <div class="proposal-review-copy">
@@ -999,12 +1019,18 @@
       {#if resultVisible && source.trim() && !isAnalyzing && !analysisError && prepared.mapping.length === 0 && prepared.dates.length === 0 && prepared.partialDates.length === 0}
         <div class="inline-warning">{t("Es sind keine Angaben markiert. Bitte prüfe den Originaltext, bevor du ihn weitergibst.")}</div>
       {/if}
+      </div>
+      <div class="editor-actions">
+        <button type="button" class="secondary-button" onclick={()=>goToStep(1)}>↑ {t("Originaltext bearbeiten")}</button>
+        <button type="button" class="primary-button" onclick={()=>goToStep(3)} disabled={!resultVisible || isAnalyzing || !!analysisError}>{t("KI-Antwort einfügen")} ↓</button>
+      </div>
     </section>
-
+      </section>
+      <section class="workflow-stage" data-step="3" inert={workflowStep!==3} aria-labelledby="workflow-heading-3">
     <div class="step-heading third-step">
       <div class="step-number">3</div>
       <div>
-        <h2>{t("KI-Ergebnis zurückübersetzen")}</h2>
+        <h2 id="workflow-heading-3" tabindex="-1">{t("KI-Ergebnis zurückübersetzen")}</h2>
       </div>
     </div>
 
@@ -1036,7 +1062,14 @@
       </section>
     </div>
 
-    {#if notice}<div class="toast" role="status">{t(notice)}</div>{/if}
+    <div class="editor-actions workflow-restore-actions">
+      <button type="button" class="secondary-button" onclick={()=>goToStep(2)}>↑ {t("Zurück zum Ergebnis")}</button>
+      <button type="button" class="secondary-button" onclick={()=>goToStep(1)}>{t("Originaltext bearbeiten")}</button>
+    </div>
+      </section>
+      </div>
+    </div>
+    {#if notice}<div class="toast workflow-toast" role="status">{t(notice)}</div>{/if}
   </main>
 
   <footer class="site-footer"><span>Anonymat 2.0 Alpha · Open Source</span><span>{t("Automatische Erkennung ist nicht vollständig – vor Weitergabe prüfen.")}</span></footer>
