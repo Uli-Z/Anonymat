@@ -23,6 +23,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Use npm 11 (fix npm 10 peer-resolution crash)
+        run: npm install --global npm@11.21.3 --no-audit --no-fund
+      - name: Verify npm version
+        run: npm --version
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Type and Svelte checks

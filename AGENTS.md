@@ -8,9 +8,10 @@
 - Historical releases remain accessible through Git tags and GitHub Releases; do not reintroduce old application sources or committed release bundles.
 
 ## Local development
-Requires Node.js 22.12+.
+Requires Node.js 22.12+ and npm 11.6+ (npm 11.21.3 in CI). Node 22 bundles npm 10, which can crash while resolving Vite peer dependencies; upgrade npm before installing.
 
 ```sh
+npm install --global npm@11.21.3
 cd v2
 npm install --no-audit --no-fund
 npm run dev           # development server

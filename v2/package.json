@@ -31,6 +31,8 @@
     "@types/node": "^22.15.0"
   },
   "engines": {
-    "node": ">=22.12.0"
-  }
+    "node": ">=22.12.0",
+    "npm": ">=11.6.0"
+  },
+  "packageManager": "npm@11.21.3"
 }
